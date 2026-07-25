@@ -7,43 +7,161 @@
     <style>
       :root {
         color-scheme: dark;
+        --bg: #0a0618;
+        --panel: #14102a;
+        --border: #2c2350;
+        --accent: #8b5cf6;
+        --accent2: #22d3ee;
+        --text: #e8e6f0;
+        --dim: #8a86a0;
+      }
+      * {
+        box-sizing: border-box;
       }
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
-        background: radial-gradient(circle at 50% 30%, #1a1035, #0a0618 70%);
-        color: #e8e6f0;
+        display: flex;
+        flex-direction: column;
+        background: radial-gradient(circle at 50% 0%, #1a1035, var(--bg) 65%);
+        color: var(--text);
         font-family: system-ui, sans-serif;
       }
-      main {
-        text-align: center;
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.9rem 1.4rem;
+        border-bottom: 1px solid var(--border);
       }
-      h1 {
-        font-size: 3rem;
+      header h1 {
+        margin: 0;
+        font-size: 1.2rem;
         letter-spacing: 0.35em;
-        background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
       }
-      p {
-        opacity: 0.7;
-      }
       #status {
-        margin-top: 2rem;
-        font-size: 0.85rem;
+        font-size: 0.75rem;
+        color: var(--dim);
+      }
+      #status .online {
+        color: #4ade80;
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        max-width: 860px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 1rem 1.4rem;
+      }
+      #transcript {
+        flex: 1;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        padding-bottom: 1rem;
+      }
+      .msg {
+        max-width: 78%;
+        padding: 0.65rem 0.95rem;
+        border-radius: 14px;
+        line-height: 1.45;
+        font-size: 0.95rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      .msg.user {
+        align-self: flex-end;
+        background: linear-gradient(135deg, #4c1d95, #6d28d9);
+        border-bottom-right-radius: 4px;
+      }
+      .msg.aera {
+        align-self: flex-start;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 4px;
+      }
+      .meta {
+        font-size: 0.68rem;
+        color: var(--dim);
+        margin-top: 0.35rem;
+      }
+      form {
+        display: flex;
+        gap: 0.6rem;
+        padding: 0.8rem 0;
+      }
+      input {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+        font-size: 0.95rem;
+        outline: none;
+      }
+      input:focus {
+        border-color: var(--accent);
+      }
+      button {
+        padding: 0.75rem 1.4rem;
+        border-radius: 12px;
+        border: none;
+        background: linear-gradient(135deg, var(--accent), var(--accent2));
+        color: #0a0618;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button:disabled {
         opacity: 0.5;
+        cursor: wait;
+      }
+      .welcome {
+        text-align: center;
+        color: var(--dim);
+        margin: auto;
+      }
+      .welcome h2 {
+        font-size: 2.4rem;
+        letter-spacing: 0.35em;
+        margin-bottom: 0.4rem;
+        background: linear-gradient(90deg, var(--accent), var(--accent2));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
       }
     </style>
   </head>
   <body>
-    <main>
+    <header>
       <h1>AERA</h1>
-      <p>Artificial Enhanced Reasoning Assistant</p>
-      <p>AI Operating System — Dashboard coming online…</p>
       <div id="status">core: connecting…</div>
+    </header>
+    <main>
+      <div id="transcript">
+        <div class="welcome" id="welcome">
+          <h2>AERA</h2>
+          <p>Artificial Enhanced Reasoning Assistant</p>
+          <p>Ask anything — tasks are routed to specialized agents.</p>
+        </div>
+      </div>
+      <form id="chat-form">
+        <input
+          id="chat-input"
+          type="text"
+          placeholder="Message AERA…"
+          autocomplete="off"
+          autofocus
+        />
+        <button id="send" type="submit">Send</button>
+      </form>
     </main>
     <script type="module" src="/main.ts"></script>
   </body>
