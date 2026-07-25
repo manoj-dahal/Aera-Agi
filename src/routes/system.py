@@ -33,8 +33,11 @@ async def system_info(request: Request) -> dict[str, object]:
             "agents": "active",
             "model_router": "active",
             "local_ai": "online" if local_ai else "offline",
-            "voice": "planned",
+            "voice": "active",
+            "emotion_engine": "active",
+            "background_services": "active",
             "hologram": "planned",
             "automation": "planned",
+            "events": "active",
         },
     }

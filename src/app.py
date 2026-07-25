@@ -23,7 +23,9 @@ async def lifespan(app: FastAPI):
     app.state.memory = system.memory
     app.state.router = system.router
     app.state.agents = system.agents
+    await system.start_services()
     yield
+    await system.stop_services()
     system.shutdown()
 
 
