@@ -1,0 +1,22 @@
+# Agent roster (docs/07-AGENTS.md, docs/config/Agents.md)
+agents:
+  core: true
+  memory: true
+  coding: true
+  reasoning: true
+  planning: true
+  research: true
+  writing: true
+  translation: true
+  workspace: true
+  git: true
+  security: true
+  automation: true
+  performance: true
+  notification: true
+  # Disabled by default: executes shell commands (see security.allow_terminal)
+  terminal: false
+  vision: false
+  voice: true
+  max_concurrent_tasks: 8
+  task_timeout_seconds: 120

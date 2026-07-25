@@ -1,0 +1,4 @@
+logging:
+  level: INFO
+  json_format: false
+  file: ./storage/logs/aera.log

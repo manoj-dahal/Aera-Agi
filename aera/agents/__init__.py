@@ -1,0 +1,94 @@
+"""AERA agent system.
+
+``build_default_registry`` wires up every agent enabled in ``config/agents.yaml``.
+"""
+
+from __future__ import annotations
+
+from ..core.config import AgentsSection
+from .base import Agent, AgentContext, AgentStatus, Capability, Task, TaskResult
+from .coding_agent import CodeReviewAgent, CodingAgent, DebugAgent
+from .core_agent import CoreAgent
+from .knowledge_agents import (
+    PlanningAgent,
+    ReasoningAgent,
+    ResearchAgent,
+    TranslationAgent,
+    WritingAgent,
+)
+from .registry import AgentRegistry
+from .system_agents import (
+    GitAgent,
+    MemoryAgent,
+    NotificationAgent,
+    PerformanceAgent,
+    SecurityAgent,
+    TerminalAgent,
+    WorkspaceAgent,
+)
+
+#: config flag -> agent classes it enables
+AGENT_CLASSES: dict[str, tuple[type[Agent], ...]] = {
+    "core": (CoreAgent,),
+    "memory": (MemoryAgent,),
+    "coding": (CodingAgent, CodeReviewAgent, DebugAgent),
+    "reasoning": (ReasoningAgent,),
+    "planning": (PlanningAgent,),
+    "research": (ResearchAgent,),
+    "writing": (WritingAgent,),
+    "translation": (TranslationAgent,),
+    "workspace": (WorkspaceAgent,),
+    "git": (GitAgent,),
+    "terminal": (TerminalAgent,),
+    "security": (SecurityAgent,),
+    "performance": (PerformanceAgent,),
+    "notification": (NotificationAgent,),
+}
+
+
+def build_default_registry(
+    context: AgentContext, config: AgentsSection | None = None
+) -> AgentRegistry:
+    """Create a registry populated with every enabled agent."""
+    cfg = config or AgentsSection()
+    registry = AgentRegistry(context, max_concurrency=cfg.max_concurrent_tasks)
+
+    enabled = cfg.enabled_agents()
+    for flag, classes in AGENT_CLASSES.items():
+        if flag in enabled:
+            for cls in classes:
+                registry.register_class(cls)
+
+    # The Core Agent is mandatory - it is the entry point for every request.
+    if "core" not in registry:
+        registry.register_class(CoreAgent)
+    return registry
+
+
+__all__ = [
+    "AGENT_CLASSES",
+    "Agent",
+    "AgentContext",
+    "AgentRegistry",
+    "AgentStatus",
+    "Capability",
+    "CodeReviewAgent",
+    "CodingAgent",
+    "CoreAgent",
+    "DebugAgent",
+    "GitAgent",
+    "MemoryAgent",
+    "NotificationAgent",
+    "PerformanceAgent",
+    "PlanningAgent",
+    "ReasoningAgent",
+    "ResearchAgent",
+    "SecurityAgent",
+    "Task",
+    "TaskResult",
+    "TerminalAgent",
+    "TranslationAgent",
+    "WorkspaceAgent",
+    "WritingAgent",
+    "build_default_registry",
+]

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# AERA runtime state (never commit user data or secrets)
+storage/
+logs/
+cache/
+temp/
+.tmp/
+*.log
+*.db
+*.sqlite3
+.secret.key
+secrets.enc
+memory-graph.json
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

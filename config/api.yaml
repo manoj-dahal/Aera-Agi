@@ -1,0 +1,11 @@
+# REST / WebSocket gateway (docs/api/REST-API.md)
+api:
+  host: 0.0.0.0
+  port: 8080
+  prefix: /api/v1
+  cors_origins: ["*"]
+  rate_limit_per_minute: 100
+  # Enable and populate api_keys before exposing AERA beyond localhost.
+  auth_enabled: false
+  api_keys: []
+  jwt_ttl_seconds: 86400

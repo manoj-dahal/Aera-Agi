@@ -1,0 +1,19 @@
+# Security (docs/21-SECURITY.md)
+security:
+  zero_trust: true
+  encrypt_secrets: true
+  audit_log: true
+  sandbox_plugins: true
+  # Terminal execution is off by default. When enabled, only the
+  # allowlisted binaries below may run.
+  allow_terminal: false
+  terminal_allowlist:
+    - ls
+    - cat
+    - pwd
+    - echo
+    - git
+    - python3
+    - node
+  secret_key_file: ./storage/.secret.key
+  max_upload_bytes: 20000000

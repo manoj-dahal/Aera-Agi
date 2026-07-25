@@ -1,0 +1,12 @@
+# Voice system (docs/08-VOICE-SYSTEM.md, docs/config/Voice.md)
+voice:
+  enabled: true
+  wake_word: AERA
+  language: en
+  emotion: true
+  hologram_sync: true
+  noise_reduction: true
+  echo_cancellation: true
+  speech_speed: 1.0
+  pitch: 1.0
+  volume: 100

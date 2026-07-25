@@ -1,0 +1,261 @@
+"""AERA kernel.
+
+Owns the documented startup sequence::
+
+    load config -> validate -> load agents -> initialise services
+    -> load memory -> start API -> ready
+
+and the reverse on shutdown. Everything the API layer needs hangs off this
+single object.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from typing import Any
+
+from ..agents import (
+    AgentContext,
+    AgentRegistry,
+    Capability,
+    Task,
+    TaskResult,
+    build_default_registry,
+)
+from ..ai.router import ModelRouter
+from ..automation.engine import AutomationEngine
+from ..hologram.avatar import HologramController
+from ..memory.engine import MemoryEngine
+from ..security.vault import AuditLog, PermissionManager, SecretVault
+from ..voice.engine import VoiceEngine
+from ..workspace.indexer import WorkspaceIndexer
+from .config import AeraConfig, get_config
+from .events import EventBus, Topics
+from .logging import get_logger, setup_logging
+
+logger = get_logger("kernel")
+
+
+class Kernel:
+    """The running AERA system."""
+
+    def __init__(self, config: AeraConfig | None = None) -> None:
+        self.config = config or get_config()
+        self.started_at: float | None = None
+        self.ready = False
+
+        self.bus = EventBus()
+        self.memory: MemoryEngine | None = None
+        self.router: ModelRouter | None = None
+        self.registry: AgentRegistry | None = None
+        self.workspace: WorkspaceIndexer | None = None
+        self.automation: AutomationEngine | None = None
+        self.voice: VoiceEngine | None = None
+        self.hologram: HologramController | None = None
+        self.vault: SecretVault | None = None
+        self.permissions = PermissionManager()
+        self.audit: AuditLog | None = None
+
+        self._background: list[asyncio.Task] = []
+
+    # ------------------------------------------------------------------ #
+    # startup
+    # ------------------------------------------------------------------ #
+    async def start(self) -> Kernel:
+        """Bring the whole platform up."""
+        cfg = self.config
+        setup_logging(
+            cfg.logging.level, json_format=cfg.logging.json_format, file=cfg.logging.file
+        )
+        cfg.ensure_dirs()
+        logger.info("starting %s v%s (%s)", cfg.system.name, cfg.system.version, cfg.system.environment)
+        await self.bus.publish(Topics.SYSTEM_STARTED, {"version": cfg.system.version})
+
+        # -- security -----------------------------------------------------
+        self.vault = SecretVault(cfg.security.secret_key_file)
+        self.audit = AuditLog(file=cfg.logs_dir / "audit.log" if cfg.security.audit_log else None)
+
+        # -- memory -------------------------------------------------------
+        self.memory = MemoryEngine(
+            cfg.memory, bus=self.bus, storage_path=cfg.storage_dir / "memory-graph.json"
+        )
+        logger.info("memory graph ready (%d nodes)", len(self.memory.graph))
+
+        # -- AI router ----------------------------------------------------
+        self.router = ModelRouter(self._models_with_secrets(), bus=self.bus)
+        logger.info("AI providers: %s", ", ".join(self.router.providers))
+
+        # -- agents -------------------------------------------------------
+        context = AgentContext(
+            memory=self.memory, router=self.router, bus=self.bus, config=cfg
+        )
+        self.registry = build_default_registry(context, cfg.agents)
+        await self.registry.start_all()
+        logger.info("agents online: %d", len(self.registry))
+
+        # -- workspace ----------------------------------------------------
+        self.workspace = WorkspaceIndexer(cfg.workspace, memory=self.memory, bus=self.bus)
+        context.workspace = self.workspace  # agents reach it through the shared context
+
+        # -- automation ---------------------------------------------------
+        self.automation = AutomationEngine(
+            router=self.router, memory=self.memory, registry=self.registry, bus=self.bus
+        )
+
+        # -- voice + hologram ---------------------------------------------
+        self.voice = VoiceEngine(cfg.voice, bus=self.bus)
+        self.hologram = HologramController(bus=self.bus, enabled=cfg.settings.hologram)
+        await self.bus.subscribe(
+            Topics.AVATAR_EMOTION,
+            lambda event: self.hologram.sync_with_voice(event.payload)
+            if event.source == "voice"
+            else None,
+        )
+
+        # -- background services -------------------------------------------
+        self._start_background()
+
+        self.started_at = time.time()
+        self.ready = True
+        await self.bus.publish(Topics.SYSTEM_READY, self.status())
+        logger.info("AERA is ready")
+        return self
+
+    def _models_with_secrets(self):
+        """Inject vault/environment API keys into the provider config."""
+        models = self.config.models.model_copy(deep=True)
+        env_names = {
+            "openai": "OPENAI_API_KEY",
+            "claude": "ANTHROPIC_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "openrouter": "OPENROUTER_API_KEY",
+        }
+        for name, options in (models.providers or {}).items():
+            if options.get("api_key"):
+                continue
+            key = None
+            if self.vault is not None:
+                key = self.vault.get(f"{name}_api_key") or self.vault.get(env_names.get(name, ""))
+            if key:
+                options["api_key"] = key
+        return models
+
+    def _start_background(self) -> None:
+        """Launch the always-on maintenance loops."""
+        self._background.append(asyncio.create_task(self._memory_maintenance()))
+        self._background.append(asyncio.create_task(self._health_monitor()))
+
+    async def _memory_maintenance(self) -> None:
+        """Consolidate and persist memory on a fixed cadence."""
+        interval = 300.0
+        while True:
+            try:
+                await asyncio.sleep(interval)
+                if self.memory is None:
+                    continue
+                await self.memory.consolidate()
+                self.memory.save()
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                logger.exception("memory maintenance cycle failed")
+
+    async def _health_monitor(self) -> None:
+        """Refresh provider health so routing decisions stay current."""
+        while True:
+            try:
+                await asyncio.sleep(60.0)
+                if self.router is not None:
+                    await self.router.health()
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001
+                logger.exception("health monitor cycle failed")
+
+    # ------------------------------------------------------------------ #
+    # main entry point for requests
+    # ------------------------------------------------------------------ #
+    async def chat(
+        self,
+        message: str,
+        *,
+        conversation_id: str | None = None,
+        project_id: str | None = None,
+        agent: str | None = None,
+        capability: Capability | str = Capability.CONVERSATION,
+    ) -> TaskResult:
+        """Send a message through the Core Agent pipeline."""
+        if self.registry is None:
+            raise RuntimeError("kernel is not started")
+        task = Task(
+            capability=Capability(capability),
+            input=message,
+            conversation_id=conversation_id,
+            project_id=project_id,
+        )
+        if agent:
+            task.context["force_agent"] = agent
+        return await self.registry.dispatch(task, agent_name="core")
+
+    # ------------------------------------------------------------------ #
+    # shutdown
+    # ------------------------------------------------------------------ #
+    async def stop(self) -> None:
+        """Tear everything down in reverse order, persisting state."""
+        logger.info("shutting AERA down")
+        await self.bus.publish(Topics.SYSTEM_STOPPING, {})
+        self.ready = False
+
+        for task in self._background:
+            task.cancel()
+        if self._background:
+            await asyncio.gather(*self._background, return_exceptions=True)
+        self._background.clear()
+
+        if self.automation is not None:
+            await self.automation.shutdown()
+        if self.registry is not None:
+            await self.registry.stop_all()
+        if self.memory is not None:
+            self.memory.save()
+        if self.router is not None:
+            await self.router.close()
+        logger.info("AERA stopped")
+
+    # ------------------------------------------------------------------ #
+    # reporting
+    # ------------------------------------------------------------------ #
+    def status(self) -> dict[str, Any]:
+        uptime = time.time() - self.started_at if self.started_at else 0.0
+        return {
+            "name": self.config.system.name,
+            "version": self.config.system.version,
+            "environment": self.config.system.environment,
+            "ready": self.ready,
+            "uptime_seconds": round(uptime, 1),
+            "agents": self.registry.summary() if self.registry else {},
+            "memory": self.memory.stats() if self.memory else {},
+            "providers": list(self.router.providers) if self.router else [],
+            "workspace": self.workspace.summary() if self.workspace else {},
+            "voice": self.voice.status() if self.voice else {},
+            "hologram": self.hologram.status() if self.hologram else {},
+            "events_published": self.bus.published_count,
+        }
+
+
+_kernel: Kernel | None = None
+
+
+def get_kernel() -> Kernel:
+    """Return the process-wide kernel (created on first access)."""
+    global _kernel
+    if _kernel is None:
+        _kernel = Kernel()
+    return _kernel
+
+
+def set_kernel(kernel: Kernel | None) -> None:
+    global _kernel
+    _kernel = kernel

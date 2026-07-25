@@ -1,0 +1,100 @@
+# AERA stack (docs/docker/Docker-Compose.md)
+#
+#   docker compose up -d                      core only, fully offline
+#   docker compose --profile local-ai up -d   add a local Ollama runtime
+#   docker compose --profile full up -d       add PostgreSQL + Redis
+#
+# The core service runs standalone: no database or model server is required.
+
+services:
+  core:
+    build: .
+    image: aera:1.0.0
+    container_name: aera-core
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AERA_SYSTEM__ENVIRONMENT: production
+      AERA_LOGGING__LEVEL: INFO
+      AERA_LOGGING__JSON_FORMAT: "true"
+      # Point the router at the Ollama container when the profile is enabled.
+      AERA_MODELS__LOCAL__ENDPOINT: http://ollama:11434
+      AERA_MODELS__ROUTING_MODE: local_first
+      # Supply cloud keys via a .env file next to this compose file.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      - aera-data:/data
+      # Mount projects read-only so the workspace indexer can analyse them.
+      - ${AERA_WORKSPACE:-./workspace}:/workspace:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks: [aera]
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aera-ollama
+    restart: unless-stopped
+    profiles: [local-ai, full]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    networks: [aera]
+    # Uncomment for NVIDIA GPU acceleration (docs/docker/GPU-Support.md)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: aera-postgres
+    restart: unless-stopped
+    profiles: [full]
+    environment:
+      POSTGRES_DB: aera
+      POSTGRES_USER: aera
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aera_change_me}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aera"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [aera]
+
+  redis:
+    image: redis:7-alpine
+    container_name: aera-redis
+    restart: unless-stopped
+    profiles: [full]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [aera]
+
+volumes:
+  aera-data:
+  ollama-models:
+  pg-data:
+  redis-data:
+
+networks:
+  aera:
+    driver: bridge
