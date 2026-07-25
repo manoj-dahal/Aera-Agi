@@ -1,0 +1,66 @@
+# AERA AGI — Docker Compose stack
+# See docs/27-DOCKER.md for the full container architecture.
+
+services:
+  aera-core:
+    build: .
+    container_name: aera-core
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./storage:/app/storage
+      - ./models:/app/models
+      - ./workspace:/app/workspace
+      - ./logs:/app/logs
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks: [aera-net]
+
+  redis:
+    image: redis:7-alpine
+    container_name: aera-redis
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks: [aera-net]
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aera-ollama
+    volumes:
+      - ./models:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+    networks: [aera-net]
+    # Uncomment for NVIDIA GPU support (see docs/docker/GPU-Support.md)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  nginx:
+    image: nginx:alpine
+    container_name: aera-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    depends_on:
+      - aera-core
+    restart: unless-stopped
+    networks: [aera-net]
+
+volumes:
+  redis-data:
+
+networks:
+  aera-net:
+    driver: bridge

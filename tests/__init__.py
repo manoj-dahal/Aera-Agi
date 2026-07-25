@@ -1,0 +1,1 @@
+"""AERA AGI test suite."""

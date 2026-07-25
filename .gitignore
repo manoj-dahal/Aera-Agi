@@ -1,0 +1,55 @@
+# ── Environment / Secrets ─────────────────────────
+.env
+.env.local
+.env.*.local
+secrets/*
+!secrets/.gitkeep
+certs/*
+!certs/.gitkeep
+
+# ── Runtime / Generated ───────────────────────────
+cache/*
+!cache/.gitkeep
+logs/*
+!logs/.gitkeep
+temp/*
+!temp/.gitkeep
+storage/*
+!storage/.gitkeep
+volumes/*
+!volumes/.gitkeep
+data/*
+!data/.gitkeep
+models/*
+!models/.gitkeep
+workspace/*
+!workspace/.gitkeep
+
+# ── Node ──────────────────────────────────────────
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# ── Python ────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# ── MkDocs ────────────────────────────────────────
+site/
+
+# ── OS / Editor ───────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/

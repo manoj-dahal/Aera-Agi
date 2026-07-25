@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AERA — AI Operating System</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: radial-gradient(circle at 50% 30%, #1a1035, #0a0618 70%);
+        color: #e8e6f0;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        text-align: center;
+      }
+      h1 {
+        font-size: 3rem;
+        letter-spacing: 0.35em;
+        background: linear-gradient(90deg, #8b5cf6, #22d3ee);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      p {
+        opacity: 0.7;
+      }
+      #status {
+        margin-top: 2rem;
+        font-size: 0.85rem;
+        opacity: 0.5;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AERA</h1>
+      <p>Artificial Enhanced Reasoning Assistant</p>
+      <p>AI Operating System — Dashboard coming online…</p>
+      <div id="status">core: connecting…</div>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

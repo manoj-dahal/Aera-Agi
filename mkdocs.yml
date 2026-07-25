@@ -1,0 +1,79 @@
+site_name: AERA AGI
+site_description: Next-generation AI Operating System — Design Specification
+site_url: https://manoj-dahal.github.io/Aera-Agi/
+repo_url: https://github.com/manoj-dahal/Aera-Agi
+repo_name: manoj-dahal/Aera-Agi
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+    - scheme: default
+      primary: deep purple
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: README.md
+  - Core Specification:
+      - Introduction: 00-INTRODUCTION.md
+      - Vision: 01-VISION.md
+      - System Architecture: 02-SYSTEM-ARCHITECTURE.md
+      - File Structure: 03-FILE-STRUCTURE.md
+      - Dashboard: 04-DASHBOARD.md
+      - Macros: 05-MACROS.md
+      - Memory Graph: 06-MEMORY-GRAPH.md
+      - Agents: 07-AGENTS.md
+      - Voice System: 08-VOICE-SYSTEM.md
+      - Hologram: 09-HOLOGRAM.md
+      - Apps: 10-APPS.md
+      - Gallery: 11-GALLERY.md
+      - Phone: 12-PHONE.md
+      - Settings: 13-SETTINGS.md
+      - Workspace: 14-WORKSPACE.md
+      - Terminal: 15-TERMINAL.md
+      - Git Integration: 16-GIT-INTEGRATION.md
+      - Plugin System: 17-PLUGIN-SYSTEM.md
+      - Local LLM: 18-LOCAL-LLM.md
+      - Cloud AI: 19-CLOUD-AI.md
+      - Automation: 20-AUTOMATION.md
+      - Security: 21-SECURITY.md
+      - Ethical Hacking: 22-ETHICAL-HACKING.md
+      - Performance: 23-PERFORMANCE.md
+      - Background Services: 24-BACKGROUND-SERVICES.md
+      - Database: 25-DATABASE.md
+      - API: 26-API.md
+      - Docker: 27-DOCKER.md
+      - Deployment: 28-DEPLOYMENT.md
+      - Roadmap: 29-ROADMAP.md
+  - Agents: agents/
+  - Memory: memory/
+  - Voice: voice/
+  - Hologram: hologram/
+  - API: api/
+  - Apps: apps/
+  - Config: config/
+  - Docker: docker/

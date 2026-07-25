@@ -1,0 +1,36 @@
+# AERA System Configuration (master)
+# See docs/config/System-Config.md
+
+system:
+  name: AERA
+  version: 0.1.0
+  mode: local-first # local-first | cloud-first | hybrid
+
+ai:
+  router:
+    policy: local-first
+    fallback: cloud
+  local:
+    enabled: true
+    provider: ollama
+    default_model: llama3
+  cloud:
+    providers: [openai, anthropic, gemini]
+
+memory:
+  graph_backend: sqlite
+  vector_store: chromadb
+  retention:
+    short_term_hours: 24
+    long_term: permanent
+
+voice:
+  stt: whisper
+  tts: piper
+  language: en
+  emotion_engine: true
+
+security:
+  zero_trust: true
+  plugin_sandbox: true
+  telemetry: false

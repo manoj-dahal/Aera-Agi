@@ -1,0 +1,23 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.tabSize": 4
+  },
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests"],
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/site": true,
+    "**/__pycache__": true,
+    "cache": true,
+    "temp": true,
+    "storage": true,
+    "volumes": true
+  }
+}

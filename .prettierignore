@@ -1,0 +1,14 @@
+node_modules
+dist
+build
+site
+coverage
+cache
+logs
+temp
+storage
+volumes
+data
+models
+package-lock.json
+*.min.*
