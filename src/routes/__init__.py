@@ -6,6 +6,7 @@ from src.routes.agents import router as agents_router
 from src.routes.auth import router as auth_router
 from src.routes.automation import router as automation_router
 from src.routes.chat import router as chat_router
+from src.routes.hologram import router as hologram_router
 from src.routes.memory import router as memory_router
 from src.routes.models import router as models_router
 from src.routes.plugins import router as plugins_router
@@ -26,5 +27,6 @@ api_router.include_router(automation_router)
 api_router.include_router(auth_router)
 api_router.include_router(security_router)
 api_router.include_router(plugins_router)
+api_router.include_router(hologram_router)
 
 __all__ = ["api_router"]

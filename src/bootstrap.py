@@ -19,6 +19,7 @@ from src.ai.router import ModelRouter
 from src.auth.service import AuthService
 from src.automation.manager import AutomationManager
 from src.events.bus import EventBus
+from src.hologram.animation import AnimationEngine
 from src.logging.logger import get_logger
 from src.memory.graph import MemoryGraph
 from src.plugins.manager import PluginManager
@@ -51,6 +52,7 @@ class AeraSystem:
     auth: AuthService
     guard: AIGuard
     plugins: PluginManager
+    hologram: AnimationEngine
     auth_required: bool
 
     async def start_services(self) -> None:
@@ -100,6 +102,7 @@ def boot() -> AeraSystem:
     services = ServiceManager(bus)
     automation = AutomationManager(agents, memory, bus, services)
     plugins = PluginManager(memory, agents, bus, audit)
+    hologram = AnimationEngine(bus)
 
     system = AeraSystem(
         bus=bus,
@@ -116,6 +119,7 @@ def boot() -> AeraSystem:
         auth=auth,
         guard=guard,
         plugins=plugins,
+        hologram=hologram,
         auth_required=os.getenv("AERA_AUTH_REQUIRED", "false").lower() == "true",
     )
     _register_core_services(system)
