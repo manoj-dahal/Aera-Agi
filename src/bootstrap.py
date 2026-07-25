@@ -16,10 +16,14 @@ from dataclasses import dataclass
 
 from src.agents.manager import AgentManager
 from src.ai.router import ModelRouter
+from src.auth.service import AuthService
 from src.automation.manager import AutomationManager
 from src.events.bus import EventBus
 from src.logging.logger import get_logger
 from src.memory.graph import MemoryGraph
+from src.security.ai_guard import AIGuard
+from src.security.audit import AuditLog
+from src.security.permissions import PermissionManager
 from src.services.manager import ServiceManager
 from src.speech.engines import SpeechService
 from src.voice.conversation import ConversationEngine
@@ -41,6 +45,11 @@ class AeraSystem:
     speech: SpeechService
     services: ServiceManager
     automation: AutomationManager
+    audit: AuditLog
+    permissions: PermissionManager
+    auth: AuthService
+    guard: AIGuard
+    auth_required: bool
 
     async def start_services(self) -> None:
         await self.services.start_all()
@@ -73,10 +82,16 @@ def _register_core_services(system: AeraSystem) -> None:
 def boot() -> AeraSystem:
     """Initialize and wire together the core subsystems."""
     log.info("booting AERA core")
+    import os
+
     bus = EventBus()
     memory = MemoryGraph()
     router = ModelRouter()
-    agents = AgentManager(memory, router)
+    audit = AuditLog(bus)
+    permissions = PermissionManager(audit)
+    guard = AIGuard()
+    auth = AuthService()
+    agents = AgentManager(memory, router, guard)
     emotions = EmotionEngine()
     conversation = ConversationEngine(agents, emotions, bus)
     speech = SpeechService()
@@ -93,6 +108,11 @@ def boot() -> AeraSystem:
         speech=speech,
         services=services,
         automation=automation,
+        audit=audit,
+        permissions=permissions,
+        auth=auth,
+        guard=guard,
+        auth_required=os.getenv("AERA_AUTH_REQUIRED", "false").lower() == "true",
     )
     _register_core_services(system)
     log.info(

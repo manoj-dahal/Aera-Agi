@@ -12,6 +12,7 @@ from fastapi import FastAPI
 
 from src import __version__
 from src.bootstrap import boot
+from src.middleware.auth import AuthMiddleware
 from src.routes import api_router
 from src.websocket.chat import ws_router
 
@@ -36,5 +37,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(AuthMiddleware)
 app.include_router(api_router)
 app.include_router(ws_router)

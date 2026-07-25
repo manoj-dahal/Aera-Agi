@@ -35,6 +35,8 @@ async def system_info(request: Request) -> dict[str, object]:
             "local_ai": "online" if local_ai else "offline",
             "voice": "active",
             "emotion_engine": "active",
+            "security": "active",
+            "auth": "active",
             "background_services": "active",
             "hologram": "planned",
             "automation": "active",

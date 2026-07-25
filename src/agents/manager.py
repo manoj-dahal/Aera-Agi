@@ -16,6 +16,7 @@ from pathlib import Path
 
 from src.ai.router import ModelRouter
 from src.memory.graph import MemoryGraph
+from src.security.ai_guard import AIGuard
 from src.common.schemas import AgentInfo, AgentStatus, TaskRequest, TaskResponse
 
 _PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
@@ -95,9 +96,12 @@ def _default_agents() -> list[Agent]:
 
 
 class AgentManager:
-    def __init__(self, memory: MemoryGraph, router: ModelRouter) -> None:
+    def __init__(
+        self, memory: MemoryGraph, router: ModelRouter, guard: AIGuard | None = None
+    ) -> None:
         self.memory = memory
         self.router = router
+        self.guard = guard or AIGuard()
         self.agents: dict[str, Agent] = {a.name: a for a in _default_agents()}
 
     def list_agents(self) -> list[AgentInfo]:
@@ -114,6 +118,19 @@ class AgentManager:
         return best
 
     async def execute(self, task: TaskRequest) -> TaskResponse:
+        # AI Security (docs/21): prompt injection detection before inference.
+        scan = self.guard.scan_prompt(task.message)
+        if not scan.safe:
+            return TaskResponse(
+                agent="security",
+                response=(
+                    "I can't process that request — it looks like an attempt to "
+                    "override my instructions. (" + scan.reason + ")"
+                ),
+                model="ai-guard",
+                memory_nodes_used=0,
+            )
+
         agent = (
             self.agents.get(task.agent) if task.agent else None
         ) or self.route(task.message)
@@ -126,6 +143,10 @@ class AgentManager:
             system += f"\n\nRelevant memory:\n{context}"
 
         response, model = await self.router.complete(task.message, system=system)
+
+        # AI Security (docs/21): output validation — redact secret-like strings.
+        if not self.guard.validate_output(response).safe:
+            response = self.guard.redact_output(response)
 
         # Persist the exchange back into memory
         self.memory.remember_conversation(task.message, response)
