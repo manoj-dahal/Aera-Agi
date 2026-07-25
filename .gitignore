@@ -14,7 +14,8 @@ venv/
 htmlcov/
 
 # AERA runtime state (never commit user data or secrets)
-storage/
+storage/*
+!storage/avatars/
 logs/
 cache/
 temp/
