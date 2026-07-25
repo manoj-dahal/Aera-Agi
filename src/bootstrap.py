@@ -30,6 +30,7 @@ from src.services.manager import ServiceManager
 from src.speech.engines import SpeechService
 from src.voice.conversation import ConversationEngine
 from src.voice.emotion import EmotionEngine
+from src.workspace.manager import WorkspaceManager
 
 log = get_logger("bootstrap")
 
@@ -53,6 +54,7 @@ class AeraSystem:
     guard: AIGuard
     plugins: PluginManager
     hologram: AnimationEngine
+    workspace: WorkspaceManager
     auth_required: bool
 
     async def start_services(self) -> None:
@@ -103,6 +105,7 @@ def boot() -> AeraSystem:
     automation = AutomationManager(agents, memory, bus, services)
     plugins = PluginManager(memory, agents, bus, audit)
     hologram = AnimationEngine(bus)
+    workspace = WorkspaceManager(memory, agents, bus)
 
     system = AeraSystem(
         bus=bus,
@@ -120,6 +123,7 @@ def boot() -> AeraSystem:
         guard=guard,
         plugins=plugins,
         hologram=hologram,
+        workspace=workspace,
         auth_required=os.getenv("AERA_AUTH_REQUIRED", "false").lower() == "true",
     )
     _register_core_services(system)

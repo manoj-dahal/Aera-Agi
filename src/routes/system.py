@@ -37,6 +37,7 @@ async def system_info(request: Request) -> dict[str, object]:
             "emotion_engine": "active",
             "security": "active",
             "plugins": "active",
+            "workspace": "active",
             "auth": "active",
             "background_services": "active",
             "hologram": "active",

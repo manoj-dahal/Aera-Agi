@@ -14,6 +14,7 @@ from src.routes.security import router as security_router
 from src.routes.services import router as services_router
 from src.routes.system import router as system_router
 from src.routes.voice import router as voice_router
+from src.routes.workspace import router as workspace_router
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(system_router)
@@ -28,5 +29,6 @@ api_router.include_router(auth_router)
 api_router.include_router(security_router)
 api_router.include_router(plugins_router)
 api_router.include_router(hologram_router)
+api_router.include_router(workspace_router)
 
 __all__ = ["api_router"]
