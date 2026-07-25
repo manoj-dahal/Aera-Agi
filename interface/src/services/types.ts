@@ -302,6 +302,26 @@ export interface SkillGap {
   reason: string | null;
 }
 
+export interface AvatarModelInfo {
+  id: string;
+  name: string;
+  path: string;
+  format: string;
+  kind: 'character' | 'orb' | 'prop' | 'unknown';
+  variant: 'feminine' | 'masculine' | 'neutral' | 'unspecified';
+  size_mb: number;
+  vertices: number | null;
+  triangles: number | null;
+  materials: string[];
+  textures: string[];
+  dimensions: number[] | null;
+  has_normals: boolean;
+  has_uvs: boolean;
+  has_skeleton: boolean;
+  warnings: string[];
+  parsed: boolean;
+}
+
 export interface SystemStatus {
   name: string;
   version: string;

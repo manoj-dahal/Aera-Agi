@@ -186,6 +186,35 @@ async def delete_avatar(model_id: str, kernel=Depends(get_kernel_dep)):
     return ok({"id": model_id}, f"Removed {model.name}")
 
 
+@router.get("/{model_id}/material")
+async def download_material(model_id: str, kernel=Depends(get_kernel_dep)):
+    """Serve an OBJ's sidecar MTL, so the browser loader can find materials."""
+    from fastapi.responses import FileResponse
+
+    model = _library(kernel).get(model_id)
+    mtl = model.path.with_suffix(".mtl")
+    if not mtl.is_file():
+        raise ValidationError(f"no material file beside {model.path.name}")
+    return FileResponse(mtl, media_type="text/plain", filename=mtl.name)
+
+
+@router.get("/{model_id}/texture/{name}")
+async def download_texture(model_id: str, name: str, kernel=Depends(get_kernel_dep)):
+    """Serve a texture from the model's folder, sandboxed to that directory."""
+    from fastapi.responses import FileResponse
+
+    library = _library(kernel)
+    model = library.get(model_id)
+    target = (model.path.parent / Path(name).name).resolve()
+
+    # Never serve outside the avatar library, whatever the name contains.
+    if not str(target).startswith(str(library.root.resolve())):
+        raise ValidationError("refusing to read outside the avatars directory")
+    if not target.is_file():
+        raise ValidationError(f"texture not found: {name}")
+    return FileResponse(target)
+
+
 @router.get("/{model_id}/file")
 async def download_avatar(model_id: str, kernel=Depends(get_kernel_dep)):
     """Serve the raw model file, for a client-side 3D renderer."""

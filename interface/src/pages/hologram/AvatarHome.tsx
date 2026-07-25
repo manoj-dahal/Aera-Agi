@@ -1,27 +1,44 @@
-import { useEffect, useState } from 'react';
-import { AvatarOrb, Button, Card, KeyValue, PageHeader, useToast } from '@components/index';
+import { useEffect, useRef, useState } from 'react';
+import { AlertTriangle, Box, RefreshCw, Trash2, Upload } from 'lucide-react';
+import {
+  Button,
+  Card,
+  KeyValue,
+  LazyAvatarViewer,
+  PageHeader,
+  ParticleSphere,
+  StatusPill,
+  Tag,
+  useToast,
+} from '@components/index';
+import { useAvatarStore } from '@store/index';
 import { hologram, voice } from '@services/api';
 import { emotionColors } from '@design/colors';
+import { cn } from '@utils/cn';
 import type { AvatarState } from '@services/types';
 
 const EMOTIONS = Object.keys(emotionColors);
 const GESTURES = ['idle', 'nod', 'shake', 'wave', 'point', 'think', 'shrug', 'lean_in', 'tilt'];
 
-/** Avatar control surface (docs/09-HOLOGRAM.md). */
+/**
+ * Hologram: avatar model management and live control (docs/09-HOLOGRAM.md).
+ *
+ * AERA ships no character of its own. Models are supplied by the user, either
+ * dropped into the avatars directory or uploaded here.
+ */
 export function AvatarHome() {
+  const { models, active, loading, load, scan, select, upload, remove, useOrb } =
+    useAvatarStore();
   const [state, setState] = useState<AvatarState | null>(null);
   const [speech, setSpeech] = useState('Hello, I am AERA.');
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const showToast = useToast((s) => s.show);
 
-  const refresh = async () => {
-    try {
-      setState(await hologram.status());
-    } catch {
-      /* hologram may be disabled */
-    }
-  };
-
-  useEffect(() => void refresh(), []);
+  useEffect(() => {
+    void load();
+    void hologram.status().then(setState).catch(() => {});
+  }, [load]);
 
   const act = async (fn: () => Promise<AvatarState>) => {
     try {
@@ -31,11 +48,24 @@ export function AvatarHome() {
     }
   };
 
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    for (const file of Array.from(files)) {
+      const model = await upload(file);
+      if (model) {
+        showToast(`Uploaded ${model.name}`, 'success');
+        if (model.warnings.length) {
+          showToast(model.warnings[0]!, 'error');
+        }
+      }
+    }
+  };
+
   const speak = async () => {
     try {
       const result = await voice.speak(speech);
       showToast(`Spoke with ${result.emotion} emotion`, 'success');
-      void refresh();
+      void hologram.status().then(setState).catch(() => {});
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'speech failed', 'error');
     }
@@ -45,29 +75,71 @@ export function AvatarHome() {
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       <PageHeader
         title="Hologram"
-        subtitle="Avatar emotion, gesture and lip-sync state"
-        action={<Button variant="ghost" onClick={() => void refresh()}>Refresh</Button>}
+        subtitle="Your avatar models, emotion and gesture control"
+        action={
+          <div className="flex gap-2">
+            <Button variant="ghost" icon={<RefreshCw size={13} />} onClick={() => void scan()}>
+              Rescan
+            </Button>
+            <Button
+              variant="primary"
+              icon={<Upload size={14} />}
+              onClick={() => fileInput.current?.click()}
+            >
+              Upload Model
+            </Button>
+          </div>
+        }
+      />
+
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".glb,.gltf,.obj,.mtl,.fbx,.vrm,.png,.jpg"
+        multiple
+        hidden
+        onChange={(e) => void handleFiles(e.target.files)}
       />
 
       <div className="flex flex-wrap gap-4">
-        <Card className="flex w-[260px] shrink-0 flex-col items-center justify-center py-8">
-          <AvatarOrb
-            size={64}
-            emotion={state?.emotion}
-            speaking={state?.speaking}
-            showLabel
-          />
-          <div className="mt-4 flex gap-1.5">
+        {/* -------- live preview -------- */}
+        <Card className="flex w-[340px] shrink-0 flex-col items-center justify-center py-6">
+          {active ? (
+            <LazyAvatarViewer
+              modelId={active.id}
+              format={active.format}
+              state={state?.speaking ? 'speaking' : 'idle'}
+              emotion={state?.emotion}
+              size={280}
+              onError={(message) => showToast(message, 'error')}
+            />
+          ) : (
+            <ParticleSphere
+              state={state?.speaking ? 'speaking' : 'idle'}
+              emotion={state?.emotion}
+              size={240}
+            />
+          )}
+          <p className="mt-3 text-[11.5px] text-[var(--aera-text-muted)]">
+            {active ? active.name : 'Particle orb (no model selected)'}
+          </p>
+          <div className="mt-3 flex gap-1.5">
             <Button size="sm" variant="ghost" onClick={() => void act(hologram.show)}>
               Show
             </Button>
             <Button size="sm" variant="ghost" onClick={() => void act(hologram.hide)}>
               Hide
             </Button>
+            {active && (
+              <Button size="sm" variant="subtle" onClick={useOrb}>
+                Use orb
+              </Button>
+            )}
           </div>
         </Card>
 
-        <div className="flex min-w-[280px] flex-1 flex-col gap-3">
+        {/* -------- controls -------- */}
+        <div className="flex min-w-[300px] flex-1 flex-col gap-3">
           <Card title="Emotion">
             <div className="flex flex-wrap gap-1.5">
               {EMOTIONS.map((emotion) => (
@@ -109,23 +181,111 @@ export function AvatarHome() {
                 onKeyDown={(e) => e.key === 'Enter' && void speak()}
                 className="selectable flex-1 rounded-md border border-[var(--aera-line-default)] bg-[var(--aera-bg-raised)] px-3 py-2 text-[12.5px]"
               />
-              <Button variant="primary" onClick={() => void speak()}>Speak</Button>
+              <Button variant="primary" onClick={() => void speak()}>
+                Speak
+              </Button>
             </div>
-            <p className="mt-2 text-[11px] text-[var(--aera-text-muted)]">
-              Emotion is detected from the text and drives the avatar automatically.
-            </p>
           </Card>
-
-          {state && (
-            <Card title="State">
-              <KeyValue label="Visible" value={String(state.visible)} />
-              <KeyValue label="Emotion" value={state.emotion} />
-              <KeyValue label="Intensity" value={state.intensity.toFixed(2)} />
-              <KeyValue label="Gesture" value={state.gesture} />
-              <KeyValue label="Speaking" value={String(state.speaking)} />
-            </Card>
-          )}
         </div>
+      </div>
+
+      {/* -------- model library -------- */}
+      <h3 className="mb-2 mt-5 text-[10.5px] uppercase tracking-[0.11em] text-[var(--aera-text-muted)]">
+        Model library
+      </h3>
+
+      <div
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          void handleFiles(e.dataTransfer.files);
+        }}
+        className={cn(
+          'rounded-xl border border-dashed p-3 transition-colors',
+          dragging
+            ? 'border-[var(--aera-accent-primary)] bg-[color-mix(in_srgb,var(--aera-accent-primary)_8%,transparent)]'
+            : 'border-[var(--aera-line-default)]',
+        )}
+      >
+        {models.length === 0 ? (
+          <div className="py-8 text-center">
+            <Box size={22} className="mx-auto mb-2 text-[var(--aera-text-disabled)]" />
+            <p className="text-[12.5px] text-[var(--aera-text-muted)]">
+              {loading ? 'Scanning…' : 'No models yet. Drop a .glb here, or upload one.'}
+            </p>
+            <p className="mt-1 text-[11px] text-[var(--aera-text-disabled)]">
+              GLB is recommended: geometry, textures and rigging in a single file.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
+            {models.map((model) => (
+              <Card
+                key={model.id}
+                interactive
+                onClick={() => void select(model.id)}
+                className={cn(
+                  active?.id === model.id && 'border-[var(--aera-accent-primary)]',
+                )}
+              >
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <h4 className="truncate text-[12.5px] font-semibold">{model.name}</h4>
+                  {active?.id === model.id && <StatusPill status="running" label="active" />}
+                </div>
+
+                <div className="mb-1.5 flex flex-wrap gap-1">
+                  <Tag>{model.format}</Tag>
+                  <Tag>{model.kind}</Tag>
+                  {model.variant !== 'unspecified' && <Tag>{model.variant}</Tag>}
+                  {model.has_skeleton && <Tag>rigged</Tag>}
+                </div>
+
+                {model.parsed ? (
+                  <>
+                    <KeyValue label="Triangles" value={(model.triangles ?? 0).toLocaleString()} />
+                    <KeyValue label="Size" value={`${model.size_mb} MB`} />
+                    {model.dimensions && (
+                      <KeyValue
+                        label="Dimensions"
+                        value={model.dimensions.map((d) => Math.round(d)).join(' × ')}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[11px] text-[var(--aera-text-muted)]">
+                    Catalogued but not parsed.
+                  </p>
+                )}
+
+                {model.warnings.length > 0 && (
+                  <div className="mt-2 flex items-start gap-1.5 text-[10.5px] text-[var(--aera-warning)]">
+                    <AlertTriangle size={11} className="mt-px shrink-0" />
+                    <span>{model.warnings[0]}</span>
+                  </div>
+                )}
+
+                <Button
+                  size="sm"
+                  variant="subtle"
+                  icon={<Trash2 size={11} />}
+                  className="mt-2 !text-[var(--aera-danger)]"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void remove(model.id);
+                  }}
+                >
+                  Remove
+                </Button>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

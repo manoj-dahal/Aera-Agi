@@ -1,7 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, LoadingState, StatCard, StatRow } from '@components/index';
 import { MemoryGraphCanvas } from '@components/charts/MemoryGraphCanvas';
+import { SkillPanel } from '@components/widgets/SkillPanel';
 import { useMemoryStore } from '@store/index';
+import { skills as skillsApi } from '@services/api';
+import type { SkillState, SkillSummary } from '@services/types';
 import { memoryTypeColors } from '@design/colors';
 
 const MEMORY_SYSTEMS = [
@@ -20,8 +23,22 @@ const MEMORY_SYSTEMS = [
  */
 export function MacrosHome() {
   const { stats, nodes, loading, load } = useMemoryStore();
+  const [skillList, setSkillList] = useState<SkillState[]>([]);
+  const [skillSummary, setSkillSummary] = useState<SkillSummary | null>(null);
 
   useEffect(() => void load(), [load]);
+
+  // AI skills live here, not in Apps: they run in the background and are
+  // visualised alongside the memory graph.
+  useEffect(() => {
+    void skillsApi
+      .list()
+      .then((data) => {
+        setSkillList(data.skills);
+        setSkillSummary(data.summary);
+      })
+      .catch(() => {});
+  }, []);
 
   const byType = stats?.by_memory_type ?? {};
 
@@ -57,6 +74,10 @@ export function MacrosHome() {
               <span>{byType[key] ?? 0}</span>
             </div>
           ))}
+        </Card>
+
+        <Card>
+          <SkillPanel skills={skillList} summary={skillSummary} loading={loading} />
         </Card>
 
         <Card title="Background Engines">

@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AmbientPanel } from '@components/widgets/AmbientPanel';
 import { HologramBadge } from '@components/hologram/HologramBadge';
+import { LazyAvatarViewer } from '@components/hologram/LazyAvatarViewer';
 import { ParticleSphere, type SphereState } from '@components/hologram/ParticleSphere';
 import { SystemInfoPanel } from '@components/widgets/SystemInfoPanel';
 import { TapToSpeak } from '@components/voice/TapToSpeak';
 import { TranscriptPanel } from '@components/voice/TranscriptPanel';
 import { WorkspacePanel } from '@components/widgets/WorkspacePanel';
 import { useToast } from '@components/notifications/Toast';
-import { useChatStore, useSystemStore, useWorkspaceStore } from '@store/index';
+import { useAvatarStore, useChatStore, useSystemStore, useWorkspaceStore } from '@store/index';
 import { system, voice as voiceApi, workspace as workspaceApi } from '@services/api';
 import { detectHost } from '@services/transport';
 
@@ -23,6 +24,7 @@ export function Dashboard() {
   const { messages, streaming, send } = useChatStore();
   const { status, telemetry, events } = useSystemStore();
   const workspaceStore = useWorkspaceStore();
+  const { active: avatarModel, load: loadAvatars } = useAvatarStore();
   const showToast = useToast((s) => s.show);
 
   const [draft, setDraft] = useState('');
@@ -36,6 +38,7 @@ export function Dashboard() {
 
   useEffect(() => {
     void workspaceStore.refresh();
+    void loadAvatars();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -190,13 +193,26 @@ export function Dashboard() {
 
       {/* ---------- centre: AI Core ---------- */}
       <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-4">
-        <ParticleSphere
-          state={sphereState}
-          emotion={status?.hologram?.emotion}
-          size={320}
-          level={level}
-          progress={progress}
-        />
+        {/* A selected model replaces the orb; otherwise the orb is the avatar. */}
+        {avatarModel ? (
+          <LazyAvatarViewer
+            modelId={avatarModel.id}
+            format={avatarModel.format}
+            state={sphereState}
+            emotion={status?.hologram?.emotion}
+            size={320}
+            level={level}
+            onError={(message) => showToast(message, 'error')}
+          />
+        ) : (
+          <ParticleSphere
+            state={sphereState}
+            emotion={status?.hologram?.emotion}
+            size={320}
+            level={level}
+            progress={progress}
+          />
+        )}
 
         <TapToSpeak
           listening={listening}

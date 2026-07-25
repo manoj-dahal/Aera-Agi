@@ -8,6 +8,7 @@
 import { call, httpRequest, nativeCall } from './transport';
 import type {
   AgentsPayload,
+  AvatarModelInfo,
   AuditEntry,
   AvatarState,
   FileContent,
@@ -377,6 +378,44 @@ export const skills = {
   insights: () => httpRequest<Record<string, unknown>>('/skills/insights'),
 };
 
+export const avatars = {
+  list: (params: { kind?: string; variant?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (params.kind) q.set('kind', params.kind);
+    if (params.variant) q.set('variant', params.variant);
+    return httpRequest<{
+      avatars: AvatarModelInfo[];
+      count: number;
+      summary: Record<string, unknown>;
+    }>(`/avatars${q.toString() ? `?${q}` : ''}`);
+  },
+  scan: () =>
+    httpRequest<{ avatars: AvatarModelInfo[]; count: number }>('/avatars/scan', {
+      method: 'POST',
+    }),
+  active: () => httpRequest<{ active: AvatarModelInfo | null }>('/avatars/active'),
+  setActive: (modelId: string) =>
+    httpRequest<AvatarModelInfo>(
+      `/avatars/active?model_id=${encodeURIComponent(modelId)}`,
+      { method: 'POST' },
+    ),
+  remove: (modelId: string) =>
+    httpRequest(`/avatars/${encodeURIComponent(modelId)}`, { method: 'DELETE' }),
+  formats: () => httpRequest<Record<string, unknown>>('/avatars/formats'),
+
+  /** Upload a model file. Streams through the browser's multipart encoder. */
+  upload: async (file: File) => {
+    const body = new FormData();
+    body.append('file', file);
+    const response = await fetch('/api/v1/avatars/upload', { method: 'POST', body });
+    const envelope = await response.json();
+    if (!response.ok || envelope.success === false) {
+      throw new Error(envelope.error ?? 'upload failed');
+    }
+    return envelope.data as { file: string; size_mb: number; model: AvatarModelInfo | null };
+  },
+};
+
 export const system = {
   status: () =>
     call<SystemStatus>({
@@ -422,6 +461,7 @@ export const system = {
 };
 
 export const api = {
+  avatars,
   chat,
   skills,
   agents,
