@@ -126,6 +126,11 @@ class AgentsSection(BaseModel):
     vision: bool = False
     voice: bool = True
     translation: bool = True
+    ethical_hacking: bool = True
+    device: bool = True
+    learning: bool = True
+    update: bool = True
+    monitoring: bool = True
     max_concurrent_tasks: int = 8
     task_timeout_seconds: int = 120
 

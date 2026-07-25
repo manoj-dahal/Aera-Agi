@@ -7,7 +7,7 @@ import { TranscriptPanel } from '@components/voice/TranscriptPanel';
 import { WorkspacePanel } from '@components/widgets/WorkspacePanel';
 import { useToast } from '@components/notifications/Toast';
 import { useChatStore, useSystemStore, useWorkspaceStore } from '@store/index';
-import { system, workspace as workspaceApi } from '@services/api';
+import { system, voice as voiceApi, workspace as workspaceApi } from '@services/api';
 import { detectHost } from '@services/transport';
 
 /**
@@ -26,6 +26,7 @@ export function Dashboard() {
   const [draft, setDraft] = useState('');
   const [files, setFiles] = useState<string[]>([]);
   const [listening, setListening] = useState(false);
+  const [priming, setPriming] = useState(false);
 
   useEffect(() => {
     void workspaceStore.refresh();
@@ -47,13 +48,14 @@ export function Dashboard() {
   /** Hologram state follows the conversation and voice lifecycle. */
   const sphereState: SphereState = useMemo(() => {
     if (!status?.ready) return 'offline';
+    if (priming) return 'processing';
     if (listening) return 'listening';
     if (streaming) {
       const last = messages[messages.length - 1];
       return last?.content ? 'speaking' : 'thinking';
     }
     return 'idle';
-  }, [status?.ready, listening, streaming, messages]);
+  }, [status?.ready, priming, listening, streaming, messages]);
 
   const activeAgent = useMemo(
     () => [...messages].reverse().find((m) => m.agent)?.agent,
@@ -67,13 +69,30 @@ export function Dashboard() {
     void send(text);
   };
 
-  const handleTap = () => {
+  /**
+   * Tap to Speak.
+   *
+   * Per the requirements, this first runs the tap-to-memory workflow in the
+   * background — recalling conversation, projects, workspace, shared memory,
+   * preferences and context — and only then enables listening.
+   */
+  const handleTap = async () => {
     if (draft.trim()) return submit();
-    // No microphone capture in this build: prompt for text instead of
+
+    setPriming(true);
+    try {
+      const primed = await voiceApi.tapToMemory(useChatStore.getState().conversationId);
+      showToast(primed.summary, 'success');
+    } catch {
+      showToast('Listening without primed context', 'info');
+    } finally {
+      setPriming(false);
+    }
+
+    // No microphone capture in this build: hand off to text entry rather than
     // pretending to listen.
     setListening(true);
-    setTimeout(() => setListening(false), 900);
-    showToast('Type your message, then press Enter', 'info');
+    setTimeout(() => setListening(false), 1200);
     document.getElementById('aera-input')?.focus();
   };
 
@@ -136,8 +155,9 @@ export function Dashboard() {
         <div className="flex w-full max-w-[540px] flex-col items-center gap-3.5">
           <TapToSpeak
             listening={listening}
+            priming={priming}
             disabled={!status?.ready || streaming}
-            onClick={handleTap}
+            onClick={() => void handleTap()}
           />
 
           <input

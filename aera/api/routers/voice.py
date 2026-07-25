@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from ..deps import get_hologram, get_voice
+from ..deps import get_hologram, get_kernel_dep, get_voice
 from ..schemas import AvatarEmotionRequest, AvatarGestureRequest, ListenRequest, SpeakRequest, ok
 
 voice_router = APIRouter(prefix="/voice", tags=["voice"])
@@ -21,6 +21,13 @@ async def speak(payload: SpeakRequest, voice=Depends(get_voice)):
     """Synthesise speech with emotion analysis and avatar synchronisation."""
     result = await voice.speak(payload.text, emotion=payload.emotion, speed=payload.speed)
     return ok(result.model_dump(), "Speech generated")
+
+
+@voice_router.post("/tap")
+async def tap_to_memory(conversation_id: str | None = None, kernel=Depends(get_kernel_dep)):
+    """Tap-to-memory: recall context, then report readiness for listening."""
+    result = await kernel.prime_context(conversation_id=conversation_id)
+    return ok(result, result.get("summary", "Context primed"))
 
 
 @voice_router.post("/listen")

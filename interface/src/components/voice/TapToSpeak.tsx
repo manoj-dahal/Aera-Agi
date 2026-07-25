@@ -2,6 +2,8 @@ import { cn } from '@utils/cn';
 
 export interface TapToSpeakProps {
   listening?: boolean;
+  /** Tap-to-memory is recalling context before listening starts. */
+  priming?: boolean;
   disabled?: boolean;
   onClick: () => void;
 }
@@ -11,7 +13,12 @@ export interface TapToSpeakProps {
  *
  * Tap → voice activation → memory recall → intent detection → response.
  */
-export function TapToSpeak({ listening = false, disabled = false, onClick }: TapToSpeakProps) {
+export function TapToSpeak({
+  listening = false,
+  priming = false,
+  disabled = false,
+  onClick,
+}: TapToSpeakProps) {
   return (
     <button
       onClick={onClick}
@@ -21,7 +28,7 @@ export function TapToSpeak({ listening = false, disabled = false, onClick }: Tap
         listening
           ? 'border-[var(--aera-accent-secondary)] text-[var(--aera-accent-secondary)]'
           : 'border-[var(--aera-accent-primary)] text-[var(--aera-accent-primary)] hover:bg-[color-mix(in_srgb,var(--aera-accent-primary)_12%,transparent)]',
-        disabled && 'opacity-40',
+        (disabled || priming) && 'opacity-60',
       )}
       style={{
         boxShadow: listening
@@ -32,7 +39,7 @@ export function TapToSpeak({ listening = false, disabled = false, onClick }: Tap
       {listening && (
         <span className="absolute inset-0 animate-ping rounded-full border border-[var(--aera-accent-secondary)] opacity-40" />
       )}
-      {listening ? 'Listening…' : 'Tap to Speak'}
+      {priming ? 'Recalling…' : listening ? 'Listening…' : 'Tap to Speak'}
     </button>
   );
 }

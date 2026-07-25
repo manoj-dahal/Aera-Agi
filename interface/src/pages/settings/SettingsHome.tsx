@@ -1,13 +1,29 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Bot, Cpu, Settings2, Sparkles, Volume2 } from 'lucide-react';
 import {
-  Button, Card, CardGrid, Field, Input, KeyValue, PageHeader,
-  Select, StatusPill, useToast,
+  Button,
+  Card,
+  Field,
+  Input,
+  KeyValue,
+  PageHeader,
+  Select,
+  StatusPill,
+  useToast,
 } from '@components/index';
 import { models, system } from '@services/api';
 import { detectHost } from '@services/transport';
 import { applyTheme, themes, type ThemeName } from '@design/themes';
 import type { ProviderHealth } from '@services/types';
+
+type Section = 'ai' | 'voice' | 'system';
+
+const SECTIONS: Array<{ id: Section; label: string; Icon: typeof Bot; hint: string }> = [
+  { id: 'ai', label: 'AI', Icon: Bot, hint: 'Models, providers and memory' },
+  { id: 'voice', label: 'Voice', Icon: Volume2, hint: 'Speech, emotion and hologram' },
+  { id: 'system', label: 'System', Icon: Settings2, hint: 'Appearance, security and status' },
+];
 
 const SECRET_OPTIONS = [
   { value: 'openai_api_key', label: 'OpenAI' },
@@ -16,8 +32,15 @@ const SECRET_OPTIONS = [
   { value: 'openrouter_api_key', label: 'OpenRouter' },
 ];
 
-/** Settings: AI, appearance and encrypted credentials (docs/13-SETTINGS.md). */
+/**
+ * Settings (docs/13-SETTINGS.md, docs/ui-page/conversation.txt).
+ *
+ * Exactly three sections — AI, Voice and System — as specified. Advanced
+ * options are nested inside them rather than promoted to the top level, and
+ * plugin management lives in Apps, not here.
+ */
 export function SettingsHome() {
+  const [section, setSection] = useState<Section | null>(null);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [providers, setProviders] = useState<Record<string, ProviderHealth>>({});
   const [secrets, setSecrets] = useState<Record<string, string>>({});
@@ -62,8 +85,39 @@ export function SettingsHome() {
     if (isDesktop) void system.setPreference('theme', name).catch(() => {});
   };
 
-  const section = (title: string, data: unknown) => (
-    <Card title={title} key={title}>
+  // --- landing: three buttons only ------------------------------------- //
+  if (section === null) {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6">
+        <h2 className="mb-3 text-[11px] uppercase tracking-[0.22em] text-[var(--aera-text-muted)]">
+          Settings
+        </h2>
+        {SECTIONS.map(({ id, label, Icon, hint }) => (
+          <button
+            key={id}
+            onClick={() => setSection(id)}
+            className="flex w-full max-w-md items-center gap-4 rounded-xl border border-[var(--aera-line-strong)] bg-[var(--aera-bg-surface)] px-5 py-4 text-left transition-colors hover:border-[var(--aera-accent-primary)]"
+          >
+            <Icon size={20} className="text-[var(--aera-accent-primary)]" strokeWidth={1.7} />
+            <span className="flex-1">
+              <span className="block text-[15px] font-medium">{label}</span>
+              <span className="block text-[11.5px] text-[var(--aera-text-muted)]">{hint}</span>
+            </span>
+            <span className="text-[var(--aera-text-disabled)]">›</span>
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  const back = (
+    <Button variant="ghost" size="sm" onClick={() => setSection(null)}>
+      ‹ Settings
+    </Button>
+  );
+
+  const detail = (title: string, data: unknown) => (
+    <Card title={title}>
       {Object.entries((data ?? {}) as Record<string, unknown>).map(([key, value]) => (
         <KeyValue
           key={key}
@@ -78,112 +132,170 @@ export function SettingsHome() {
     </Card>
   );
 
-  // The spec keeps the top bar to six destinations, so the detailed
-  // subsystem pages are reached from here (docs/13-SETTINGS.md).
-  const SUBSYSTEMS = [
-    ['/memory', 'Memory', 'Browse and search the knowledge graph'],
-    ['/agents', 'Agents', 'Roster, status and lifecycle control'],
-    ['/workspace', 'Workspace', 'Project explorer and file search'],
-    ['/models', 'Models', 'Local and cloud providers'],
-    ['/automation', 'Automation', 'Workflows and run history'],
-    ['/hologram', 'Hologram', 'Avatar emotion and gestures'],
-    ['/security', 'Security', 'Permissions and the audit trail'],
-    ['/system', 'System', 'Runtime and resource status'],
-    ['/terminal', 'Terminal', 'Allowlisted shell execution'],
-    ['/docker', 'Docker', 'Container management'],
-    ['/plugins', 'Plugins', 'Sandboxed extensions'],
-  ] as const;
-
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-      <PageHeader title="Settings" subtitle="AI, appearance and credentials" />
+      <PageHeader
+        title={SECTIONS.find((s) => s.id === section)!.label}
+        subtitle={SECTIONS.find((s) => s.id === section)!.hint}
+        action={back}
+      />
 
-      <h3 className="mb-2 text-[10.5px] uppercase tracking-[0.11em] text-[var(--aera-text-muted)]">
-        Subsystems
-      </h3>
-      <CardGrid className="mb-5">
-        {SUBSYSTEMS.map(([to, label, description]) => (
-          <Link key={to} to={to}>
-            <Card interactive title={label}>
-              <p className="text-[11.5px] text-[var(--aera-text-muted)]">{description}</p>
-            </Card>
-          </Link>
-        ))}
-      </CardGrid>
+      {section === 'ai' && (
+        <div className="grid max-w-4xl gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+          <LocalModelCard providers={providers} />
 
-      <Card title="Appearance" className="mb-4 max-w-sm">
-        <Field label="Theme">
-          <Select value={theme} onChange={(e) => changeTheme(e.target.value as ThemeName)}>
-            {Object.values(themes).map((t) => (
-              <option key={t.name} value={t.name}>{t.label}</option>
+          <Card title="Providers">
+            {Object.entries(providers)
+              .filter(([, info]) => !info.local)
+              .map(([name, info]) => (
+                <div key={name} className="flex items-center justify-between py-1 text-[12px]">
+                  <span className="text-[var(--aera-text-muted)]">{name}</span>
+                  <StatusPill status={info.healthy ? 'healthy' : 'offline'} />
+                </div>
+              ))}
+          </Card>
+
+          {detail('Model routing', settings.models)}
+          {detail('Memory', settings.memory)}
+
+          <Card title="API keys">
+            <p className="mb-2.5 text-[11px] text-[var(--aera-text-muted)]">
+              Encrypted on this machine, sent only to the provider you choose. AERA runs
+              offline without them.
+            </p>
+            {isDesktop ? (
+              <div className="flex flex-col gap-2">
+                <Select value={secretName} onChange={(e) => setSecretName(e.target.value)}>
+                  {SECRET_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  type="password"
+                  value={secretValue}
+                  placeholder="Paste the API key…"
+                  onChange={(e) => setSecretValue(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void saveSecret()}
+                />
+                <Button variant="primary" size="sm" onClick={() => void saveSecret()}>
+                  Save
+                </Button>
+              </div>
+            ) : (
+              <p className="text-[11px] text-[var(--aera-text-disabled)]">
+                Keys can only be written from the desktop application. On a server, set
+                OPENAI_API_KEY, ANTHROPIC_API_KEY or GEMINI_API_KEY in the environment.
+              </p>
+            )}
+            {Object.entries(secrets).map(([name, masked]) => (
+              <KeyValue key={name} label={name} value={<span className="font-mono">{masked}</span>} />
             ))}
-          </Select>
-        </Field>
-      </Card>
+          </Card>
 
-      <CardGrid className="mb-5">
-        {section('Interface', settings.settings)}
-        {section('Models', settings.models)}
-        {section('Memory', settings.memory)}
-        {section('Voice', settings.voice)}
-        <Card title="Providers">
-          {Object.entries(providers).map(([name, info]) => (
-            <div key={name} className="flex items-center justify-between py-0.5 text-[12px]">
-              <span className="text-[var(--aera-text-muted)]">{name}</span>
-              <StatusPill status={info.healthy ? 'healthy' : 'offline'} />
-            </div>
-          ))}
-        </Card>
-      </CardGrid>
-
-      <h3 className="mb-1.5 text-[10.5px] uppercase tracking-[0.11em] text-[var(--aera-text-muted)]">
-        API keys
-      </h3>
-      <p className="mb-2.5 text-[11.5px] text-[var(--aera-text-muted)]">
-        Encrypted at rest on this machine and sent only to the provider you choose.
-        AERA runs fully offline without them.
-      </p>
-
-      {isDesktop ? (
-        <div className="mb-3 flex flex-wrap gap-2">
-          <Select
-            value={secretName}
-            onChange={(e) => setSecretName(e.target.value)}
-            className="!w-52"
-          >
-            {SECRET_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </Select>
-          <Input
-            type="password"
-            value={secretValue}
-            placeholder="Paste the API key…"
-            onChange={(e) => setSecretValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void saveSecret()}
-            className="max-w-md"
-          />
-          <Button variant="primary" onClick={() => void saveSecret()}>Save</Button>
+          <NestedLink to="/memory" Icon={Sparkles} label="Memory graph" hint="Browse and search recall" />
+          <NestedLink to="/agents" Icon={Bot} label="Agents" hint="Roster and lifecycle" />
+          <NestedLink to="/models" Icon={Cpu} label="Model manager" hint="Local, cloud and custom" />
         </div>
-      ) : (
-        <p className="mb-3 text-[11.5px] text-[var(--aera-text-disabled)]">
-          Keys can only be written from the desktop application. On a server, set
-          OPENAI_API_KEY, ANTHROPIC_API_KEY or GEMINI_API_KEY in the environment.
-        </p>
       )}
 
-      <CardGrid>
-        {Object.entries(secrets).length === 0 ? (
-          <p className="text-[12.5px] text-[var(--aera-text-muted)]">No API keys stored.</p>
-        ) : (
-          Object.entries(secrets).map(([name, masked]) => (
-            <Card key={name} title={name}>
-              <p className="font-mono text-[11px] text-[var(--aera-text-muted)]">{masked}</p>
-            </Card>
-          ))
-        )}
-      </CardGrid>
+      {section === 'voice' && (
+        <div className="grid max-w-4xl gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+          {detail('Voice', settings.voice)}
+          <NestedLink to="/hologram" Icon={Sparkles} label="Hologram" hint="Avatar emotion and gestures" />
+        </div>
+      )}
+
+      {section === 'system' && (
+        <div className="grid max-w-4xl gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+          <Card title="Appearance">
+            <Field label="Theme">
+              <Select value={theme} onChange={(e) => changeTheme(e.target.value as ThemeName)}>
+                {Object.values(themes).map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </Card>
+          {detail('Interface', settings.settings)}
+          <NestedLink to="/security" Icon={Settings2} label="Security" hint="Permissions and audit" />
+          <NestedLink to="/system" Icon={Cpu} label="System status" hint="Runtime and resources" />
+          <NestedLink to="/automation" Icon={Settings2} label="Automation" hint="Workflows and runs" />
+          <NestedLink to="/workspace" Icon={Settings2} label="Workspace" hint="Project explorer" />
+        </div>
+      )}
     </div>
+  );
+}
+
+/** Link out to a nested detail page. */
+function NestedLink({
+  to,
+  label,
+  hint,
+  Icon,
+}: {
+  to: string;
+  label: string;
+  hint: string;
+  Icon: typeof Bot;
+}) {
+  return (
+    <Link to={to}>
+      <Card interactive>
+        <div className="flex items-center gap-3">
+          <Icon size={16} className="text-[var(--aera-accent-primary)]" strokeWidth={1.7} />
+          <span className="flex-1">
+            <span className="block text-[13px] font-medium">{label}</span>
+            <span className="block text-[11px] text-[var(--aera-text-muted)]">{hint}</span>
+          </span>
+          <span className="text-[var(--aera-text-disabled)]">›</span>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
+/**
+ * Local model status.
+ *
+ * Per the conversation: when no local runtime is detected there must be no
+ * connect button at all — only an offline status line.
+ */
+function LocalModelCard({ providers }: { providers: Record<string, ProviderHealth> }) {
+  const local = Object.entries(providers).filter(
+    ([name, info]) => info.local && name !== 'builtin',
+  );
+  const connected = local.filter(([, info]) => info.healthy);
+
+  return (
+    <Card title="Local models">
+      {connected.length > 0 ? (
+        connected.map(([name]) => (
+          <div key={name} className="flex items-center justify-between py-1 text-[12px]">
+            <span className="text-[var(--aera-text-muted)]">{name}</span>
+            <span className="flex items-center gap-1.5 text-[var(--aera-success)]">
+              <i
+                className="h-1.5 w-1.5 rounded-full bg-[var(--aera-success)]"
+                style={{ boxShadow: '0 0 6px var(--aera-success)' }}
+              />
+              Connected
+            </span>
+          </div>
+        ))
+      ) : (
+        <>
+          <p className="text-[12px] text-[var(--aera-text-muted)]">Not connected</p>
+          <p className="mt-1 text-[11px] text-[var(--aera-text-disabled)]">
+            Start a supported local AI service to enable local inference. AERA continues
+            to run on the built-in reasoner.
+          </p>
+        </>
+      )}
+    </Card>
   );
 }
 

@@ -9,6 +9,16 @@ from ..core.config import AgentsSection
 from .base import Agent, AgentContext, AgentStatus, Capability, Task, TaskResult
 from .coding_agent import CodeReviewAgent, CodingAgent, DebugAgent
 from .core_agent import CoreAgent
+from .extended_agents import (
+    AutomationAgent,
+    BackupAgent,
+    DeviceAgent,
+    EthicalHackingAgent,
+    LearningAgent,
+    MonitoringAgent,
+    SchedulerAgent,
+    UpdateAgent,
+)
 from .knowledge_agents import (
     PlanningAgent,
     ReasoningAgent,
@@ -43,6 +53,12 @@ AGENT_CLASSES: dict[str, tuple[type[Agent], ...]] = {
     "security": (SecurityAgent,),
     "performance": (PerformanceAgent,),
     "notification": (NotificationAgent,),
+    "automation": (AutomationAgent, SchedulerAgent),
+    "ethical_hacking": (EthicalHackingAgent,),
+    "device": (DeviceAgent,),
+    "learning": (LearningAgent,),
+    "update": (UpdateAgent, BackupAgent),
+    "monitoring": (MonitoringAgent,),
 }
 
 
@@ -72,7 +88,15 @@ __all__ = [
     "AgentRegistry",
     "AgentStatus",
     "Capability",
+    "AutomationAgent",
+    "BackupAgent",
     "CodeReviewAgent",
+    "DeviceAgent",
+    "EthicalHackingAgent",
+    "LearningAgent",
+    "MonitoringAgent",
+    "SchedulerAgent",
+    "UpdateAgent",
     "CodingAgent",
     "CoreAgent",
     "DebugAgent",

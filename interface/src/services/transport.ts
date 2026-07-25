@@ -16,6 +16,7 @@ import type { Envelope } from './types';
 interface NativeBridge {
   chat(message: string, conversationId?: string | null): Promise<Envelope<unknown>>;
   chat_stream(message: string, conversationId?: string | null): Promise<Envelope<unknown>>;
+  tap_to_memory(conversationId?: string | null): Promise<Envelope<unknown>>;
   open_folder_dialog(): Promise<Envelope<unknown>>;
   open_file_dialog(multiple?: boolean): Promise<Envelope<unknown>>;
   save_file_dialog(filename?: string, content?: string): Promise<Envelope<unknown>>;

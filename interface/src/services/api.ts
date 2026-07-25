@@ -274,8 +274,29 @@ export const models = {
 // --------------------------------------------------------------------------
 // voice / hologram
 // --------------------------------------------------------------------------
+export interface TapMemoryResult {
+  ready: boolean;
+  duration_ms: number;
+  summary: string;
+  stages: Record<string, unknown>;
+}
+
 export const voice = {
   status: () => httpRequest<VoiceStatus>('/voice/status'),
+
+  /**
+   * Tap-to-memory: primes context (conversation, projects, workspace, shared
+   * memory, preferences) before listening begins.
+   */
+  tapToMemory: (conversationId?: string) =>
+    call<TapMemoryResult>({
+      native: () => nativeCall('tap_to_memory', conversationId ?? null),
+      http: () =>
+        httpRequest(
+          `/voice/tap${conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : ''}`,
+          { method: 'POST' },
+        ),
+    }),
   speak: (text: string, emotion?: string) =>
     httpRequest<{ duration_ms: number; emotion: string; visemes: unknown[] }>(
       '/voice/speak',

@@ -23,6 +23,7 @@ from ..agents import (
     TaskResult,
     build_default_registry,
 )
+from ..agents.tap_memory import TapMemoryWorkflow
 from ..ai.router import ModelRouter
 from ..automation.engine import AutomationEngine
 from ..hologram.avatar import HologramController
@@ -54,6 +55,7 @@ class Kernel:
         self.voice: VoiceEngine | None = None
         self.hologram: HologramController | None = None
         self.vault: SecretVault | None = None
+        self.tap_memory: TapMemoryWorkflow | None = None
         self.permissions = PermissionManager()
         self.audit: AuditLog | None = None
 
@@ -97,6 +99,12 @@ class Kernel:
         # -- workspace ----------------------------------------------------
         self.workspace = WorkspaceIndexer(cfg.workspace, memory=self.memory, bus=self.bus)
         context.workspace = self.workspace  # agents reach it through the shared context
+
+        # -- tap-to-memory --------------------------------------------------
+        # Runs before voice listening starts, priming context.
+        self.tap_memory = TapMemoryWorkflow(
+            self.memory, workspace=self.workspace, registry=self.registry, bus=self.bus
+        )
 
         # -- automation ---------------------------------------------------
         self.automation = AutomationEngine(
@@ -198,6 +206,12 @@ class Kernel:
         if agent:
             task.context["force_agent"] = agent
         return await self.registry.dispatch(task, agent_name="core")
+
+    async def prime_context(self, *, conversation_id: str | None = None) -> dict[str, Any]:
+        """Run the tap-to-memory workflow (see TapMemoryWorkflow)."""
+        if self.tap_memory is None:
+            raise RuntimeError("kernel is not started")
+        return await self.tap_memory.run(conversation_id=conversation_id)
 
     # ------------------------------------------------------------------ #
     # shutdown

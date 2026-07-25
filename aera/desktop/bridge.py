@@ -120,6 +120,13 @@ class DesktopBridge:
         except Exception:  # noqa: BLE001 - window may be closing
             pass
 
+    def tap_to_memory(self, conversation_id: str | None = None) -> dict:
+        """Prime context before voice listening begins."""
+        try:
+            return self._ok(self._run(self.app.kernel.prime_context(conversation_id=conversation_id)))
+        except Exception as exc:  # noqa: BLE001
+            return self._err(str(exc))
+
     # ------------------------------------------------------------------ #
     # native dialogs
     # ------------------------------------------------------------------ #
