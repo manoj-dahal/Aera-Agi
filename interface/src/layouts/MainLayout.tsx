@@ -1,44 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Sidebar, StatusBar, ToastHost, useToast } from '@components/index';
-import { useSystemStore, useWorkspaceStore } from '@store/index';
+import { TopNav } from '@components/navigation/TopNav';
+import { StatusFooter } from '@components/widgets/StatusFooter';
+import { ToastHost } from '@components/notifications/Toast';
 import { useMenuActions } from '@hooks/useMenuActions';
+import { useSystemStore, useWorkspaceStore } from '@store/index';
 
 /**
- * The primary application shell: status bar, sidebar and routed content.
- * Owns the polling loops that keep system state fresh.
+ * Application shell (docs/04-DASHBOARD.md).
+ *
+ * Grouped top navigation, routed content, and a bottom status bar. Owns the
+ * polling loops that keep system state fresh.
  */
 export function MainLayout() {
   const { status, connected, startPolling } = useSystemStore();
-  const { openDialog, canPickFolder, refresh } = useWorkspaceStore();
-  const showToast = useToast((s) => s.show);
+  const refreshWorkspace = useWorkspaceStore((s) => s.refresh);
 
   // Native menu items dispatch into the router and stores.
   useMenuActions();
 
   useEffect(() => startPolling(), [startPolling]);
-  useEffect(() => void refresh(), [refresh]);
+  useEffect(() => void refreshWorkspace(), [refreshWorkspace]);
 
-  const handleOpenFolder = async () => {
-    await openDialog();
-    const project = useWorkspaceStore.getState().project;
-    if (project) showToast(`Opened ${project.name}`, 'success');
-  };
+  const activeAgent = useMemo(
+    () => (status?.agents?.running ? 'core' : undefined),
+    [status?.agents?.running],
+  );
 
   return (
-    <div className="flex h-screen flex-col">
-      <StatusBar status={status} connected={connected} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar
-          emotion={status?.hologram?.emotion}
-          speaking={status?.hologram?.speaking}
-          onOpenFolder={handleOpenFolder}
-          canPickFolder={canPickFolder()}
-        />
-        <main className="flex min-w-0 flex-1">
-          <Outlet />
-        </main>
-      </div>
+    <div className="flex h-screen flex-col overflow-hidden">
+      <TopNav />
+      <main className="flex min-h-0 flex-1">
+        <Outlet />
+      </main>
+      <StatusFooter status={status} connected={connected} activeAgent={activeAgent} />
       <ToastHost />
     </div>
   );

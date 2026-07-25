@@ -5,6 +5,10 @@ import { LoadingState } from '@components/widgets/EmptyState';
 
 // Route-level code splitting keeps the initial desktop paint fast.
 const Dashboard = lazy(() => import('@pages/dashboard/Dashboard'));
+const MacrosHome = lazy(() => import('@pages/macros/MacrosHome'));
+const AppsHome = lazy(() => import('@pages/apps/AppsHome'));
+const GalleryHome = lazy(() => import('@pages/gallery/GalleryHome'));
+const PhoneHome = lazy(() => import('@pages/phone/PhoneHome'));
 const MemoryHome = lazy(() => import('@pages/memory/MemoryHome'));
 const AgentsHome = lazy(() => import('@pages/agents/AgentsHome'));
 const WorkspaceHome = lazy(() => import('@pages/workspace/WorkspaceHome'));
@@ -25,6 +29,10 @@ export function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/macros" element={<MacrosHome />} />
+          <Route path="/apps" element={<AppsHome />} />
+          <Route path="/gallery" element={<GalleryHome />} />
+          <Route path="/phone" element={<PhoneHome />} />
           <Route path="/memory" element={<MemoryHome />} />
           <Route path="/agents" element={<AgentsHome />} />
           <Route path="/workspace" element={<WorkspaceHome />} />

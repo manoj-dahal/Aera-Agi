@@ -4,7 +4,7 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-356%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-369%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -230,10 +230,15 @@ npm run build     # emits to aera/desktop/ui-react/, picked up automatically
 npm run dev       # hot reload against a running `aera serve`
 ```
 
-Ten pages are wired to live backend data: Dashboard, Memory, Agents, Workspace,
-Models, Automation, Hologram, Security, Settings and System. Terminal, Docker
-and Plugins render an explicit status panel describing what works today and
-what is still missing, rather than controls that do nothing.
+The Dashboard follows `docs/04-DASHBOARD.md`: grouped top navigation, hologram
+and workspace on the left, a canvas particle sphere over **Tap to Speak** in the
+centre, and a HUD transcript panel on the right that accepts drag & drop.
+
+Eleven pages are wired to live backend data — Dashboard, Macros, Memory, Agents,
+Workspace, Models, Automation, Hologram, Security, Settings and System. Apps,
+Gallery, Phone, Terminal, Docker and Plugins render an explicit status panel
+describing what works today and what is still missing, rather than controls that
+do nothing.
 
 If Node is never installed, the app falls back to a dependency-free UI in
 `aera/desktop/ui/` — so `aera` always launches.
@@ -359,7 +364,7 @@ pytest tests/test_memory.py -v       # one module
 | `test_api.py` | 66 | all endpoints, auth, rate limits, WebSocket |
 | `test_subsystems.py` | 63 | workspace, automation, voice, hologram, kernel |
 | `test_desktop.py` | 45 | kernel thread, native bridge, streaming, dialogs, sandboxing |
-| `interface/src/__tests__` | 25 | formatting, markdown escaping, design tokens, transport |
+| `interface/src/__tests__` | 38 | formatting, markdown escaping, design tokens, transport, dashboard layout |
 
 Tests run fully offline and deterministically — no network, no API keys, no
 model downloads.

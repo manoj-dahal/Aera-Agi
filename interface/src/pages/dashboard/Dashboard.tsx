@@ -1,55 +1,96 @@
-import { useEffect, useRef, useState } from 'react';
-import { DashboardLayout } from '@layouts/DashboardLayout';
-import {
-  AvatarOrb,
-  ChatMessageView,
-  Composer,
-  EventFeed,
-  SectionTitle,
-  useToast,
-} from '@components/index';
-import { useChatStore, useSystemStore } from '@store/index';
-import { system } from '@services/api';
+import { useEffect, useMemo, useState } from 'react';
+import { AICorePanel } from '@components/widgets/AICorePanel';
+import { HologramBadge } from '@components/hologram/HologramBadge';
+import { ParticleSphere, type SphereState } from '@components/hologram/ParticleSphere';
+import { TapToSpeak } from '@components/voice/TapToSpeak';
+import { TranscriptPanel } from '@components/voice/TranscriptPanel';
+import { WorkspacePanel } from '@components/widgets/WorkspacePanel';
+import { useToast } from '@components/notifications/Toast';
+import { useChatStore, useSystemStore, useWorkspaceStore } from '@store/index';
+import { system, workspace as workspaceApi } from '@services/api';
 import { detectHost } from '@services/transport';
 
-const SUGGESTIONS = [
-  'Write a Python function to parse JSON safely',
-  'Plan a migration from SQLite to PostgreSQL',
-  'Explain the trade-offs of local vs cloud LLMs',
-  'What do you remember about this project?',
-];
-
 /**
- * The main conversation surface.
+ * The Dashboard (docs/04-DASHBOARD.md).
  *
- * Requests enter the Core Agent, which detects intent, recalls memory and
- * delegates to a specialist agent (docs/agents/Core-Agent.md).
+ * Left: hologram badge, AI core, workspace explorer.
+ * Centre: particle hologram over the Tap to Speak control.
+ * Right: transcript panel with drag & drop.
  */
 export function Dashboard() {
   const { messages, streaming, send } = useChatStore();
-  const { events, status } = useSystemStore();
-  const [draft, setDraft] = useState('');
+  const { status } = useSystemStore();
+  const workspaceStore = useWorkspaceStore();
   const showToast = useToast((s) => s.show);
-  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const [draft, setDraft] = useState('');
+  const [files, setFiles] = useState<string[]>([]);
+  const [listening, setListening] = useState(false);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages]);
+    void workspaceStore.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load the file tree whenever the active project changes.
+  useEffect(() => {
+    if (!workspaceStore.project) {
+      setFiles([]);
+      return;
+    }
+    void workspaceApi
+      .tree(300)
+      .then((data) => setFiles(data.files))
+      .catch(() => setFiles([]));
+  }, [workspaceStore.project?.root]);
+
+  /** Hologram state follows the conversation and voice lifecycle. */
+  const sphereState: SphereState = useMemo(() => {
+    if (!status?.ready) return 'offline';
+    if (listening) return 'listening';
+    if (streaming) {
+      const last = messages[messages.length - 1];
+      return last?.content ? 'speaking' : 'thinking';
+    }
+    return 'idle';
+  }, [status?.ready, listening, streaming, messages]);
+
+  const activeAgent = useMemo(
+    () => [...messages].reverse().find((m) => m.agent)?.agent,
+    [messages],
+  );
 
   const submit = () => {
-    const text = draft;
+    const text = draft.trim();
+    if (!text) return;
     setDraft('');
     void send(text);
+  };
+
+  const handleTap = () => {
+    if (draft.trim()) return submit();
+    // No microphone capture in this build: prompt for text instead of
+    // pretending to listen.
+    setListening(true);
+    setTimeout(() => setListening(false), 900);
+    showToast('Type your message, then press Enter', 'info');
+    document.getElementById('aera-input')?.focus();
+  };
+
+  const handleDrop = async (paths: string[]) => {
+    const first = paths[0];
+    if (!first) return;
+    showToast(`Analysing ${first.split('/').pop()}`, 'info');
+    void send(`Analyse this dropped file: ${first}`);
   };
 
   const copy = async (text: string) => {
     if (detectHost() === 'desktop') {
       try {
         await system.copy(text);
-        showToast('Copied', 'success');
-        return;
+        return showToast('Copied', 'success');
       } catch {
-        /* fall through to the DOM clipboard */
+        /* fall through */
       }
     }
     try {
@@ -61,52 +102,59 @@ export function Dashboard() {
   };
 
   return (
-    <DashboardLayout
-      context={
-        <>
-          <SectionTitle>Activity</SectionTitle>
-          <EventFeed events={events} />
-        </>
-      }
-    >
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
-          {messages.length === 0 ? (
-            <div className="m-auto max-w-[520px] text-center">
-              <AvatarOrb size={50} className="mb-4" speaking={false} />
-              <h2 className="mb-1.5 text-[19px] font-semibold">AERA is running locally</h2>
-              <p className="mb-5 text-[13px] text-[var(--aera-text-muted)]">
-                Persistent memory, multi-agent routing and local-first AI — running on
-                this machine, no server required.
-              </p>
-              <div className="grid gap-2">
-                {SUGGESTIONS.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => void send(suggestion)}
-                    className="rounded-lg border border-[var(--aera-line-default)] bg-[var(--aera-bg-surface)] px-3.5 py-2.5 text-left text-[12.5px] text-[var(--aera-text-muted)] transition-colors hover:border-[var(--aera-accent-primary)] hover:text-[var(--aera-text-primary)]"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <ChatMessageView key={message.id} message={message} onCopy={copy} />
-            ))
-          )}
-          <div ref={bottomRef} />
-        </div>
-
-        <Composer
-          value={draft}
-          disabled={streaming || !status?.ready}
-          onChange={setDraft}
-          onSend={submit}
+    <div className="flex min-h-0 flex-1 gap-4 px-4 pb-3">
+      {/* ---------- left column ---------- */}
+      <div className="flex w-[188px] shrink-0 flex-col gap-2.5">
+        <HologramBadge
+          emotion={status?.hologram?.emotion}
+          active={sphereState !== 'idle' && sphereState !== 'offline'}
+        />
+        <AICorePanel status={status} activeAgent={activeAgent} processing={streaming} />
+        <WorkspacePanel
+          project={workspaceStore.project}
+          files={files}
+          results={workspaceStore.results}
+          canPickFolder={workspaceStore.canPickFolder()}
+          onOpenFolder={() => void workspaceStore.openDialog()}
+          onRefresh={() => void workspaceStore.reindex()}
+          onSearch={(q) => void workspaceStore.search(q)}
+          onSelect={(path) => {
+            void workspaceStore.select(path);
+            setDraft(`Explain ${path}`);
+          }}
         />
       </div>
-    </DashboardLayout>
+
+      {/* ---------- centre ---------- */}
+      <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-6">
+        <ParticleSphere
+          state={sphereState}
+          emotion={status?.hologram?.emotion}
+          size={340}
+        />
+
+        <div className="flex w-full max-w-[540px] flex-col items-center gap-3.5">
+          <TapToSpeak
+            listening={listening}
+            disabled={!status?.ready || streaming}
+            onClick={handleTap}
+          />
+
+          <input
+            id="aera-input"
+            value={draft}
+            placeholder="Ask AERA anything…"
+            disabled={streaming || !status?.ready}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submit()}
+            className="selectable w-full rounded-full border border-[var(--aera-line-strong)] bg-[var(--aera-bg-surface)] px-5 py-2.5 text-center text-[13px] placeholder:text-[var(--aera-text-disabled)] focus:border-[var(--aera-accent-primary)] disabled:opacity-50"
+          />
+        </div>
+      </div>
+
+      {/* ---------- right column ---------- */}
+      <TranscriptPanel messages={messages} onDropFiles={handleDrop} onCopy={copy} />
+    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Button, Card, CardGrid, Field, Input, KeyValue, PageHeader,
   Select, StatusPill, useToast,
@@ -77,9 +78,38 @@ export function SettingsHome() {
     </Card>
   );
 
+  // The spec keeps the top bar to six destinations, so the detailed
+  // subsystem pages are reached from here (docs/13-SETTINGS.md).
+  const SUBSYSTEMS = [
+    ['/memory', 'Memory', 'Browse and search the knowledge graph'],
+    ['/agents', 'Agents', 'Roster, status and lifecycle control'],
+    ['/workspace', 'Workspace', 'Project explorer and file search'],
+    ['/models', 'Models', 'Local and cloud providers'],
+    ['/automation', 'Automation', 'Workflows and run history'],
+    ['/hologram', 'Hologram', 'Avatar emotion and gestures'],
+    ['/security', 'Security', 'Permissions and the audit trail'],
+    ['/system', 'System', 'Runtime and resource status'],
+    ['/terminal', 'Terminal', 'Allowlisted shell execution'],
+    ['/docker', 'Docker', 'Container management'],
+    ['/plugins', 'Plugins', 'Sandboxed extensions'],
+  ] as const;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       <PageHeader title="Settings" subtitle="AI, appearance and credentials" />
+
+      <h3 className="mb-2 text-[10.5px] uppercase tracking-[0.11em] text-[var(--aera-text-muted)]">
+        Subsystems
+      </h3>
+      <CardGrid className="mb-5">
+        {SUBSYSTEMS.map(([to, label, description]) => (
+          <Link key={to} to={to}>
+            <Card interactive title={label}>
+              <p className="text-[11.5px] text-[var(--aera-text-muted)]">{description}</p>
+            </Card>
+          </Link>
+        ))}
+      </CardGrid>
 
       <Card title="Appearance" className="mb-4 max-w-sm">
         <Field label="Theme">

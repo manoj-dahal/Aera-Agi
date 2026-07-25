@@ -92,20 +92,49 @@ receives unescaped input; this is covered by tests.
 
 ---
 
+## Dashboard layout
+
+The Dashboard follows `docs/04-DASHBOARD.md` exactly:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ AERA Agent   [Dashboard Macros Apps]   [Gallery Phone Settings]     │
+├─────────────┬───────────────────────────────┬───────────────────────┤
+│ Hologram    │                               │   Transcript          │
+│ System Info │         Particle Sphere       │   (drag & drop,       │
+│             │                               │    watermark)         │
+│ Workspace   │         TAP TO SPEAK          │                       │
+├─────────────┴───────────────────────────────┴───────────────────────┤
+│ Model · Agent · Agents · Memory · Events · Uptime      ● Connected   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+- **Particle sphere** — 1,400 points on a Fibonacci lattice, canvas-rendered
+  with perspective depth. Rotation, turbulence and glow follow the avatar state
+  (`idle` · `listening` · `thinking` · `speaking` · `processing` · `error` ·
+  `offline`); colour follows detected emotion.
+- **Transcript** — angled HUD frame drawn in SVG. The AERA watermark sits at 6%
+  opacity and lights up during a drag, per the spec's drop workflow.
+- **Workspace panel** — open folder, search and refresh in the header, with the
+  project tree beneath.
+
 ## Page status
 
 Wired to a live backend:
 
-`Dashboard` · `Memory` · `Agents` · `Workspace` · `Models` · `Automation` ·
-`Hologram` · `Security` · `Settings` · `System`
+`Dashboard` · `Macros` · `Memory` · `Agents` · `Workspace` · `Models` ·
+`Automation` · `Hologram` · `Security` · `Settings` · `System`
 
 Rendered as an explicit "not implemented yet" panel, because the backend for
 them is partial or absent:
 
-`Terminal` · `Docker` · `Plugins`
+`Apps` · `Gallery` · `Phone` · `Terminal` · `Docker` · `Plugins`
 
 Those screens state what already works and what is still missing rather than
 presenting controls that do nothing.
+
+The top bar carries the six destinations the spec names. The remaining
+subsystem pages are reached from Settings, which links to each.
 
 The directory scaffold also reserves space for `auth/` and `onboarding/`
 flows. Local desktop installs are single-user and unauthenticated by default
