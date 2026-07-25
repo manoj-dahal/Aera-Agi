@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from src.routes.agents import router as agents_router
+from src.routes.automation import router as automation_router
 from src.routes.chat import router as chat_router
 from src.routes.memory import router as memory_router
 from src.routes.models import router as models_router
@@ -18,5 +19,6 @@ api_router.include_router(models_router)
 api_router.include_router(memory_router)
 api_router.include_router(voice_router)
 api_router.include_router(services_router)
+api_router.include_router(automation_router)
 
 __all__ = ["api_router"]

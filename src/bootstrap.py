@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from src.agents.manager import AgentManager
 from src.ai.router import ModelRouter
+from src.automation.manager import AutomationManager
 from src.events.bus import EventBus
 from src.logging.logger import get_logger
 from src.memory.graph import MemoryGraph
@@ -39,6 +40,7 @@ class AeraSystem:
     conversation: ConversationEngine
     speech: SpeechService
     services: ServiceManager
+    automation: AutomationManager
 
     async def start_services(self) -> None:
         await self.services.start_all()
@@ -79,6 +81,7 @@ def boot() -> AeraSystem:
     conversation = ConversationEngine(agents, emotions, bus)
     speech = SpeechService()
     services = ServiceManager(bus)
+    automation = AutomationManager(agents, memory, bus, services)
 
     system = AeraSystem(
         bus=bus,
@@ -89,6 +92,7 @@ def boot() -> AeraSystem:
         conversation=conversation,
         speech=speech,
         services=services,
+        automation=automation,
     )
     _register_core_services(system)
     log.info(

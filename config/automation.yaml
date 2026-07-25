@@ -1,0 +1,17 @@
+# Automation Engine configuration (docs/20-AUTOMATION.md "Configuration")
+automation:
+  enabled: true
+  max_parallel_workflows: 4
+  history_size: 200
+
+scheduler:
+  enabled: true
+  min_interval_seconds: 10
+
+security:
+  # Sensitive actions (execute.command) require workflow.approved = true
+  require_approval_for_sensitive: true
+  audit_events: true
+
+templates:
+  autoload: []   # e.g. [system-health-check]
