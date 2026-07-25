@@ -14,6 +14,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
+from .detail import apply_anatomy, apply_microdetail
 from .obj import Material, Mesh, Vec3
 
 
@@ -327,8 +328,16 @@ def build_character(
     name: str,
     segments: int = 48,
     rows: int = 18,
+    anatomy: float = 0.0,
+    microdetail: float = 0.0,
 ) -> Mesh:
-    """Assemble a full humanoid from the proportion set."""
+    """Assemble a full humanoid from the proportion set.
+
+    ``anatomy`` scales the anatomical displacement pass (clavicle, spine,
+    scapula, knee caps and so on). ``microdetail`` is the skin-scale noise
+    amplitude in millimetres. Both are off by default so the base mesh stays
+    clean for sculpting.
+    """
     h = p.height
     figure = Mesh(name=name, material="skin")
 
@@ -431,6 +440,22 @@ def build_character(
         )
 
     figure.recompute_normals()
+
+    # Detail passes run last: they displace along finished normals, so the
+    # landmarks land on the real surface rather than an intermediate one.
+    if anatomy > 0:
+        apply_anatomy(
+            figure,
+            height=h,
+            shoulder_x=shoulder_x,
+            hip_x=hip_x,
+            masculine=p.shoulder_mass > 0.015,
+            strength=anatomy,
+        )
+    if microdetail > 0:
+        # Frequency chosen so features span a few triangles at typical density.
+        apply_microdetail(figure, scale=0.055, amplitude=microdetail, octaves=3)
+
     return figure
 
 

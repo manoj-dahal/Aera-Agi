@@ -27,6 +27,7 @@ from ..agents.tap_memory import TapMemoryWorkflow
 from ..ai.router import ModelRouter
 from ..automation.engine import AutomationEngine
 from ..hologram.avatar import HologramController
+from ..hologram.loader import AvatarLibrary
 from ..memory.engine import MemoryEngine
 from ..security.vault import AuditLog, PermissionManager, SecretVault
 from ..services.telemetry import TelemetryService
@@ -57,6 +58,7 @@ class Kernel:
         self.automation: AutomationEngine | None = None
         self.voice: VoiceEngine | None = None
         self.hologram: HologramController | None = None
+        self.avatars: AvatarLibrary | None = None
         self.vault: SecretVault | None = None
         self.tap_memory: TapMemoryWorkflow | None = None
         self.telemetry = TelemetryService()
@@ -151,6 +153,13 @@ class Kernel:
 
         # -- voice + hologram ---------------------------------------------
         self.voice = VoiceEngine(cfg.voice, bus=self.bus)
+
+        # User-supplied avatar models. AERA ships none of its own; drop a GLB
+        # or OBJ into this directory and it is discovered on scan.
+        self.avatars = AvatarLibrary(cfg.storage_dir / "avatars")
+        discovered = self.avatars.scan()
+        if discovered:
+            logger.info("avatar models available: %d", len(discovered))
         self.hologram = HologramController(bus=self.bus, enabled=cfg.settings.hologram)
         await self.bus.subscribe(
             Topics.AVATAR_EMOTION,
@@ -304,6 +313,7 @@ class Kernel:
             "workspace": self.workspace.summary() if self.workspace else {},
             "voice": self.voice.status() if self.voice else {},
             "hologram": self.hologram.status() if self.hologram else {},
+            "avatars": self.avatars.summary() if self.avatars else {},
             "events_published": self.bus.published_count,
             "telemetry": self.telemetry.snapshot(),
             "skills": self.skills.summary() if self.skills else {},

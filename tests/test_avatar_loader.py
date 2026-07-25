@@ -1,0 +1,361 @@
+"""Tests for the user-supplied avatar model loader.
+
+The contract: AERA accepts models the user provides, tells them honestly what
+is wrong with a file, and never silently mangles or deletes something outside
+the library.
+"""
+
+from __future__ import annotations
+
+import json
+import struct
+
+import pytest
+
+from aera.core.errors import NotFoundError, ValidationError
+from aera.hologram.loader import (
+    RECOGNISED,
+    AvatarKind,
+    AvatarLibrary,
+    parse_gltf,
+    parse_obj,
+)
+
+MINIMAL_OBJ = """\
+mtllib model.mtl
+v 0 0 0
+v 1 0 0
+v 0 1 0
+v 1 1 0
+vt 0 0
+vt 1 0
+vt 0 1
+vt 1 1
+vn 0 0 1
+usemtl skin
+f 1/1/1 2/2/1 3/3/1
+f 2/2/1 4/4/1 3/3/1
+"""
+
+
+def write_glb(path, document: dict) -> None:
+    """Pack a glTF JSON document into a valid GLB container."""
+    payload = json.dumps(document).encode()
+    payload += b" " * ((4 - len(payload) % 4) % 4)
+    header = b"glTF" + struct.pack("<II", 2, 12 + 8 + len(payload))
+    chunk = struct.pack("<II", len(payload), 0x4E4F534A)
+    path.write_bytes(header + chunk + payload)
+
+
+GLTF_DOC = {
+    "asset": {"version": "2.0"},
+    "meshes": [
+        {
+            "primitives": [
+                {
+                    "attributes": {"POSITION": 0, "NORMAL": 1, "TEXCOORD_0": 2},
+                    "indices": 3,
+                }
+            ]
+        }
+    ],
+    "accessors": [
+        {"count": 1000, "type": "VEC3", "min": [-0.5, 0.0, -0.3], "max": [0.5, 1.7, 0.3]},
+        {"count": 1000, "type": "VEC3"},
+        {"count": 1000, "type": "VEC2"},
+        {"count": 3000, "type": "SCALAR"},
+    ],
+    "materials": [{"name": "skin"}, {"name": "hair"}],
+    "images": [{"uri": "skin_4k.png"}],
+    "skins": [{"joints": [0, 1, 2]}],
+}
+
+
+@pytest.fixture
+def library(tmp_path):
+    return AvatarLibrary(tmp_path / "avatars")
+
+
+class TestObjParsing:
+    def test_reads_geometry(self, tmp_path):
+        path = tmp_path / "m.obj"
+        path.write_text(MINIMAL_OBJ)
+        data = parse_obj(path)
+        assert data["vertices"] == 4
+        assert data["triangles"] == 2
+        assert data["has_normals"] and data["has_uvs"]
+        assert data["materials"] == ["skin"]
+
+    def test_triangulates_ngons(self, tmp_path):
+        """A quad face is two triangles; a pentagon is three."""
+        path = tmp_path / "m.obj"
+        path.write_text("v 0 0 0\nv 1 0 0\nv 1 1 0\nv 0 1 0\nv 2 2 0\nf 1 2 3 4\nf 1 2 3 4 5\n")
+        assert parse_obj(path)["triangles"] == 2 + 3
+
+    def test_computes_bounds(self, tmp_path):
+        path = tmp_path / "m.obj"
+        path.write_text("v -2 0 -1\nv 3 5 4\nv 0 1 0\n")
+        low, high = parse_obj(path)["bounds"]
+        assert low == (-2.0, 0.0, -1.0)
+        assert high == (3.0, 5.0, 4.0)
+
+    def test_flags_out_of_range_indices(self, tmp_path):
+        """A face referencing a missing vertex crashes real renderers."""
+        path = tmp_path / "m.obj"
+        path.write_text("v 0 0 0\nf 1 2 3\n")
+        warnings = parse_obj(path)["warnings"]
+        assert any("out-of-range" in w for w in warnings)
+
+    def test_flags_missing_normals_and_uvs(self, tmp_path):
+        path = tmp_path / "m.obj"
+        path.write_text("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n")
+        warnings = parse_obj(path)["warnings"]
+        assert any("normals" in w for w in warnings)
+        assert any("UV" in w for w in warnings)
+
+    def test_empty_file_is_flagged(self, tmp_path):
+        path = tmp_path / "m.obj"
+        path.write_text("")
+        assert any("no vertices" in w for w in parse_obj(path)["warnings"])
+
+    def test_tolerates_malformed_lines(self, tmp_path):
+        path = tmp_path / "m.obj"
+        path.write_text("v 0 0 0\nv not a number here\nv 1 1 1\nf 1 2 3\n")
+        assert parse_obj(path)["vertices"] == 3  # counted, bad values skipped
+
+
+class TestGltfParsing:
+    def test_reads_a_gltf_document(self, tmp_path):
+        path = tmp_path / "m.gltf"
+        path.write_text(json.dumps(GLTF_DOC))
+        data = parse_gltf(path)
+        assert data["vertices"] == 1000
+        assert data["triangles"] == 1000
+        assert data["has_skeleton"] is True
+        assert data["materials"] == ["skin", "hair"]
+
+    def test_reads_a_glb_container(self, tmp_path):
+        path = tmp_path / "m.glb"
+        write_glb(path, GLTF_DOC)
+        data = parse_gltf(path)
+        assert data["vertices"] == 1000
+        assert data["bounds"][1][1] == pytest.approx(1.7)
+
+    def test_rejects_bad_magic(self, tmp_path):
+        path = tmp_path / "m.glb"
+        path.write_bytes(b"NOPE" + b"\x00" * 40)
+        with pytest.raises(ValidationError, match="not a GLB"):
+            parse_gltf(path)
+
+    def test_rejects_a_truncated_glb(self, tmp_path):
+        path = tmp_path / "m.glb"
+        path.write_bytes(b"glTF")
+        with pytest.raises(ValidationError):
+            parse_gltf(path)
+
+    def test_rejects_glb_version_one(self, tmp_path):
+        path = tmp_path / "m.glb"
+        path.write_bytes(b"glTF" + struct.pack("<II", 1, 20) + struct.pack("<II", 0, 0x4E4F534A))
+        with pytest.raises(ValidationError, match="version 1"):
+            parse_gltf(path)
+
+    def test_flags_a_document_with_no_meshes(self, tmp_path):
+        path = tmp_path / "m.gltf"
+        path.write_text(json.dumps({"asset": {"version": "2.0"}}))
+        assert any("no meshes" in w for w in parse_gltf(path)["warnings"])
+
+
+class TestLibrary:
+    def test_creates_the_directory(self, library):
+        library.scan()
+        assert library.root.is_dir()
+
+    def test_empty_library(self, library):
+        assert library.scan() == []
+        assert library.summary()["count"] == 0
+
+    def test_discovers_models(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "hero.obj").write_text(MINIMAL_OBJ)
+        write_glb(library.root / "heroine.glb", GLTF_DOC)
+        assert len(library.scan()) == 2
+
+    def test_ignores_unrelated_files(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "hero.obj").write_text(MINIMAL_OBJ)
+        (library.root / "notes.txt").write_text("hello")
+        (library.root / "archive.zip").write_bytes(b"PK")
+        assert len(library.scan()) == 1
+
+    @pytest.mark.parametrize(
+        "filename,kind",
+        [
+            ("anime_girl.obj", AvatarKind.CHARACTER),
+            ("my_avatar.glb", AvatarKind.CHARACTER),
+            ("voice_orb.obj", AvatarKind.ORB),
+            ("energy_sphere.glb", AvatarKind.ORB),
+            ("thing.obj", AvatarKind.UNKNOWN),
+        ],
+    )
+    def test_infers_kind_from_the_name(self, library, filename, kind):
+        library.root.mkdir(parents=True)
+        target = library.root / filename
+        # Write content matching the extension; a GLB with OBJ text inside is
+        # correctly rejected, which would mask what this test is checking.
+        if target.suffix == ".glb":
+            write_glb(target, GLTF_DOC)
+        else:
+            target.write_text(MINIMAL_OBJ)
+        assert library.scan()[0].kind is kind
+
+    def test_fbx_is_catalogued_but_not_parsed(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "from_maya.fbx").write_bytes(b"Kaydara FBX Binary\x00" + b"\x00" * 64)
+        model = library.scan()[0]
+        assert model.parsed is False
+        assert model.vertices is None
+        assert any("GLB" in w for w in model.warnings), "should suggest a workable format"
+
+    def test_collects_sidecar_textures(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "hero.obj").write_text(MINIMAL_OBJ)
+        (library.root / "model.mtl").write_text("newmtl skin\nmap_Kd skin_4k.png\n")
+        (library.root / "skin_4k.png").write_bytes(b"\x89PNG")
+        assert "skin_4k.png" in library.scan()[0].textures
+
+    def test_flags_a_missing_mtl(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "hero.obj").write_text(MINIMAL_OBJ)  # references model.mtl
+        assert any("missing" in t for t in library.scan()[0].textures)
+
+    def test_flags_an_implausible_scale(self, library):
+        """A character 0.001 units tall means the export scale was wrong."""
+        library.root.mkdir(parents=True)
+        (library.root / "avatar_tiny.obj").write_text(
+            "v 0 0 0\nv 0.001 0.001 0.001\nv 0 0.001 0\nf 1 2 3\n"
+        )
+        assert any("scale" in w for w in library.scan()[0].warnings)
+
+    def test_a_broken_file_does_not_stop_the_scan(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "good.obj").write_text(MINIMAL_OBJ)
+        (library.root / "bad.glb").write_bytes(b"not a glb at all")
+        models = library.scan()
+        assert len(models) == 2
+        assert any(m.warnings for m in models)
+
+    def test_empty_file_is_flagged(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "empty.obj").write_text("")
+        assert any("empty" in w for w in library.scan()[0].warnings)
+
+    def test_get_and_missing(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "hero.obj").write_text(MINIMAL_OBJ)
+        model = library.scan()[0]
+        assert library.get(model.id).name == model.name
+        with pytest.raises(NotFoundError):
+            library.get("does-not-exist")
+
+    def test_set_active(self, library):
+        library.root.mkdir(parents=True)
+        (library.root / "hero.obj").write_text(MINIMAL_OBJ)
+        model = library.scan()[0]
+        assert library.active is None
+        library.set_active(model.id)
+        assert library.active is not None and library.active.id == model.id
+
+    def test_finds_models_in_subdirectories(self, library):
+        nested = library.root / "characters" / "main"
+        nested.mkdir(parents=True)
+        (nested / "hero.obj").write_text(MINIMAL_OBJ)
+        models = library.scan()
+        assert len(models) == 1
+        assert "characters" in models[0].id
+
+
+class TestAvatarApi:
+    @pytest.fixture
+    def client(self, config):
+        from fastapi.testclient import TestClient
+
+        from aera.api.app import create_app
+
+        with TestClient(create_app(config)) as c:
+            yield c
+
+    def test_starts_empty(self, client):
+        assert client.get("/api/v1/avatars").json()["data"]["count"] == 0
+
+    def test_reports_supported_formats(self, client):
+        data = client.get("/api/v1/avatars/formats").json()["data"]
+        assert data["recommended"] == "glb"
+        assert set(data["recognised"]) == {f.lstrip(".") for f in RECOGNISED}
+        assert "fbx" in data["notes"]
+
+    def test_upload_and_inspect(self, client):
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("hero.obj", MINIMAL_OBJ.encode(), "text/plain")},
+        )
+        assert response.status_code == 200
+        model = response.json()["data"]["model"]
+        assert model["vertices"] == 4 and model["triangles"] == 2
+
+    def test_rejects_an_unsupported_type(self, client):
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("virus.exe", b"MZ\x90", "application/octet-stream")},
+        )
+        assert response.status_code == 400
+        assert "unsupported" in response.json()["error"]
+
+    def test_upload_then_activate(self, client):
+        uploaded = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("hero.obj", MINIMAL_OBJ.encode(), "text/plain")},
+        ).json()["data"]["model"]
+
+        assert client.post(f"/api/v1/avatars/active?model_id={uploaded['id']}").status_code == 200
+        active = client.get("/api/v1/avatars/active").json()["data"]["active"]
+        assert active["id"] == uploaded["id"]
+
+    def test_serves_the_raw_file(self, client):
+        uploaded = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("hero.obj", MINIMAL_OBJ.encode(), "text/plain")},
+        ).json()["data"]["model"]
+        response = client.get(f"/api/v1/avatars/{uploaded['id']}/file")
+        assert response.status_code == 200
+        assert b"v 0 0 0" in response.content
+
+    def test_delete(self, client):
+        uploaded = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("hero.obj", MINIMAL_OBJ.encode(), "text/plain")},
+        ).json()["data"]["model"]
+        assert client.delete(f"/api/v1/avatars/{uploaded['id']}").status_code == 200
+        assert client.get("/api/v1/avatars").json()["data"]["count"] == 0
+
+    def test_scan_picks_up_new_files(self, client, config):
+        from pathlib import Path
+
+        root = Path(config.system.storage).expanduser() / "avatars"
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "dropped_in.obj").write_text(MINIMAL_OBJ)
+        assert client.post("/api/v1/avatars/scan").json()["data"]["count"] == 1
+
+    def test_missing_model_is_404(self, client):
+        assert client.get("/api/v1/avatars/nope").status_code == 404
+
+
+class TestKernelIntegration:
+    async def test_library_is_wired(self, kernel):
+        assert kernel.avatars is not None
+
+    async def test_status_reports_avatars(self, kernel):
+        assert "avatars" in kernel.status()
+
+    async def test_library_lives_under_storage(self, kernel):
+        assert kernel.avatars.root.name == "avatars"
+        assert str(kernel.avatars.root).startswith(str(kernel.config.storage_dir))

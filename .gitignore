@@ -51,3 +51,7 @@ aera/desktop/ui-react/
 assets/hologram/*.obj
 assets/hologram/*.mtl
 assets/hologram/textures/*.png
+
+# User-supplied avatar models (keep the README, ignore the models)
+storage/avatars/*
+!storage/avatars/README.md

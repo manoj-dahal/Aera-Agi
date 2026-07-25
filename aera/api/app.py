@@ -26,6 +26,7 @@ from .middleware import (
 from .routers import (
     agents,
     automation,
+    avatars,
     chat,
     memory,
     skills,
@@ -131,6 +132,7 @@ def create_app(config: AeraConfig | None = None, *, kernel: Kernel | None = None
     app.include_router(workspace.router, prefix=prefix)
     app.include_router(voice.voice_router, prefix=prefix)
     app.include_router(voice.avatar_router, prefix=prefix)
+    app.include_router(avatars.router, prefix=prefix)
     app.include_router(automation.router, prefix=prefix)
     app.include_router(skills.router, prefix=prefix)
     app.include_router(system.router, prefix=prefix)

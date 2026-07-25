@@ -12,6 +12,7 @@ import math
 import pytest
 
 from tools.meshgen.character import FEMININE, MASCULINE, build_character, character_materials
+from tools.meshgen.detail import AnatomyField, apply_anatomy, apply_microdetail
 from tools.meshgen.obj import Material, Mesh, write_mtl
 from tools.meshgen.orb import build_orb, icosphere, orb_materials, subdivisions_for
 
@@ -190,6 +191,126 @@ class TestCharacter:
         assert names == {"skin", "hair", "accent"}
 
 
+class TestDetail:
+    """Detail passes must add information, not just polygons."""
+
+    def test_anatomy_displaces_the_surface(self):
+        flat = build_character(MASCULINE, name="f", segments=32, anatomy=0.0)
+        shaped = build_character(MASCULINE, name="s", segments=32, anatomy=1.0)
+        moved = [
+            math.dist(a, b)
+            for a, b in zip(flat.vertices, shaped.vertices, strict=True)
+        ]
+        assert max(moved) > 0
+        # Relief must be visible: at least 1% of height, or it reads as flat.
+        assert max(moved) / MASCULINE.height > 0.01
+
+    def test_anatomy_relief_stays_plausible(self):
+        """Displacement must not balloon the silhouette."""
+        shaped = build_character(MASCULINE, name="s", segments=32, anatomy=1.0)
+        flat = build_character(MASCULINE, name="f", segments=32, anatomy=0.0)
+        growth = shaped.dimensions()[0] / flat.dimensions()[0]
+        assert 1.0 <= growth < 1.20, f"silhouette grew {growth:.2f}x"
+
+    def test_masculine_definition_exceeds_feminine(self):
+        def relief(p):
+            flat = build_character(p, name="f", segments=32, anatomy=0.0)
+            shaped = build_character(p, name="s", segments=32, anatomy=1.0)
+            moved = [
+                math.dist(a, b)
+                for a, b in zip(flat.vertices, shaped.vertices, strict=True)
+            ]
+            return max(moved) / p.height
+
+        assert relief(MASCULINE) > relief(FEMININE)
+
+    def test_anatomy_is_deterministic(self):
+        a = build_character(FEMININE, name="a", segments=24, anatomy=1.0)
+        b = build_character(FEMININE, name="b", segments=24, anatomy=1.0)
+        assert a.vertices == b.vertices
+
+    def test_microdetail_perturbs_every_vertex(self):
+        plain = build_character(FEMININE, name="p", segments=24)
+        rough = build_character(FEMININE, name="r", segments=24, microdetail=0.5)
+        moved = sum(
+            1
+            for a, b in zip(plain.vertices, rough.vertices, strict=True)
+            if math.dist(a, b) > 1e-6
+        )
+        assert moved > len(plain.vertices) * 0.9
+
+    def test_microdetail_amplitude_is_respected(self):
+        plain = build_character(FEMININE, name="p", segments=24)
+        rough = build_character(FEMININE, name="r", segments=24, microdetail=0.4)
+        worst = max(
+            math.dist(a, b)
+            for a, b in zip(plain.vertices, rough.vertices, strict=True)
+        )
+        assert worst <= 0.45, "microdetail exceeded its requested amplitude"
+
+    def test_detail_preserves_valid_geometry(self):
+        mesh = build_character(MASCULINE, name="d", segments=32, anatomy=1.0, microdetail=0.3)
+        count = len(mesh.vertices)
+        for face in mesh.faces:
+            indices = [v for v, _, _ in face]
+            assert all(0 <= i < count for i in indices)
+            assert len(set(indices)) == 3
+
+    def test_anatomy_field_is_zero_far_from_landmarks(self):
+        field = AnatomyField(1700.0, 200.0, 150.0, masculine=True)
+        assert field.sample((9999.0, 9999.0, 9999.0)) == 0.0
+
+    def test_passes_are_composable(self):
+        mesh = build_character(FEMININE, name="c", segments=24)
+        before = len(mesh.vertices)
+        apply_anatomy(mesh, height=FEMININE.height, shoulder_x=180, hip_x=160, masculine=False)
+        apply_microdetail(mesh, scale=0.05, amplitude=0.2)
+        # Displacement must never change topology.
+        assert len(mesh.vertices) == before
+
+
+class TestTargetSize:
+    """--target-mb solves for a segment count near a requested file size."""
+
+    def test_solver_hits_the_target(self):
+        from tools.meshgen.__main__ import segments_for_target
+
+        # 6 MB needs ~170 segments, so the ceiling must not cut the search off.
+        target = 6 * 1_048_576
+        segments = segments_for_target(
+            lambda seg: build_character(FEMININE, name="p", segments=seg),
+            target,
+            low=16,
+            high=512,
+        )
+        size = len(build_character(FEMININE, name="m", segments=segments).to_obj().encode())
+        assert abs(size - target) / target < 0.10, (
+            f"{segments} segments gave {size / 1_048_576:.2f} MB, wanted 6 MB"
+        )
+
+    def test_larger_target_yields_more_segments(self):
+        from tools.meshgen.__main__ import segments_for_target
+
+        def build(seg):
+            return build_character(FEMININE, name="p", segments=seg)
+
+        small = segments_for_target(build, 2 * 1_048_576, low=16, high=512)
+        large = segments_for_target(build, 8 * 1_048_576, low=16, high=512)
+        assert large > small
+
+    def test_solver_respects_the_ceiling(self):
+        from tools.meshgen.__main__ import segments_for_target
+
+        # An unreachable target must clamp rather than run away.
+        segments = segments_for_target(
+            lambda seg: build_character(FEMININE, name="p", segments=seg),
+            10**12,
+            low=16,
+            high=64,
+        )
+        assert segments <= 64
+
+
 class TestCli:
     def test_generates_every_asset(self, tmp_path):
         from tools.meshgen.__main__ import main
@@ -198,6 +319,22 @@ class TestCli:
         for name in ("voice_orb", "anime_girl", "anime_boy"):
             assert (tmp_path / f"{name}.obj").is_file()
             assert (tmp_path / f"{name}.mtl").is_file()
+
+    def test_target_mb_flag(self, tmp_path):
+        from tools.meshgen.__main__ import main
+
+        main(["--out", str(tmp_path), "--only", "girl", "--target-mb", "5"])
+        mb = (tmp_path / "anime_girl.obj").stat().st_size / 1_048_576
+        assert 3.0 < mb < 8.0, f"target 5 MB produced {mb:.1f} MB"
+
+    def test_detail_flags(self, tmp_path):
+        from tools.meshgen.__main__ import main
+
+        main([
+            "--out", str(tmp_path), "--only", "boy", "--segments", "24",
+            "--anatomy", "1.0", "--microdetail", "0.3",
+        ])
+        assert (tmp_path / "anime_boy.obj").is_file()
 
     def test_single_asset(self, tmp_path):
         from tools.meshgen.__main__ import main

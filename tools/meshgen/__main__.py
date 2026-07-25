@@ -27,6 +27,72 @@ from .orb import build_orb, orb_materials, subdivisions_for
 #: Below this, an OBJ stops being loadable in real tools. See the note in --help.
 MIN_EDGE_MM = 0.05
 
+#: Rough ASCII OBJ cost per vertex, used only to seed the search. The real
+#: figure drifts with coordinate magnitude (more digits at high density), so
+#: the solver measures serialised length rather than trusting this.
+BYTES_PER_VERTEX_HINT = 200
+
+#: Beyond this a single character stops opening comfortably in most DCC tools.
+MAX_SEGMENTS = 1024
+
+
+def segments_for_target(
+    build,
+    target_bytes: int,
+    *,
+    low: int = 32,
+    high: int = MAX_SEGMENTS,
+    tolerance: float = 0.05,
+) -> int:
+    """Find the segment count whose OBJ lands nearest ``target_bytes``.
+
+    Binary search over the true serialised size. Bytes per vertex is not
+    constant - coordinates gain digits as the mesh grows, and face lines carry
+    three indices whose width also grows - so estimating from vertex count
+    overshoots badly at high density. Serialising is the only honest measure,
+    and the search only needs a handful of probes.
+    """
+    def measured_size(segments: int) -> int:
+        return len(build(segments).to_obj().encode())
+
+    best = low
+    best_delta = float("inf")
+    lo, hi = low, high
+    seen: set[int] = set()
+
+    while lo <= hi:
+        mid = max(low, min(high, ((lo + hi) // 4) * 2))
+        if mid in seen:
+            # The window has collapsed onto an already-probed value; stepping
+            # by 2 cannot refine further.
+            break
+        seen.add(mid)
+
+        size = measured_size(mid)
+        delta = abs(size - target_bytes) / target_bytes
+
+        if delta < best_delta:
+            best_delta = delta
+            best = mid
+        if delta <= tolerance:
+            return best
+
+        if size < target_bytes:
+            lo = mid + 2
+        else:
+            hi = mid - 2
+
+    # Polish: the even-step search can stop one notch short of the target.
+    for candidate in (best - 1, best + 1):
+        if candidate < low or candidate > high or candidate in seen:
+            continue
+        delta = abs(measured_size(candidate) - target_bytes) / target_bytes
+        if delta < best_delta:
+            best_delta = delta
+            best = candidate
+
+    return best
+
 
 def _report(mesh: Mesh, path: Path) -> dict:
     size = path.stat().st_size
@@ -73,6 +139,24 @@ def main(argv: list[str] | None = None) -> int:
         help="generate a single asset",
     )
     parser.add_argument("--segments", type=int, default=48, help="radial segments for characters")
+    parser.add_argument(
+        "--target-mb",
+        type=float,
+        default=None,
+        help="solve for the segment count that lands each character near this size",
+    )
+    parser.add_argument(
+        "--anatomy",
+        type=float,
+        default=1.0,
+        help="anatomical displacement strength (0 disables)",
+    )
+    parser.add_argument(
+        "--microdetail",
+        type=float,
+        default=0.0,
+        help="skin-scale noise amplitude in mm (0 disables)",
+    )
     parser.add_argument("--seed", type=int, default=7, help="orb displacement seed")
     args = parser.parse_args(argv)
 
@@ -103,9 +187,27 @@ def main(argv: list[str] | None = None) -> int:
         info["subdivisions"] = level
         results.append(info)
 
+    def solve(proportions, label: str) -> int:
+        """Segment count for this build, honouring --target-mb."""
+        if args.target_mb is None:
+            return args.segments
+        target = int(args.target_mb * 1_048_576)
+        chosen = segments_for_target(
+            lambda seg: build_character(proportions, name="probe", segments=seg),
+            target,
+        )
+        print(f"  solved {label}: {chosen} segments for ~{args.target_mb} MB", file=sys.stderr)
+        return chosen
+
     # -------------------------------------------------------------- girl
     if want in ("girl", "all"):
-        girl = build_character(FEMININE, name="AERA_AnimeGirl", segments=args.segments)
+        girl = build_character(
+            FEMININE,
+            name="AERA_AnimeGirl",
+            segments=solve(FEMININE, "anime_girl"),
+            anatomy=args.anatomy,
+            microdetail=args.microdetail,
+        )
         path = girl.save(out / "anime_girl.obj", mtllib="anime_girl.mtl")
         write_mtl(
             out / "anime_girl.mtl",
@@ -115,7 +217,13 @@ def main(argv: list[str] | None = None) -> int:
 
     # --------------------------------------------------------------- boy
     if want in ("boy", "all"):
-        boy = build_character(MASCULINE, name="AERA_AnimeBoy", segments=args.segments)
+        boy = build_character(
+            MASCULINE,
+            name="AERA_AnimeBoy",
+            segments=solve(MASCULINE, "anime_boy"),
+            anatomy=args.anatomy,
+            microdetail=args.microdetail,
+        )
         path = boy.save(out / "anime_boy.obj", mtllib="anime_boy.mtl")
         write_mtl(
             out / "anime_boy.mtl",
