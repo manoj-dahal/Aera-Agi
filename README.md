@@ -1,10 +1,16 @@
+<div align="center">
+
+<img src="assets/brand/banner.png" alt="AERA" width="820" />
+
+</div>
+
 # AERA
 
 **Artificial Enhanced Reasoning Assistant** — a native desktop AI Operating System
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-454%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-658%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -417,10 +423,13 @@ interface/        React + TypeScript front end
 ├── src/store/        Zustand state
 └── src/services/     typed client and host-agnostic transport
 
+assets/brand/     generated banner, icons and social card
 installer/        PyInstaller spec and frozen entrypoint
 config/           annotated YAML defaults
 docs/             the original design specification (108 documents)
 scripts/          install, run, test, build, build-desktop, clean
+tools/brand/      regenerates the brand assets from code
+tools/meshgen/    placeholder hologram meshes
 tests/            331 Python tests
 ```
 

@@ -56,3 +56,7 @@ assets/hologram/textures/*.png
 # User-supplied avatar models (keep the README, ignore the models)
 storage/avatars/*
 !storage/avatars/README.md
+
+# Brand assets are generated but committed, so the README renders on GitHub.
+# Regenerate with `python -m tools.brand`.
+!assets/brand/
