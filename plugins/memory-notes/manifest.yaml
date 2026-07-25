@@ -1,0 +1,15 @@
+name: Memory Notes
+version: 1.0.0
+author: AERA
+type: custom-tool
+description: >
+  Example plugin following docs/17-PLUGIN-SYSTEM.md. Listens for
+  automation executions and stores a note in the Memory Graph, and
+  sends a notification when enabled.
+permissions:
+  - memory_graph
+  - notifications
+dependencies:
+  - core
+minimumVersion: 1.0.0
+entry: src/main.py

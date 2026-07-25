@@ -1,0 +1,8 @@
+# Plugin System configuration (docs/17-PLUGIN-SYSTEM.md "Configuration")
+plugins:
+  directory: plugins
+  autodiscover: true
+  autoenable: []        # plugin names to enable at startup (after approval)
+  security:
+    require_permission_approval: true
+    crash_isolation: true

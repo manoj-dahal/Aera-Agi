@@ -21,6 +21,7 @@ from src.automation.manager import AutomationManager
 from src.events.bus import EventBus
 from src.logging.logger import get_logger
 from src.memory.graph import MemoryGraph
+from src.plugins.manager import PluginManager
 from src.security.ai_guard import AIGuard
 from src.security.audit import AuditLog
 from src.security.permissions import PermissionManager
@@ -49,6 +50,7 @@ class AeraSystem:
     permissions: PermissionManager
     auth: AuthService
     guard: AIGuard
+    plugins: PluginManager
     auth_required: bool
 
     async def start_services(self) -> None:
@@ -97,6 +99,7 @@ def boot() -> AeraSystem:
     speech = SpeechService()
     services = ServiceManager(bus)
     automation = AutomationManager(agents, memory, bus, services)
+    plugins = PluginManager(memory, agents, bus, audit)
 
     system = AeraSystem(
         bus=bus,
@@ -112,6 +115,7 @@ def boot() -> AeraSystem:
         permissions=permissions,
         auth=auth,
         guard=guard,
+        plugins=plugins,
         auth_required=os.getenv("AERA_AUTH_REQUIRED", "false").lower() == "true",
     )
     _register_core_services(system)
