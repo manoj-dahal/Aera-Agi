@@ -115,6 +115,12 @@ class CoreAgent(Agent):
         capability, confidence = self.detect_intent(text)
         forced = task.context.get("force_agent")
 
+        # 1b. reasoning engine: complexity, skill match and capability gaps.
+        assessment = None
+        engine = getattr(self.ctx, "reasoning_engine", None)
+        if engine is not None:
+            assessment = engine.assess(text)
+
         # 2-3. context collection + memory recall ----------------------------
         context_block = await self.ctx.memory.build_context(
             text,
@@ -134,6 +140,13 @@ class CoreAgent(Agent):
                 if delegate is self:
                     delegate = None
 
+            # The skill catalogue is more granular than the capability enum, so
+            # it can name a better-suited agent when intent detection is vague.
+            if delegate is None and assessment and assessment.suggested_agent:
+                candidate = registry.try_get(assessment.suggested_agent)
+                if candidate is not None and candidate is not self:
+                    delegate = candidate
+
         # 6. execution -------------------------------------------------------
         if delegate is not None:
             self.routed_tasks += 1
@@ -149,6 +162,9 @@ class CoreAgent(Agent):
             result.data.setdefault("intent", capability.value)
             result.data.setdefault("confidence", round(confidence, 2))
             result.data.setdefault("routed_to", delegate.name)
+            if assessment:
+                result.data.setdefault("skill", assessment.suggested_skill)
+                result.data.setdefault("complexity", assessment.complexity)
         else:
             result = await self._respond_directly(task, context_block, capability, confidence)
 
@@ -165,6 +181,10 @@ class CoreAgent(Agent):
                 result.memory_ids = [user_node.id, assistant_node.id]
             except Exception:  # noqa: BLE001 - memory must never break the reply
                 self.log.warning("could not persist conversation memory", exc_info=True)
+
+        # Surface a capability gap rather than letting the reply improvise.
+        if assessment and assessment.unavailable_reason and result.success:
+            result.data.setdefault("capability_gap", assessment.unavailable_reason)
 
         result.duration_ms = (time.perf_counter() - started) * 1000
         return result

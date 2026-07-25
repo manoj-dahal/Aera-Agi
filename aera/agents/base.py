@@ -120,6 +120,7 @@ class AgentContext:
         config: Any = None,
         registry: Any = None,
         workspace: Any = None,
+        skills: Any = None,
     ) -> None:
         self.memory = memory
         self.router = router
@@ -128,6 +129,12 @@ class AgentContext:
         self.registry = registry
         #: set by the kernel once the workspace indexer exists
         self.workspace = workspace
+        #: skill catalogue and background engines, set by the kernel
+        self.skills = skills
+        self.reasoning_engine: Any = None
+        self.planning_engine: Any = None
+        self.voice: Any = None
+        self.automation: Any = None
 
 
 class Agent(ABC):

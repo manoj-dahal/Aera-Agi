@@ -46,3 +46,8 @@ interface/dist/
 
 # Built React UI: regenerate with `cd interface && npm run build`
 aera/desktop/ui-react/
+
+# Generated hologram meshes: regenerate with `python -m tools.meshgen`
+assets/hologram/*.obj
+assets/hologram/*.mtl
+assets/hologram/textures/*.png

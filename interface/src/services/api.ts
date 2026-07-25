@@ -20,6 +20,9 @@ import type {
   ProviderHealth,
   RecallResult,
   SystemEvent,
+  SkillGap,
+  SkillState,
+  SkillSummary,
   SystemStatus,
   TaskResult,
   Telemetry,
@@ -351,6 +354,29 @@ export const automation = {
 // --------------------------------------------------------------------------
 // system
 // --------------------------------------------------------------------------
+export const skills = {
+  list: (params: { category?: string; agent?: string; availableOnly?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.category) q.set('category', params.category);
+    if (params.agent) q.set('agent', params.agent);
+    if (params.availableOnly) q.set('available_only', 'true');
+    return httpRequest<{ skills: SkillState[]; count: number; summary: SkillSummary }>(
+      `/skills${q.toString() ? `?${q}` : ''}`,
+    );
+  },
+  summary: () => httpRequest<SkillSummary>('/skills/summary'),
+  gaps: () => httpRequest<{ gaps: SkillGap[] }>('/skills/gaps'),
+  backends: () =>
+    httpRequest<Record<string, { available: boolean; detail: string }>>('/skills/backends'),
+  match: (query: string, limit = 5) =>
+    httpRequest<{ matches: Array<Record<string, unknown>>; count: number }>(
+      `/skills/match?q=${encodeURIComponent(query)}&limit=${limit}`,
+      { method: 'POST' },
+    ),
+  resolve: () => httpRequest<SkillSummary>('/skills/resolve', { method: 'POST' }),
+  insights: () => httpRequest<Record<string, unknown>>('/skills/insights'),
+};
+
 export const system = {
   status: () =>
     call<SystemStatus>({
@@ -397,6 +423,7 @@ export const system = {
 
 export const api = {
   chat,
+  skills,
   agents,
   memory,
   workspace,

@@ -30,6 +30,8 @@ from ..hologram.avatar import HologramController
 from ..memory.engine import MemoryEngine
 from ..security.vault import AuditLog, PermissionManager, SecretVault
 from ..services.telemetry import TelemetryService
+from ..skills.engines import ContextEngine, LearningEngine, PlanningEngine, ReasoningEngine
+from ..skills.manager import SkillManager
 from ..voice.engine import VoiceEngine
 from ..workspace.indexer import WorkspaceIndexer
 from .config import AeraConfig, get_config
@@ -58,6 +60,13 @@ class Kernel:
         self.vault: SecretVault | None = None
         self.tap_memory: TapMemoryWorkflow | None = None
         self.telemetry = TelemetryService()
+        # Background engines (docs: Agent Manager, Skill Manager, Reasoning,
+        # Planning, Learning and Context Engines).
+        self.skills: SkillManager | None = None
+        self.context_engine: ContextEngine | None = None
+        self.reasoning_engine: ReasoningEngine | None = None
+        self.planning_engine: PlanningEngine | None = None
+        self.learning_engine: LearningEngine | None = None
         self.permissions = PermissionManager()
         self.audit: AuditLog | None = None
 
@@ -102,6 +111,33 @@ class Kernel:
         self.workspace = WorkspaceIndexer(cfg.workspace, memory=self.memory, bus=self.bus)
         context.workspace = self.workspace  # agents reach it through the shared context
 
+        # -- skill system and background engines ----------------------------
+        self.skills = SkillManager(
+            registry=self.registry, router=self.router, config=cfg, bus=self.bus
+        )
+        # The voice engine is created below; expose it so backend probing can
+        # see which STT/TTS implementations are actually installed.
+        await self.skills.resolve()
+
+        self.context_engine = ContextEngine(memory=self.memory, bus=self.bus)
+        self.reasoning_engine = ReasoningEngine(skills=self.skills)
+        self.planning_engine = PlanningEngine(skills=self.skills)
+        self.learning_engine = LearningEngine(
+            skills=self.skills, memory=self.memory, registry=self.registry, bus=self.bus
+        )
+        context.skills = self.skills
+        context.reasoning_engine = self.reasoning_engine
+        context.planning_engine = self.planning_engine
+
+        # Feed task outcomes back into the Learning Engine.
+        await self.bus.subscribe("agent.task.*", self._observe_task)
+
+        logger.info(
+            "skills: %d/%d available",
+            len(self.skills.available()),
+            len(self.skills.all()),
+        )
+
         # -- tap-to-memory --------------------------------------------------
         # Runs before voice listening starts, priming context.
         self.tap_memory = TapMemoryWorkflow(
@@ -131,6 +167,17 @@ class Kernel:
         await self.bus.publish(Topics.SYSTEM_READY, self.status())
         logger.info("AERA is ready")
         return self
+
+    async def _observe_task(self, event) -> None:
+        """Learning Engine hook: record how each dispatched task turned out."""
+        if self.learning_engine is None or not event.topic.endswith(("completed", "failed")):
+            return
+        payload = event.payload or {}
+        await self.learning_engine.observe(
+            agent=str(payload.get("agent", "")),
+            skill_id=payload.get("skill"),
+            success=bool(payload.get("success", event.topic.endswith("completed"))),
+        )
 
     def _models_with_secrets(self):
         """Inject vault/environment API keys into the provider config."""
@@ -259,6 +306,8 @@ class Kernel:
             "hologram": self.hologram.status() if self.hologram else {},
             "events_published": self.bus.published_count,
             "telemetry": self.telemetry.snapshot(),
+            "skills": self.skills.summary() if self.skills else {},
+            "context": self.context_engine.snapshot() if self.context_engine else {},
         }
 
 

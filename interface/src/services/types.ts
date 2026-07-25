@@ -260,6 +260,48 @@ export interface Telemetry {
   temperature: number | null;
 }
 
+// --------------------------------------------------------------------------
+// skills (aera/skills/)
+// --------------------------------------------------------------------------
+export type SkillAvailability = 'available' | 'needs_backend' | 'disabled' | 'planned';
+
+export interface SkillState {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  agent: string;
+  backend: string;
+  background: boolean;
+  availability: SkillAvailability;
+  /** Why it cannot run, in words the user can act on. */
+  reason: string | null;
+  invocations: number;
+  failures: number;
+  success_rate: number | null;
+  last_used: number | null;
+}
+
+export interface SkillSummary {
+  total: number;
+  available: number;
+  background: number;
+  categories: number;
+  by_availability: Record<string, number>;
+  by_category: Record<string, number>;
+  resolved_at: number;
+  backends: Record<string, { available: boolean; detail: string }>;
+}
+
+export interface SkillGap {
+  id: string;
+  name: string;
+  category: string;
+  backend: string;
+  availability: SkillAvailability;
+  reason: string | null;
+}
+
 export interface SystemStatus {
   name: string;
   version: string;
@@ -274,6 +316,7 @@ export interface SystemStatus {
   hologram: AvatarState;
   events_published: number;
   telemetry?: Telemetry;
+  skills?: SkillSummary;
 }
 
 export interface VoiceStatus {

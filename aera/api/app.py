@@ -23,7 +23,17 @@ from .middleware import (
     RateLimitMiddleware,
     RequestContextMiddleware,
 )
-from .routers import agents, automation, chat, memory, system, voice, websocket, workspace
+from .routers import (
+    agents,
+    automation,
+    chat,
+    memory,
+    skills,
+    system,
+    voice,
+    websocket,
+    workspace,
+)
 
 logger = get_logger("api.app")
 
@@ -122,6 +132,7 @@ def create_app(config: AeraConfig | None = None, *, kernel: Kernel | None = None
     app.include_router(voice.voice_router, prefix=prefix)
     app.include_router(voice.avatar_router, prefix=prefix)
     app.include_router(automation.router, prefix=prefix)
+    app.include_router(skills.router, prefix=prefix)
     app.include_router(system.router, prefix=prefix)
     app.include_router(websocket.router)
 
