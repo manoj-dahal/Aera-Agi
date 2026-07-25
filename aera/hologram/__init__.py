@@ -7,13 +7,14 @@ from .avatar import (
     Gesture,
     HologramController,
 )
-from .loader import AvatarKind, AvatarLibrary, AvatarModel
+from .loader import AvatarKind, AvatarLibrary, AvatarModel, AvatarVariant
 
 __all__ = [
     "EMOTION_BLENDSHAPES",
     "AvatarKind",
     "AvatarLibrary",
     "AvatarModel",
+    "AvatarVariant",
     "AvatarEmotion",
     "AvatarState",
     "Gesture",

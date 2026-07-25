@@ -11,7 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from ...core.errors import ValidationError
-from ...hologram.loader import RECOGNISED, AvatarKind
+from ...hologram.loader import RECOGNISED, AvatarKind, AvatarVariant
 from ..deps import get_kernel_dep
 from ..schemas import ok
 
@@ -32,11 +32,19 @@ def _library(kernel):
 @router.get("")
 async def list_avatars(
     kind: str | None = None,
+    variant: str | None = None,
     kernel=Depends(get_kernel_dep),
 ):
-    """Every discovered model, with its geometry summary and warnings."""
+    """Every discovered model, with its geometry summary and warnings.
+
+    Filter by ``kind`` (character, orb) or ``variant`` (feminine, masculine).
+    """
     library = _library(kernel)
-    models = library.by_kind(kind) if kind else library.all()
+    models = library.all()
+    if kind:
+        models = [m for m in models if m.kind is AvatarKind(kind)]
+    if variant:
+        models = [m for m in models if m.variant is AvatarVariant(variant)]
     return ok(
         {
             "avatars": [m.to_dict() for m in models],
@@ -193,4 +201,4 @@ async def download_avatar(model_id: str, kernel=Depends(get_kernel_dep)):
     )
 
 
-__all__ = ["router", "AvatarKind"]
+__all__ = ["router", "AvatarKind", "AvatarVariant"]

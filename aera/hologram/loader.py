@@ -57,6 +57,38 @@ class AvatarKind(str, Enum):
     UNKNOWN = "unknown"
 
 
+class AvatarVariant(str, Enum):
+    """Which figure a character model is.
+
+    Recognised from a suffix on the filename so a set like ``anime-g`` /
+    ``anime-b`` is paired automatically and labelled correctly in the UI.
+    """
+
+    FEMININE = "feminine"
+    MASCULINE = "masculine"
+    NEUTRAL = "neutral"
+    UNSPECIFIED = "unspecified"
+
+
+#: Filename suffixes mapping to a variant. Checked after the stem is split on
+#: the usual separators, so "anime-g", "anime_girl" and "aera.f" all resolve.
+_VARIANT_TOKENS: dict[str, AvatarVariant] = {
+    "g": AvatarVariant.FEMININE,
+    "f": AvatarVariant.FEMININE,
+    "girl": AvatarVariant.FEMININE,
+    "female": AvatarVariant.FEMININE,
+    "woman": AvatarVariant.FEMININE,
+    "b": AvatarVariant.MASCULINE,
+    "m": AvatarVariant.MASCULINE,
+    "boy": AvatarVariant.MASCULINE,
+    "male": AvatarVariant.MASCULINE,
+    "man": AvatarVariant.MASCULINE,
+    "n": AvatarVariant.NEUTRAL,
+    "neutral": AvatarVariant.NEUTRAL,
+    "nb": AvatarVariant.NEUTRAL,
+}
+
+
 @dataclass
 class AvatarModel:
     """A discovered avatar model and everything known about it."""
@@ -66,6 +98,7 @@ class AvatarModel:
     path: Path
     format: str
     kind: AvatarKind = AvatarKind.UNKNOWN
+    variant: AvatarVariant = AvatarVariant.UNSPECIFIED
     size_bytes: int = 0
     #: Populated for parseable formats; None when the format is not parsed.
     vertices: int | None = None
@@ -95,6 +128,7 @@ class AvatarModel:
             "path": str(self.path),
             "format": self.format,
             "kind": self.kind.value,
+            "variant": self.variant.value,
             "size_mb": round(self.size_bytes / 1_048_576, 2),
             "vertices": self.vertices,
             "triangles": self.triangles,
@@ -356,6 +390,7 @@ class AvatarLibrary:
             path=path,
             format=suffix.lstrip("."),
             kind=_infer_kind(path),
+            variant=_infer_variant(path),
             size_bytes=size,
         )
 
@@ -451,6 +486,10 @@ class AvatarLibrary:
         value = AvatarKind(kind)
         return [m for m in self._models.values() if m.kind is value]
 
+    def by_variant(self, variant: AvatarVariant | str) -> list[AvatarModel]:
+        value = AvatarVariant(variant)
+        return [m for m in self._models.values() if m.variant is value]
+
     @property
     def active(self) -> AvatarModel | None:
         return self._models.get(self._active) if self._active else None
@@ -471,6 +510,11 @@ class AvatarLibrary:
                 for kind in AvatarKind
                 if self.by_kind(kind)
             },
+            "by_variant": {
+                variant.value: len(self.by_variant(variant))
+                for variant in AvatarVariant
+                if self.by_variant(variant)
+            },
             "with_warnings": sum(1 for m in self._models.values() if m.warnings),
             "supported_formats": sorted(f.lstrip(".") for f in RECOGNISED),
         }
@@ -483,6 +527,22 @@ def _model_id(path: Path, root: Path) -> str:
     except ValueError:
         relative = Path(path.name)
     return str(relative.with_suffix("")).replace("/", ".").replace("\\", ".")
+
+
+def _infer_variant(path: Path) -> AvatarVariant:
+    """Infer the figure from a filename suffix.
+
+    Splits the stem on the usual separators and checks the trailing token, so
+    ``anime-g`` and ``anime_girl`` both resolve to feminine. Only the last
+    token is consulted - a project called "boyd-model" must not be read as
+    masculine.
+    """
+    import re
+
+    tokens = [t for t in re.split(r"[-_. ]+", path.stem.lower()) if t]
+    if not tokens:
+        return AvatarVariant.UNSPECIFIED
+    return _VARIANT_TOKENS.get(tokens[-1], AvatarVariant.UNSPECIFIED)
 
 
 def _infer_kind(path: Path) -> AvatarKind:

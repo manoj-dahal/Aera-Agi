@@ -17,6 +17,7 @@ from aera.hologram.loader import (
     RECOGNISED,
     AvatarKind,
     AvatarLibrary,
+    AvatarVariant,
     parse_gltf,
     parse_obj,
 )
@@ -274,6 +275,53 @@ class TestLibrary:
         assert "characters" in models[0].id
 
 
+class TestVariantDetection:
+    """The user's naming scheme is anime-g / anime-b; both must resolve."""
+
+    @pytest.mark.parametrize(
+        "filename,variant",
+        [
+            ("anime-g.glb", AvatarVariant.FEMININE),
+            ("anime-b.glb", AvatarVariant.MASCULINE),
+            ("anime-n.glb", AvatarVariant.NEUTRAL),
+            ("anime_girl.glb", AvatarVariant.FEMININE),
+            ("anime_boy.glb", AvatarVariant.MASCULINE),
+            ("avatar-f.glb", AvatarVariant.FEMININE),
+            ("avatar-m.glb", AvatarVariant.MASCULINE),
+            ("hero.glb", AvatarVariant.UNSPECIFIED),
+        ],
+    )
+    def test_infers_variant(self, library, filename, variant):
+        library.root.mkdir(parents=True)
+        write_glb(library.root / filename, GLTF_DOC)
+        assert library.scan()[0].variant is variant
+
+    def test_only_the_trailing_token_counts(self, library):
+        """'boyd-model' must not read as masculine."""
+        library.root.mkdir(parents=True)
+        write_glb(library.root / "boyd-model.glb", GLTF_DOC)
+        assert library.scan()[0].variant is AvatarVariant.UNSPECIFIED
+
+    def test_the_users_pair_is_distinguished(self, library):
+        library.root.mkdir(parents=True)
+        write_glb(library.root / "anime-g.glb", GLTF_DOC)
+        write_glb(library.root / "anime-b.glb", GLTF_DOC)
+        library.scan()
+
+        assert len(library.by_variant(AvatarVariant.FEMININE)) == 1
+        assert len(library.by_variant(AvatarVariant.MASCULINE)) == 1
+        # Both are still characters, and the ids stay clean.
+        assert {m.id for m in library.all()} == {"anime-g", "anime-b"}
+        assert all(m.kind is AvatarKind.CHARACTER for m in library.all())
+
+    def test_summary_counts_variants(self, library):
+        library.root.mkdir(parents=True)
+        write_glb(library.root / "anime-g.glb", GLTF_DOC)
+        write_glb(library.root / "anime-b.glb", GLTF_DOC)
+        library.scan()
+        assert library.summary()["by_variant"] == {"feminine": 1, "masculine": 1}
+
+
 class TestAvatarApi:
     @pytest.fixture
     def client(self, config):
@@ -344,6 +392,16 @@ class TestAvatarApi:
         root.mkdir(parents=True, exist_ok=True)
         (root / "dropped_in.obj").write_text(MINIMAL_OBJ)
         assert client.post("/api/v1/avatars/scan").json()["data"]["count"] == 1
+
+    def test_filters_by_variant(self, client):
+        for name in ("anime-g.obj", "anime-b.obj"):
+            client.post(
+                "/api/v1/avatars/upload",
+                files={"file": (name, MINIMAL_OBJ.encode(), "text/plain")},
+            )
+        feminine = client.get("/api/v1/avatars?variant=feminine").json()["data"]
+        assert feminine["count"] == 1
+        assert feminine["avatars"][0]["id"] == "anime-g"
 
     def test_missing_model_is_404(self, client):
         assert client.get("/api/v1/avatars/nope").status_code == 404
