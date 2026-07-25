@@ -26,6 +26,18 @@ from .knowledge_agents import (
     TranslationAgent,
     WritingAgent,
 )
+from .media_agents import (
+    AudioAgent,
+    CollaborationAgent,
+    ConversationAgent,
+    DocumentAgent,
+    NetworkAgent,
+    OCRAgent,
+    PersonalizationAgent,
+    VisionAgent,
+    VoiceAgent,
+    WebAgent,
+)
 from .registry import AgentRegistry
 from .system_agents import (
     GitAgent,
@@ -59,6 +71,15 @@ AGENT_CLASSES: dict[str, tuple[type[Agent], ...]] = {
     "learning": (LearningAgent,),
     "update": (UpdateAgent, BackupAgent),
     "monitoring": (MonitoringAgent,),
+    "document": (DocumentAgent,),
+    "vision": (VisionAgent, OCRAgent),
+    "audio": (AudioAgent,),
+    "network": (NetworkAgent,),
+    "web": (WebAgent,),
+    "conversation": (ConversationAgent,),
+    "personalization": (PersonalizationAgent,),
+    "collaboration": (CollaborationAgent,),
+    "voice": (VoiceAgent,),
 }
 
 
@@ -88,7 +109,17 @@ __all__ = [
     "AgentRegistry",
     "AgentStatus",
     "Capability",
+    "AudioAgent",
     "AutomationAgent",
+    "CollaborationAgent",
+    "ConversationAgent",
+    "DocumentAgent",
+    "NetworkAgent",
+    "OCRAgent",
+    "PersonalizationAgent",
+    "VisionAgent",
+    "VoiceAgent",
+    "WebAgent",
     "BackupAgent",
     "CodeReviewAgent",
     "DeviceAgent",

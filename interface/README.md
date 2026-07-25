@@ -120,21 +120,20 @@ The Dashboard follows `docs/04-DASHBOARD.md` exactly:
 
 ## Page status
 
-Wired to a live backend:
+Every page is built against live backend data:
 
-`Dashboard` · `Macros` · `Memory` · `Agents` · `Workspace` · `Models` ·
-`Automation` · `Hologram` · `Security` · `Settings` · `System`
+`Dashboard` · `Macros` · `Apps` · `Gallery` · `Phone` · `Settings` ·
+`Memory` · `Agents` · `Workspace` · `Models` · `Automation` · `Hologram` ·
+`Terminal` · `Docker` · `Plugins` · `Security` · `System`
 
-Rendered as an explicit "not implemented yet" panel, because the backend for
-them is partial or absent:
+Where a capability genuinely does not exist yet — Docker's API client, media
+download, device pairing — the page reports it at the point of use instead of
+offering a control that fails silently. Terminal drives the real agent and
+explains how to enable it when the agent is off.
 
-`Apps` · `Gallery` · `Phone` · `Terminal` · `Docker` · `Plugins`
-
-Those screens state what already works and what is still missing rather than
-presenting controls that do nothing.
-
-The top bar carries the six destinations the spec names. The remaining
-subsystem pages are reached from Settings, which links to each.
+The top bar carries the six destinations the spec names. Settings holds exactly
+three sections — AI, Voice and System — and the remaining subsystem pages nest
+inside them. Plugin management lives in Apps, never in Settings.
 
 The directory scaffold also reserves space for `auth/` and `onboarding/`
 flows. Local desktop installs are single-user and unauthenticated by default

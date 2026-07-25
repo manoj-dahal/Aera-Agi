@@ -20,3 +20,19 @@ agents:
   voice: true
   max_concurrent_tasks: 8
   task_timeout_seconds: 120
+
+  # Extended roster (docs/ui-page/conversation.txt)
+  ethical_hacking: true   # authorised defensive work only
+  document: true
+  network: true           # local diagnostics, read-only
+  conversation: true
+  personalization: true
+  collaboration: true
+  device: true
+  learning: true
+  update: true
+  monitoring: true
+  vision: true            # reports the gap until a vision model is connected
+  # Off by default - these reach outside the machine or need extra backends:
+  audio: false            # needs a speech-to-text engine
+  web: false              # also requires security.allow_network

@@ -7,6 +7,9 @@ security:
   # Terminal execution is off by default. When enabled, only the
   # allowlisted binaries below may run.
   allow_terminal: false
+  # Outbound web access for the Web Agent. Private, loopback and link-local
+  # addresses are refused even when this is enabled.
+  allow_network: false
   terminal_allowlist:
     - ls
     - cat

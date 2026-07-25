@@ -31,6 +31,15 @@ class TestIntentDetection:
             ("the app is slow, optimize it", Capability.PERFORMANCE),
             ("automate this workflow every day", Capability.AUTOMATION),
             ("what files are in the project", Capability.WORKSPACE),
+            # routing added for the extended roster
+            ("harden my own nginx config", Capability.SECURITY),
+            ("threat model my internal API", Capability.SECURITY),
+            ("summarise this document", Capability.FILE_ANALYSIS),
+            ("read the file for me", Capability.FILE_ANALYSIS),
+            ("what is in this screenshot", Capability.VISION),
+            ("run ocr on it", Capability.VISION),
+            ("check my phone battery", Capability.DEVICE),
+            ("write the readme documentation", Capability.DOCUMENTATION),
         ],
     )
     def test_routes_correctly(self, core, text, expected):

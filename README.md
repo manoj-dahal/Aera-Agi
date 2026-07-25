@@ -4,7 +4,7 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-369%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-454%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -143,7 +143,8 @@ context = await memory.build_context("deployment")  # prompt-ready block
 
 ## Agents
 
-15 agents ship enabled by default, each declaring capabilities the router uses.
+31 agents implement the full specified roster; 26 are enabled by default. Each
+declares the capabilities the router uses to reach it.
 
 | Agent | Capabilities |
 |---|---|
@@ -163,6 +164,25 @@ context = await memory.build_context("deployment")  # prompt-ready block
 | `security` | defensive review and hardening |
 | `performance` | live metrics and optimisation |
 | `notification` | dashboard alerts |
+| `conversation` | natural dialogue with cross-session continuity |
+| `document` | reads and summarises text documents |
+| `network` | local diagnostics: resolve, reachability, host status |
+| `device` | host machine facts and device pairing |
+| `personalization` | learns and applies user preferences |
+| `collaboration` | plans multi-agent handoffs |
+| `learning` | detects patterns across the memory graph |
+| `monitoring` | subsystem health and anomaly reporting |
+| `scheduler` · `automation` | workflow design and scheduled jobs |
+| `backup` · `update` | snapshots and version reporting |
+| `ethical_hacking` | authorised defensive security work only |
+| `vision` · `ocr` · `audio` · `web` | capability-gated (see below) |
+
+**Capability-gated agents.** `vision`, `ocr`, `audio` and `web` need a backend
+AERA does not bundle — a multimodal model, Tesseract, a speech-to-text engine,
+network permission. They are implemented and registered, but detect the missing
+backend and say so precisely instead of fabricating a result. `audio` and `web`
+are off by default; `web` additionally requires `security.allow_network`, and
+refuses loopback, private and link-local addresses even when enabled.
 
 Adding an agent is a subclass and a registration:
 
@@ -234,11 +254,11 @@ The Dashboard follows `docs/04-DASHBOARD.md`: grouped top navigation, hologram
 and workspace on the left, a canvas particle sphere over **Tap to Speak** in the
 centre, and a HUD transcript panel on the right that accepts drag & drop.
 
-Eleven pages are wired to live backend data — Dashboard, Macros, Memory, Agents,
-Workspace, Models, Automation, Hologram, Security, Settings and System. Apps,
-Gallery, Phone, Terminal, Docker and Plugins render an explicit status panel
-describing what works today and what is still missing, rather than controls that
-do nothing.
+Every page is now built against live backend data. Settings holds exactly three
+sections — AI, Voice, System — with advanced pages nested inside them, and
+plugin management lives in Apps. Where a capability genuinely does not exist
+(Docker's API client, media download, device pairing) the page says so at the
+point of use rather than offering a control that fails silently.
 
 If Node is never installed, the app falls back to a dependency-free UI in
 `aera/desktop/ui/` — so `aera` always launches.
@@ -364,7 +384,9 @@ pytest tests/test_memory.py -v       # one module
 | `test_api.py` | 66 | all endpoints, auth, rate limits, WebSocket |
 | `test_subsystems.py` | 63 | workspace, automation, voice, hologram, kernel |
 | `test_desktop.py` | 45 | kernel thread, native bridge, streaming, dialogs, sandboxing |
-| `interface/src/__tests__` | 38 | formatting, markdown escaping, design tokens, transport, dashboard layout |
+| `test_requirements.py` | 29 | tap-to-memory, ethical-hacking scope, extended roster |
+| `test_media_agents.py` | 30 | document parsing, capability gating, SSRF guard |
+| `interface/src/__tests__` | 56 | formatting, markdown escaping, tokens, transport, layout, requirements |
 
 Tests run fully offline and deterministically — no network, no API keys, no
 model downloads.

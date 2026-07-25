@@ -1,5 +1,11 @@
 import { useEffect, type ReactNode } from 'react';
 
+/**
+ * Confirmation and detail dialog.
+ *
+ * Kept as a primitive for the destructive-action confirmations the design
+ * system requires (docs/interface-design.md: "Modals ... Destructive actions").
+ */
 export interface ModalProps {
   open: boolean;
   title: string;

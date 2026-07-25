@@ -123,10 +123,17 @@ class AgentsSection(BaseModel):
     writing: bool = True
     terminal: bool = False
     git: bool = True
-    vision: bool = False
+    vision: bool = True
     voice: bool = True
     translation: bool = True
     ethical_hacking: bool = True
+    document: bool = True
+    network: bool = True
+    conversation: bool = True
+    personalization: bool = True
+    collaboration: bool = True
+    web: bool = False
+    audio: bool = False
     device: bool = True
     learning: bool = True
     update: bool = True
@@ -182,6 +189,7 @@ class SecuritySection(BaseModel):
     audit_log: bool = True
     sandbox_plugins: bool = True
     allow_terminal: bool = False
+    allow_network: bool = False
     terminal_allowlist: list[str] = Field(
         default_factory=lambda: ["ls", "cat", "pwd", "echo", "git", "python3", "node"]
     )
