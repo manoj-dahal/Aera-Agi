@@ -14,7 +14,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const VARIANTS: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-br from-[var(--aera-accent-primary)] to-[var(--aera-accent-secondary)] text-white hover:brightness-110',
+    'bg-gradient-to-br from-[var(--aera-accent-primary)] to-[var(--aera-accent-secondary)] text-[var(--aera-accent-ink)] hover:brightness-110',
   secondary:
     'bg-[var(--aera-bg-overlay)] text-[var(--aera-text-primary)] border border-[var(--aera-line-default)] hover:border-[var(--aera-accent-primary)]',
   ghost:

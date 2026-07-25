@@ -23,15 +23,31 @@ assets stay in sync with the interface rather than drifting from it.
 
 ## The mark
 
-A glowing core inside three tilted orbital rings — the same shape the
-dashboard renders as a live particle sphere, frozen into a static form.
+An eye at the centre of a neon cyan ring, with four pairs of signal arcs
+radiating from it over a dark starfield. The eye is perception, the arcs are
+listening — which suits a voice-first assistant better than the orbital rings
+this replaced.
 
-Everything is drawn with Pillow at 4× and downsampled with Lanczos, so curves
-are clean without needing an external rasteriser.
+Everything is drawn with Pillow at 2–4× and downsampled with Lanczos, so
+curves are clean without needing an external rasteriser. The neon comes from
+two Gaussian bloom passes over a single cyan layer: a tight one for the edge
+and a wide one for the spill.
 
-**Below 48px the rings are dropped** and the core is enlarged instead. At 16px
-three overlapping ellipses turn to mush; a single bright core stays legible.
-The contact sheet in `tools/brand/generate.py` docstrings explains the sizes.
+### Detail drops out as the icon shrinks
+
+Fine strokes turn to noise once a supersampled render is downscaled, so
+`make_icon()` sheds layers on the way down:
+
+| Size | Ring | Eye | Arcs | Starfield |
+|---|:-:|:-:|:-:|:-:|
+| 16–24px | ✓ | | | |
+| 32–47px | ✓ | ✓ | | |
+| 48–63px | ✓ | ✓ | ✓ | |
+| 64px+ | ✓ | ✓ | ✓ | ✓ |
+
+At 16px the mark is a ring around a bright pupil, which still reads as the
+same badge in a taskbar. `tests/test_brand.py` counts distinct bright runs
+across the midline to hold that ladder in place.
 
 ## Regenerating
 

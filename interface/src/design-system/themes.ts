@@ -26,6 +26,8 @@ export interface Theme {
     textDisabled: string;
     accentPrimary: string;
     accentSecondary: string;
+    /** Text colour for content sitting on an accent fill. */
+    accentInk: string;
     success: string;
     warning: string;
     danger: string;
@@ -51,6 +53,8 @@ export const darkTheme: Theme = {
     textDisabled: palette.text.disabled,
     accentPrimary: palette.accent.primary,
     accentSecondary: palette.accent.secondary,
+    // Brand cyan is light: white on it is 1.5:1, near-black is 13.3:1.
+    accentInk: '#04121A',
     success: palette.status.success,
     warning: palette.status.warning,
     danger: palette.status.danger,
@@ -88,8 +92,11 @@ export const lightTheme: Theme = {
     textSecondary: '#33415C',
     textMuted: '#5A6884',
     textDisabled: '#98A5BC',
-    accentPrimary: '#0B6FD4',
-    accentSecondary: '#6039E8',
+    accentPrimary: '#0A7A8C',
+    accentSecondary: '#0B6FD4',
+    // The light theme darkens the accent for contrast on white, so its
+    // fills need white ink rather than the dark ink the cyan uses.
+    accentInk: '#FFFFFF',
     success: '#0E9F6E',
     warning: '#B45309',
     danger: '#DC2626',

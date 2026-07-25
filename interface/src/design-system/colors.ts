@@ -29,18 +29,18 @@ export const palette = {
     disabled: '#5A6884',
     inverse: '#07090F',
   },
-  /** Brand accents. */
+  /** Brand accents, sampled from the logo mark (assets/brand/). */
   accent: {
-    primary: '#4DA6FF',
-    secondary: '#7C5CFF',
-    glow: 'rgba(77, 166, 255, 0.55)',
+    primary: '#40E8F0',
+    secondary: '#1E9BD4',
+    glow: 'rgba(64, 232, 240, 0.55)',
   },
   /** Semantic states. */
   status: {
     success: '#34D399',
     warning: '#FBBF24',
     danger: '#F87171',
-    info: '#4DA6FF',
+    info: '#40E8F0',
     neutral: '#8494B2',
   },
 } as const;
@@ -59,7 +59,7 @@ export const agentStatusColors = {
 export const memoryTypeColors = {
   short_term: '#FBBF24',
   long_term: '#34D399',
-  working: '#4DA6FF',
+  working: '#40E8F0',
   semantic: '#7C5CFF',
   episodic: '#F472B6',
   procedural: '#22D3EE',
@@ -75,13 +75,13 @@ export const emotionColors = {
   sad: '#60A5FA',
   serious: '#F87171',
   confident: '#A78BFA',
-  curious: '#4DA6FF',
+  curious: '#40E8F0',
   thinking: '#7C5CFF',
 } as const;
 
 /** Ordered series colours for charts. */
 export const chartColors = [
-  '#4DA6FF',
+  '#40E8F0',
   '#7C5CFF',
   '#34D399',
   '#FBBF24',

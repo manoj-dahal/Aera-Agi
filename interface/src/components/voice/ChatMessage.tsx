@@ -19,7 +19,7 @@ export function ChatMessageView({ message, onCopy }: ChatMessageProps) {
           'grid h-7 w-7 shrink-0 place-items-center rounded-[7px] text-[11px] font-bold',
           isUser
             ? 'bg-[var(--aera-bg-overlay)] text-[var(--aera-text-muted)]'
-            : 'bg-gradient-to-br from-[var(--aera-accent-primary)] to-[var(--aera-accent-secondary)] text-white',
+            : 'bg-gradient-to-br from-[var(--aera-accent-primary)] to-[var(--aera-accent-secondary)] text-[var(--aera-accent-ink)]',
         )}
       >
         {isUser ? 'You' : '◈'}

@@ -40,19 +40,38 @@ class TestMark:
         mark = draw_mark(64)
         assert mark.getextrema()[3][1] > 200, "mark is nearly invisible"
 
-    def test_rings_can_be_dropped(self):
-        """Small icons omit the rings, so the two forms must differ."""
-        with_rings = draw_mark(256, rings=True)
-        without = draw_mark(256, rings=False)
-        assert list(with_rings.getdata()) != list(without.getdata())
+    @pytest.mark.parametrize("detail", ["arcs", "stars", "iris"])
+    def test_detail_layers_can_be_dropped(self, detail):
+        """Each layer small icons shed must actually change the render."""
+        full = draw_mark(256)
+        stripped = draw_mark(256, **{detail: False})
+        assert list(full.getdata()) != list(stripped.getdata())
 
-    def test_core_reads_as_the_accent_colour(self):
-        """A regression: the core once rendered lavender, not accent blue."""
+    def test_pupil_is_white(self):
+        """The eye's pupil is the one white element; everything else is cyan."""
         mark = draw_mark(256).convert("RGBA")
-        centre = mark.getpixel((128, 128))
-        r, g, b, a = centre
-        assert a > 200, "core should be opaque at the centre"
-        assert b >= g >= r, f"core is not blue-dominant: {centre}"
+        r, g, b, a = mark.getpixel((128, 128))
+        assert a > 200, "pupil should be opaque at the centre"
+        assert min(r, g, b) > 230, f"pupil is not white: {(r, g, b)}"
+
+    def test_ring_is_brand_cyan(self):
+        """A regression guard: the mark once rendered blue, then lavender.
+
+        Cyan means green and blue both high and close, with red well below.
+        Sampled on the ring at the horizontal midline.
+        """
+        mark = draw_mark(256).convert("RGBA")
+        row = 128
+        lit = [
+            mark.getpixel((x, row))
+            for x in range(mark.width - 1, mark.width // 2, -1)
+            if mark.getpixel((x, row))[3] > 200
+        ]
+        assert lit, "no opaque pixels found on the ring"
+        r, g, b, _ = max(lit[:8], key=lambda px: px[1] + px[2])
+        assert g > 150 and b > 150, f"ring is too dark to be neon: {(r, g, b)}"
+        assert r < g * 0.6, f"ring is not cyan-dominant: {(r, g, b)}"
+        assert abs(g - b) < 60, f"cyan should have green close to blue: {(r, g, b)}"
 
 
 class TestIcons:
@@ -62,23 +81,29 @@ class TestIcons:
         assert icon.size == (size, size)
         assert icon.mode == "RGBA"
 
-    def test_small_icons_drop_the_rings(self):
-        """Three overlapping ellipses are illegible at 16px.
+    def test_small_icons_shed_detail(self):
+        """The eye and its signal arcs are illegible at 16px.
 
-        Compare the horizontal extent of bright pixels: with rings the mark
-        spans nearly the full width, without them it is a centred core.
+        Span is the wrong measure now that the mark is a ring badge at every
+        size -- the ring always reaches the edge. Count distinct bright runs
+        across the midline instead: the ring alone gives 3 (left edge, pupil,
+        right edge), the eye adds its outline, the arcs add four more.
         """
-        def bright_span(image):
+        def features(image):
             width, height = image.size
             row = height // 2
-            xs = [
-                x
-                for x in range(width)
-                if sum(image.getpixel((x, row))[:3]) > 240
-            ]
-            return (max(xs) - min(xs)) / width if xs else 0.0
+            count = 0
+            previous = False
+            for x in range(width):
+                pixel = image.getpixel((x, row))
+                lit = pixel[3] > 128 and sum(pixel[:3]) > 240
+                count += lit and not previous
+                previous = lit
+            return count
 
-        assert bright_span(make_icon(32)) < bright_span(make_icon(256))
+        assert features(make_icon(16)) == 3, "16px should be ring plus pupil only"
+        assert features(make_icon(32)) > features(make_icon(16)), "32px should show the eye"
+        assert features(make_icon(64)) > features(make_icon(32)), "64px should show the arcs"
 
     def test_icons_are_not_blank(self):
         for size in (16, 64, 256):
@@ -99,6 +124,25 @@ class TestCompositions:
 
     def test_social_card_is_open_graph_sized(self):
         assert make_social().size == (1200, 630)
+
+    def test_social_card_has_no_letterbox_seams(self):
+        """The card used to paste a banner strip onto a flat plate.
+
+        That left two hard horizontal edges where the gradient stopped. The
+        background is now painted at full height, so a vertical scan down the
+        left margin must not contain an abrupt jump.
+        """
+        card = make_social().convert("RGB")
+        x = 18  # between the 40px grid lines, so only the wash is sampled
+        # The grid draws every 40px; those rows are a deliberate step.
+        rows = [y for y in range(card.height) if y % 40 not in (0, 39)]
+        for previous_y, y in zip(rows, rows[1:], strict=False):  # pairwise
+            if y - previous_y != 1:
+                continue
+            before = card.getpixel((x, previous_y))
+            after = card.getpixel((x, y))
+            delta = max(abs(after[i] - before[i]) for i in range(3))
+            assert delta <= 6, f"hard seam at y={y}: {before} -> {after}"
 
     def test_wordmark_is_transparent(self):
         wordmark = make_wordmark()

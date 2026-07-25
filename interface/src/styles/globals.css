@@ -23,8 +23,8 @@
   --color-text-muted: #8494b2;
   --color-text-disabled: #5a6884;
 
-  --color-accent: #4da6ff;
-  --color-accent-2: #7c5cff;
+  --color-accent: #40e8f0;
+  --color-accent-2: #1e9bd4;
 
   --color-success: #34d399;
   --color-warning: #fbbf24;
@@ -48,8 +48,11 @@
   --aera-text-secondary: #b4c0d6;
   --aera-text-muted: #8494b2;
   --aera-text-disabled: #5a6884;
-  --aera-accent-primary: #4da6ff;
-  --aera-accent-secondary: #7c5cff;
+  --aera-accent-primary: #40e8f0;
+  --aera-accent-secondary: #1e9bd4;
+  /* Ink for text sitting on an accent fill. Brand cyan is light:
+     white on it is 1.5:1, dark ink is 13.3:1. */
+  --aera-accent-ink: #04121a;
   --aera-success: #34d399;
   --aera-warning: #fbbf24;
   --aera-danger: #f87171;
