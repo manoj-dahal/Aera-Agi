@@ -1,3 +1,4 @@
+import { Mic } from 'lucide-react';
 import { cn } from '@utils/cn';
 
 export interface TapToSpeakProps {
@@ -5,40 +6,89 @@ export interface TapToSpeakProps {
   /** Tap-to-memory is recalling context before listening starts. */
   priming?: boolean;
   disabled?: boolean;
+  /** 0..1 audio level, drives the waveform bars. */
+  level?: number;
   onClick: () => void;
 }
+
+/** Number of bars in the listening waveform. */
+const BARS = 9;
 
 /**
  * Primary interaction control (docs/04-DASHBOARD.md).
  *
- * Tap → voice activation → memory recall → intent detection → response.
+ * Tap → tap-to-memory workflow → voice activation. The button carries three
+ * visual states: resting glow, a pulse while priming, and a live waveform
+ * while listening.
  */
 export function TapToSpeak({
   listening = false,
   priming = false,
   disabled = false,
+  level = 0,
   onClick,
 }: TapToSpeakProps) {
+  const active = listening || priming;
+  const accent = listening ? 'var(--aera-accent-secondary)' : 'var(--aera-accent-primary)';
+
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={listening ? 'Listening' : 'Tap to speak'}
       className={cn(
-        'relative rounded-full border px-9 py-2.5 text-[14px] font-medium uppercase tracking-[0.14em] transition-all duration-200',
-        listening
-          ? 'border-[var(--aera-accent-secondary)] text-[var(--aera-accent-secondary)]'
-          : 'border-[var(--aera-accent-primary)] text-[var(--aera-accent-primary)] hover:bg-[color-mix(in_srgb,var(--aera-accent-primary)_12%,transparent)]',
-        (disabled || priming) && 'opacity-60',
+        'group relative flex items-center gap-3 rounded-full border px-8 py-2.5 text-[13.5px] font-medium uppercase tracking-[0.14em] transition-all duration-300',
+        disabled && 'opacity-40',
+        !disabled && 'hover:scale-[1.03]',
       )}
       style={{
-        boxShadow: listening
-          ? '0 0 26px color-mix(in srgb, var(--aera-accent-secondary) 45%, transparent)'
-          : '0 0 16px color-mix(in srgb, var(--aera-accent-primary) 22%, transparent)',
+        borderColor: accent,
+        color: accent,
+        background: active
+          ? `color-mix(in srgb, ${accent} 10%, transparent)`
+          : 'transparent',
+        boxShadow: active
+          ? `0 0 30px color-mix(in srgb, ${accent} 45%, transparent)`
+          : `0 0 16px color-mix(in srgb, ${accent} 20%, transparent)`,
       }}
     >
-      {listening && (
-        <span className="absolute inset-0 animate-ping rounded-full border border-[var(--aera-accent-secondary)] opacity-40" />
+      {/* Expanding pulse rings while active. */}
+      {active && (
+        <>
+          <span
+            className="pointer-events-none absolute inset-0 animate-ping rounded-full border opacity-30"
+            style={{ borderColor: accent }}
+          />
+          <span
+            className="pointer-events-none absolute -inset-1.5 rounded-full border opacity-15"
+            style={{ borderColor: accent, animation: 'aera-pulse 2s ease-in-out infinite' }}
+          />
+        </>
       )}
+
+      {listening ? (
+        <span className="flex h-4 items-end gap-[2px]" aria-hidden>
+          {Array.from({ length: BARS }, (_, i) => {
+            // Centre bars react most strongly to the audio level.
+            const weight = 1 - Math.abs(i - (BARS - 1) / 2) / ((BARS - 1) / 2);
+            const height = 3 + weight * (4 + level * 11);
+            return (
+              <span
+                key={i}
+                className="w-[2px] rounded-full transition-[height] duration-100"
+                style={{
+                  height,
+                  background: accent,
+                  animation: `aera-wave 0.9s ${i * 0.07}s ease-in-out infinite`,
+                }}
+              />
+            );
+          })}
+        </span>
+      ) : (
+        <Mic size={14} className={cn(priming && 'animate-pulse-slow')} />
+      )}
+
       {priming ? 'Recalling…' : listening ? 'Listening…' : 'Tap to Speak'}
     </button>
   );

@@ -326,18 +326,10 @@ class PerformanceAgent(Agent):
         }
         if self.ctx.registry is not None:
             data["agents"] = self.ctx.registry.summary()
-        try:
-            data["load_average"] = [round(v, 2) for v in os.getloadavg()]
-        except (OSError, AttributeError):
-            pass
-        try:
-            usage = shutil.disk_usage(".")
-            data["disk"] = {
-                "total_gb": round(usage.total / 1e9, 2),
-                "free_gb": round(usage.free / 1e9, 2),
-            }
-        except OSError:
-            pass
+        # Real host readings rather than a rough estimate.
+        from ..services.telemetry import get_telemetry
+
+        data["host"] = get_telemetry().snapshot()
         return data
 
 

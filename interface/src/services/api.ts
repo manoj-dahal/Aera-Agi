@@ -22,6 +22,7 @@ import type {
   SystemEvent,
   SystemStatus,
   TaskResult,
+  Telemetry,
   VoiceStatus,
   WorkflowInfo,
   WorkflowRun,
@@ -358,6 +359,13 @@ export const system = {
     }),
 
   info: () => httpRequest<Record<string, string | boolean>>('/system/info'),
+
+  /** Live CPU, GPU, RAM, disk, network and temperature readings. */
+  telemetry: () =>
+    call<Telemetry>({
+      native: () => nativeCall('telemetry'),
+      http: () => httpRequest('/system/telemetry'),
+    }),
 
   settings: () =>
     call<Record<string, unknown>>({

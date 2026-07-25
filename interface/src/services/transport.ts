@@ -30,6 +30,7 @@ interface NativeBridge {
   memory_stats(): Promise<Envelope<unknown>>;
   list_agents(): Promise<Envelope<unknown>>;
   system_status(): Promise<Envelope<unknown>>;
+  telemetry(): Promise<Envelope<unknown>>;
   provider_health(): Promise<Envelope<unknown>>;
   recent_events(limit?: number): Promise<Envelope<unknown>>;
   get_settings(): Promise<Envelope<unknown>>;

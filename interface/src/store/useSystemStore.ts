@@ -2,10 +2,11 @@
 
 import { create } from 'zustand';
 import { system } from '@services/api';
-import type { SystemEvent, SystemStatus } from '@services/types';
+import type { SystemEvent, SystemStatus, Telemetry } from '@services/types';
 
 interface SystemState {
   status: SystemStatus | null;
+  telemetry: Telemetry | null;
   events: SystemEvent[];
   connected: boolean;
   loading: boolean;
@@ -20,6 +21,7 @@ const MAX_EVENTS = 60;
 
 export const useSystemStore = create<SystemState>((set, get) => ({
   status: null,
+  telemetry: null,
   events: [],
   connected: false,
   loading: false,
@@ -28,8 +30,13 @@ export const useSystemStore = create<SystemState>((set, get) => ({
   refresh: async () => {
     set({ loading: true });
     try {
-      const status = await system.status();
-      set({ status, connected: status.ready, loading: false, error: null });
+      // Status and telemetry are independent: a telemetry failure must not
+      // make the app look disconnected.
+      const [status, telemetry] = await Promise.all([
+        system.status(),
+        system.telemetry().catch(() => null),
+      ]);
+      set({ status, telemetry, connected: status.ready, loading: false, error: null });
     } catch (error) {
       set({
         connected: false,

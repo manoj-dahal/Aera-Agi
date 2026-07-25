@@ -29,6 +29,7 @@ from ..automation.engine import AutomationEngine
 from ..hologram.avatar import HologramController
 from ..memory.engine import MemoryEngine
 from ..security.vault import AuditLog, PermissionManager, SecretVault
+from ..services.telemetry import TelemetryService
 from ..voice.engine import VoiceEngine
 from ..workspace.indexer import WorkspaceIndexer
 from .config import AeraConfig, get_config
@@ -56,6 +57,7 @@ class Kernel:
         self.hologram: HologramController | None = None
         self.vault: SecretVault | None = None
         self.tap_memory: TapMemoryWorkflow | None = None
+        self.telemetry = TelemetryService()
         self.permissions = PermissionManager()
         self.audit: AuditLog | None = None
 
@@ -256,6 +258,7 @@ class Kernel:
             "voice": self.voice.status() if self.voice else {},
             "hologram": self.hologram.status() if self.hologram else {},
             "events_published": self.bus.published_count,
+            "telemetry": self.telemetry.snapshot(),
         }
 
 

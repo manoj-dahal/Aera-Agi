@@ -161,6 +161,33 @@ select {
     opacity: 0.5;
   }
 }
+@keyframes aera-wave {
+  0%,
+  100% {
+    transform: scaleY(0.55);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes aera-scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+@keyframes aera-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 12px color-mix(in srgb, var(--aera-accent-primary) 25%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 26px color-mix(in srgb, var(--aera-accent-primary) 55%, transparent);
+  }
+}
+
 @keyframes aera-breathe {
   to {
     transform: scale(1.22);
@@ -179,6 +206,12 @@ select {
 }
 .animate-breathe {
   animation: aera-breathe 0.55s ease-in-out infinite alternate;
+}
+.animate-scan {
+  animation: aera-scan 1.6s linear infinite;
+}
+.animate-glow {
+  animation: aera-glow 2.4s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

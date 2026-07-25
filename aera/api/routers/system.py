@@ -38,6 +38,12 @@ async def system_info(kernel=Depends(get_kernel_dep)):
     )
 
 
+@router.get("/telemetry")
+async def telemetry(kernel=Depends(get_kernel_dep)):
+    """Live CPU, GPU, RAM, disk, network and temperature readings."""
+    return ok(await kernel.telemetry.snapshot_async(force=True))
+
+
 @router.get("/settings")
 async def get_settings(kernel=Depends(get_kernel_dep)):
     """Non-sensitive configuration for the dashboard."""

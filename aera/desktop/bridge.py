@@ -260,6 +260,13 @@ class DesktopBridge:
         except Exception as exc:  # noqa: BLE001
             return self._err(str(exc))
 
+    def telemetry(self) -> dict:
+        """Live host metrics for the PC Information panel."""
+        try:
+            return self._ok(self.app.kernel.telemetry.snapshot())
+        except Exception as exc:  # noqa: BLE001
+            return self._err(str(exc))
+
     def system_status(self) -> dict:
         try:
             return self._ok(self.app.kernel.status())

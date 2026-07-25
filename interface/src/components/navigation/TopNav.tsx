@@ -36,20 +36,36 @@ function NavGroup({ items }: { items: readonly { to: string; label: string; Icon
           to={to}
           className={({ isActive }) =>
             cn(
-              'flex items-center gap-2 px-3.5 py-[7px] text-[13px] transition-colors',
+              'relative flex items-center gap-2 px-3.5 py-[7px] text-[13px] transition-all duration-200',
               index > 0 && 'border-l border-[var(--aera-line-default)]',
               isActive
-                ? 'bg-[var(--aera-bg-overlay)] font-medium text-[var(--aera-text-primary)]'
+                ? 'bg-[color-mix(in_srgb,var(--aera-accent-primary)_14%,transparent)] font-medium text-[var(--aera-text-primary)]'
                 : 'text-[var(--aera-text-secondary)] hover:bg-[var(--aera-bg-hover)] hover:text-[var(--aera-text-primary)]',
             )
+          }
+          style={({ isActive }) =>
+            isActive
+              ? {
+                  boxShadow:
+                    'inset 0 -2px 0 var(--aera-accent-primary), 0 0 18px color-mix(in srgb, var(--aera-accent-primary) 30%, transparent)',
+                }
+              : undefined
           }
         >
           {({ isActive }) => (
             <>
               <Icon
                 size={15}
-                strokeWidth={1.9}
-                style={isActive ? { color: 'var(--aera-accent-primary)' } : undefined}
+                strokeWidth={isActive ? 2.2 : 1.9}
+                className={cn('transition-all duration-200', isActive && 'scale-110')}
+                style={
+                  isActive
+                    ? {
+                        color: 'var(--aera-accent-primary)',
+                        filter: 'drop-shadow(0 0 5px var(--aera-accent-primary))',
+                      }
+                    : undefined
+                }
               />
               {label}
             </>

@@ -21,6 +21,8 @@ export { TranscriptPanel } from './voice/TranscriptPanel';
 export { ChatMessageView } from './voice/ChatMessage';
 export { EmptyState, ErrorState, LoadingState } from './widgets/EmptyState';
 export { AICorePanel } from './widgets/AICorePanel';
+export { AmbientPanel } from './widgets/AmbientPanel';
+export { SystemInfoPanel } from './widgets/SystemInfoPanel';
 export { PageHeader, SectionTitle } from './widgets/SectionTitle';
 export { StatusFooter } from './widgets/StatusFooter';
 export { WorkspacePanel } from './widgets/WorkspacePanel';

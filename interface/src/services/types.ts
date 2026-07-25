@@ -213,6 +213,53 @@ export interface ProviderHealth {
 // --------------------------------------------------------------------------
 // system / voice / hologram / automation
 // --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// telemetry (aera/services/telemetry.py)
+// --------------------------------------------------------------------------
+/** Any field may be null: the host may not expose that metric. */
+export interface Telemetry {
+  timestamp: number;
+  host: string;
+  platform: string;
+  source: 'psutil' | 'procfs';
+  cpu: {
+    percent: number | null;
+    cores: number | null;
+    threads: number | null;
+    frequency_mhz: number | null;
+    load_average: number[] | null;
+    model: string | null;
+  };
+  memory: {
+    total_gb: number | null;
+    used_gb: number | null;
+    available_gb: number | null;
+    percent: number | null;
+    swap_total_gb?: number | null;
+    swap_used_gb?: number | null;
+  };
+  disk: {
+    total_gb: number | null;
+    used_gb: number | null;
+    free_gb: number | null;
+    percent: number | null;
+  };
+  network: {
+    bytes_sent: number | null;
+    bytes_received: number | null;
+    up_kbps: number | null;
+    down_kbps: number | null;
+  };
+  gpu: Array<{
+    name: string;
+    utilization: number | null;
+    vram_used_mb: number | null;
+    vram_total_mb: number | null;
+    temperature_c: number | null;
+  }>;
+  temperature: number | null;
+}
+
 export interface SystemStatus {
   name: string;
   version: string;
@@ -226,6 +273,7 @@ export interface SystemStatus {
   voice: VoiceStatus;
   hologram: AvatarState;
   events_published: number;
+  telemetry?: Telemetry;
 }
 
 export interface VoiceStatus {

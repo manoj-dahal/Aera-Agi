@@ -11,53 +11,78 @@ export type SphereState =
   | 'offline';
 
 export interface ParticleSphereProps {
-  /** Avatar state drives rotation speed, turbulence and colour. */
+  /** Avatar state drives rotation, turbulence, rings and glow. */
   state?: SphereState;
   emotion?: string;
   size?: number;
+  /** 0..1 audio level, used for the speaking waveform. */
+  level?: number;
+  /** 0..1 progress, draws a completion arc (file processing). */
+  progress?: number;
   className?: string;
 }
 
 interface Particle {
-  /** Position on the unit sphere (spherical coordinates). */
   theta: number;
   phi: number;
-  /** Per-particle noise so the shell breathes instead of looking rigid. */
   seed: number;
 }
 
-/** Per-state motion profile: rotation, turbulence, pulse and glow. */
-const PROFILES: Record<SphereState, { spin: number; noise: number; pulse: number; glow: number }> = {
-  idle: { spin: 0.12, noise: 0.02, pulse: 0.02, glow: 0.35 },
-  listening: { spin: 0.3, noise: 0.05, pulse: 0.06, glow: 0.7 },
-  thinking: { spin: 0.55, noise: 0.09, pulse: 0.04, glow: 0.6 },
-  speaking: { spin: 0.35, noise: 0.13, pulse: 0.11, glow: 0.9 },
-  processing: { spin: 0.7, noise: 0.07, pulse: 0.05, glow: 0.75 },
-  error: { spin: 0.08, noise: 0.18, pulse: 0.03, glow: 0.5 },
-  offline: { spin: 0.03, noise: 0.01, pulse: 0.0, glow: 0.12 },
+interface Profile {
+  spin: number;
+  noise: number;
+  pulse: number;
+  glow: number;
+  /** Counter-rotating energy rings. */
+  rings: number;
+  /** Particles that break orbit and stream outward. */
+  stream: number;
+  /** Sweeping scan line, used while processing. */
+  scan: boolean;
+}
+
+const PROFILES: Record<SphereState, Profile> = {
+  idle:       { spin: 0.12, noise: 0.02, pulse: 0.02, glow: 0.35, rings: 1, stream: 0,    scan: false },
+  listening:  { spin: 0.30, noise: 0.05, pulse: 0.07, glow: 0.75, rings: 2, stream: 0.15, scan: false },
+  thinking:   { spin: 0.60, noise: 0.09, pulse: 0.04, glow: 0.65, rings: 3, stream: 0.35, scan: false },
+  speaking:   { spin: 0.35, noise: 0.13, pulse: 0.12, glow: 0.95, rings: 2, stream: 0.20, scan: false },
+  processing: { spin: 0.75, noise: 0.07, pulse: 0.05, glow: 0.80, rings: 3, stream: 0.45, scan: true  },
+  error:      { spin: 0.08, noise: 0.20, pulse: 0.03, glow: 0.50, rings: 1, stream: 0,    scan: false },
+  offline:    { spin: 0.03, noise: 0.01, pulse: 0.00, glow: 0.10, rings: 0, stream: 0,    scan: false },
 };
 
-const PARTICLE_COUNT = 1400;
+const PARTICLE_COUNT = 1500;
 
 /**
- * The AERA hologram: a rotating particle shell rendered on canvas.
+ * The AERA hologram core.
  *
- * Particles are distributed with a Fibonacci lattice for even coverage, then
- * projected with a simple perspective transform. Depth controls both alpha and
- * radius, which reads as a volumetric sphere without any 3D dependency.
+ * A rotating particle shell on canvas, wrapped in counter-rotating energy
+ * rings. Particles sit on a Fibonacci lattice and are projected with a simple
+ * perspective transform, so depth drives both alpha and radius — it reads as
+ * volumetric without a 3D dependency.
+ *
+ * Every visual channel is bound to state: rotation speed, shell turbulence,
+ * ring count, outward particle streaming, glow intensity and a processing scan
+ * line. Speaking additionally renders a voice waveform ring.
  */
 export function ParticleSphere({
   state = 'idle',
   emotion = 'neutral',
-  size = 300,
+  size = 340,
+  level = 0,
+  progress,
   className,
 }: ParticleSphereProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Live refs so prop changes never restart the animation loop.
+  // Live refs: prop changes must not restart the animation loop.
   const stateRef = useRef(state);
   const emotionRef = useRef(emotion);
+  const levelRef = useRef(level);
+  const progressRef = useRef(progress);
   stateRef.current = state;
   emotionRef.current = emotion;
+  levelRef.current = level;
+  progressRef.current = progress;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,75 +95,147 @@ export function ParticleSphere({
     canvas.height = size * dpr;
     ctx.scale(dpr, dpr);
 
-    // Fibonacci sphere: near-uniform point distribution.
+    // Fibonacci sphere gives near-uniform coverage.
     const golden = Math.PI * (3 - Math.sqrt(5));
     const particles: Particle[] = Array.from({ length: PARTICLE_COUNT }, (_, i) => {
       const y = 1 - (i / (PARTICLE_COUNT - 1)) * 2;
-      return {
-        theta: Math.acos(y),
-        phi: golden * i,
-        seed: Math.random() * Math.PI * 2,
-      };
+      return { theta: Math.acos(y), phi: golden * i, seed: Math.random() * Math.PI * 2 };
     });
 
     const centre = size / 2;
-    const baseRadius = size * 0.33;
+    const baseRadius = size * 0.3;
     let rotation = 0;
     let frame = 0;
     let raf = 0;
+    // Smoothed state transitions so switching never snaps.
+    let smoothGlow = PROFILES.idle.glow;
+    let smoothNoise = PROFILES.idle.noise;
 
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
     const render = () => {
       const profile = PROFILES[stateRef.current] ?? PROFILES.idle;
       const colour = emotionColors[emotionRef.current as Emotion] ?? emotionColors.neutral;
+      const audio = Math.max(0, Math.min(1, levelRef.current));
 
       frame += 1;
       rotation += profile.spin * 0.01;
+      smoothGlow += (profile.glow - smoothGlow) * 0.06;
+      smoothNoise += (profile.noise - smoothNoise) * 0.06;
 
       ctx.clearRect(0, 0, size, size);
 
-      // Core glow behind the shell.
-      const breathe = 1 + Math.sin(frame * 0.03) * profile.pulse;
-      const glow = ctx.createRadialGradient(centre, centre, 0, centre, centre, baseRadius * 1.6);
-      glow.addColorStop(0, `${colour}${toHexAlpha(profile.glow * 0.5)}`);
-      glow.addColorStop(0.55, `${colour}${toHexAlpha(profile.glow * 0.12)}`);
+      const breathe = 1 + Math.sin(frame * 0.03) * profile.pulse + audio * 0.06;
+
+      // --- core glow ---------------------------------------------------
+      const glow = ctx.createRadialGradient(centre, centre, 0, centre, centre, baseRadius * 1.8);
+      glow.addColorStop(0, `${colour}${hexAlpha(smoothGlow * 0.5)}`);
+      glow.addColorStop(0.5, `${colour}${hexAlpha(smoothGlow * 0.14)}`);
       glow.addColorStop(1, 'transparent');
       ctx.fillStyle = glow;
       ctx.fillRect(0, 0, size, size);
 
-      for (const p of particles) {
-        // Turbulence displaces each particle along its normal.
-        const wobble =
-          1 + Math.sin(frame * 0.04 + p.seed) * profile.noise + (profile.noise > 0.1 ? Math.sin(frame * 0.11 + p.phi) * 0.04 : 0);
-        const r = baseRadius * breathe * wobble;
+      // --- energy rings: counter-rotating, tilted -----------------------
+      for (let r = 0; r < profile.rings; r += 1) {
+        const direction = r % 2 === 0 ? 1 : -1;
+        const tilt = rotation * direction * (0.5 + r * 0.25);
+        const rx = baseRadius * (1.22 + r * 0.16);
+        const ry = rx * (0.2 + r * 0.12);
+        ctx.beginPath();
+        ctx.ellipse(centre, centre, rx, ry, tilt, 0, Math.PI * 2);
+        ctx.strokeStyle = `${colour}${hexAlpha(smoothGlow * (0.3 - r * 0.06))}`;
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
 
+        // A bright node travelling each ring reads as flowing energy.
+        const t = frame * 0.02 * direction + r;
+        const nx = centre + Math.cos(t) * rx * Math.cos(tilt) - Math.sin(t) * ry * Math.sin(tilt);
+        const ny = centre + Math.cos(t) * rx * Math.sin(tilt) + Math.sin(t) * ry * Math.cos(tilt);
+        ctx.beginPath();
+        ctx.arc(nx, ny, 1.9, 0, Math.PI * 2);
+        ctx.fillStyle = `${colour}${hexAlpha(smoothGlow)}`;
+        ctx.fill();
+      }
+
+      // --- particle shell ----------------------------------------------
+      for (let i = 0; i < particles.length; i += 1) {
+        const p = particles[i]!;
+        let wobble = 1 + Math.sin(frame * 0.04 + p.seed) * smoothNoise;
+
+        // A fraction of particles stream outward while active.
+        const streaming = profile.stream > 0 && i % 7 === 0;
+        if (streaming) {
+          const phase = ((frame * 0.012 + p.seed) % 1);
+          wobble += phase * profile.stream;
+        }
+
+        const r = baseRadius * breathe * wobble;
         const sinTheta = Math.sin(p.theta);
         const x = r * sinTheta * Math.cos(p.phi + rotation);
         const y = r * Math.cos(p.theta);
         const z = r * sinTheta * Math.sin(p.phi + rotation);
 
-        // Perspective projection: nearer particles are larger and brighter.
-        const depth = (z + baseRadius) / (baseRadius * 2); // 0 (far) .. 1 (near)
+        const depth = (z + baseRadius) / (baseRadius * 2);
         const scale = 0.6 + depth * 0.55;
         const px = centre + x * scale;
         const py = centre + y * scale;
 
-        const alpha = 0.08 + depth * 0.75;
-        const dotRadius = 0.4 + depth * 1.25;
+        let alpha = 0.08 + depth * 0.75;
+        if (streaming) alpha *= 1 - ((frame * 0.012 + p.seed) % 1);
 
         ctx.beginPath();
-        ctx.arc(px, py, dotRadius, 0, Math.PI * 2);
-        ctx.fillStyle = `${colour}${toHexAlpha(alpha)}`;
+        ctx.arc(px, py, 0.4 + depth * 1.25, 0, Math.PI * 2);
+        ctx.fillStyle = `${colour}${hexAlpha(alpha)}`;
         ctx.fill();
       }
 
-      // Equatorial ring, brighter while active.
-      if (profile.glow > 0.3) {
+      // --- voice waveform ring (speaking) -------------------------------
+      if (stateRef.current === 'speaking') {
+        const points = 96;
         ctx.beginPath();
-        ctx.ellipse(centre, centre, baseRadius * 1.28, baseRadius * 0.22, rotation * 0.4, 0, Math.PI * 2);
-        ctx.strokeStyle = `${colour}${toHexAlpha(profile.glow * 0.22)}`;
-        ctx.lineWidth = 1;
+        for (let i = 0; i <= points; i += 1) {
+          const angle = (i / points) * Math.PI * 2;
+          const wave =
+            Math.sin(angle * 6 + frame * 0.16) * (3 + audio * 14) +
+            Math.sin(angle * 11 - frame * 0.1) * (1.5 + audio * 6);
+          const wr = baseRadius * 1.42 + wave;
+          const wx = centre + Math.cos(angle) * wr;
+          const wy = centre + Math.sin(angle) * wr;
+          if (i === 0) ctx.moveTo(wx, wy);
+          else ctx.lineTo(wx, wy);
+        }
+        ctx.closePath();
+        ctx.strokeStyle = `${colour}${hexAlpha(0.5 + audio * 0.4)}`;
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+      }
+
+      // --- scan line (processing) ---------------------------------------
+      if (profile.scan) {
+        const sweep = ((frame * 0.016) % 2) - 1; // -1 .. 1
+        const y = centre + sweep * baseRadius * 1.25;
+        const halfWidth = Math.sqrt(Math.max(0, 1 - sweep * sweep)) * baseRadius * 1.3;
+        const gradient = ctx.createLinearGradient(centre - halfWidth, y, centre + halfWidth, y);
+        gradient.addColorStop(0, 'transparent');
+        gradient.addColorStop(0.5, `${colour}cc`);
+        gradient.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.moveTo(centre - halfWidth, y);
+        ctx.lineTo(centre + halfWidth, y);
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // --- progress arc --------------------------------------------------
+      const pct = progressRef.current;
+      if (typeof pct === 'number' && pct >= 0) {
+        const radius = baseRadius * 1.55;
+        ctx.beginPath();
+        ctx.arc(centre, centre, radius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, pct));
+        ctx.strokeStyle = `${colour}dd`;
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = 'round';
         ctx.stroke();
       }
 
@@ -166,9 +263,8 @@ export function ParticleSphere({
 }
 
 /** 0..1 alpha as a two-digit hex suffix for #RRGGBB colours. */
-function toHexAlpha(alpha: number): string {
-  const clamped = Math.max(0, Math.min(1, alpha));
-  return Math.round(clamped * 255)
+function hexAlpha(alpha: number): string {
+  return Math.round(Math.max(0, Math.min(1, alpha)) * 255)
     .toString(16)
     .padStart(2, '0');
 }

@@ -13,7 +13,7 @@ describe('dashboard layout', () => {
 
   it('renders the three specified columns', () => {
     expect(dashboard).toContain('HologramBadge');      // left
-    expect(dashboard).toContain('AICorePanel');        // left
+    expect(dashboard).toContain('SystemInfoPanel');    // left: live PC metrics
     expect(dashboard).toContain('WorkspacePanel');     // left
     expect(dashboard).toContain('ParticleSphere');     // centre
     expect(dashboard).toContain('TapToSpeak');         // centre
@@ -68,7 +68,8 @@ describe('transcript panel', () => {
   it('shows a watermark that reacts to dragging', () => {
     expect(panel).toContain('AERA');
     expect(panel).toContain('dragging');
-    expect(panel).toContain('Drop to analyse');
+    expect(panel).toContain('Drop Here');
+    expect(panel).toContain('activeAgent'); // names the agent that will process it
   });
 
   it('escapes model output rather than injecting raw HTML', () => {

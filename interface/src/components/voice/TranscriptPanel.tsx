@@ -6,6 +6,8 @@ import type { ChatMessage } from '@services/types';
 
 export interface TranscriptPanelProps {
   messages: ChatMessage[];
+  /** Agent currently processing a dropped file, shown on the indicator. */
+  activeAgent?: string | null;
   onDropFiles?: (paths: string[]) => void;
   onCopy?: (text: string) => void;
 }
@@ -16,7 +18,12 @@ export interface TranscriptPanelProps {
  * Angled HUD frame with a watermark that lights up during a drag operation.
  * The Dashboard is the only surface that accepts drag & drop.
  */
-export function TranscriptPanel({ messages, onDropFiles, onCopy }: TranscriptPanelProps) {
+export function TranscriptPanel({
+  messages,
+  activeAgent,
+  onDropFiles,
+  onCopy,
+}: TranscriptPanelProps) {
   const [dragging, setDragging] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const depth = useRef(0);
@@ -113,11 +120,16 @@ export function TranscriptPanel({ messages, onDropFiles, onCopy }: TranscriptPan
       {/* Message surface */}
       <div
         className={cn(
-          'relative z-10 mx-[26px] mb-[30px] mt-2.5 flex-1 overflow-hidden rounded-[10px] border transition-colors',
+          'relative z-10 mx-[26px] mb-[30px] mt-2.5 flex-1 overflow-hidden rounded-[10px] border transition-all duration-200',
           dragging
             ? 'border-[var(--aera-accent-primary)] bg-[color-mix(in_srgb,var(--aera-accent-primary)_12%,#0d2137)]'
             : 'border-[var(--aera-line-strong)] bg-[#0d2137]',
         )}
+        style={
+          dragging
+            ? { boxShadow: '0 0 0 1px var(--aera-accent-primary), 0 0 34px color-mix(in srgb, var(--aera-accent-primary) 45%, transparent) inset' }
+            : undefined
+        }
       >
         {/* Grid texture */}
         <div
@@ -146,11 +158,25 @@ export function TranscriptPanel({ messages, onDropFiles, onCopy }: TranscriptPan
             AERA
           </span>
           {dragging && (
-            <span className="mt-1.5 text-[11.5px] uppercase tracking-[0.14em] text-[var(--aera-accent-primary)]">
-              Drop to analyse
-            </span>
+            <>
+              <span className="mt-1.5 text-[13px] uppercase tracking-[0.2em] text-[var(--aera-accent-primary)]">
+                Drop Here
+              </span>
+              <span className="mt-1 text-[10.5px] text-[var(--aera-text-muted)]">
+                AERA will route it to the right agent
+              </span>
+            </>
           )}
         </div>
+
+        {activeAgent && !dragging && (
+          <div className="absolute inset-x-0 top-0 z-20 flex items-center gap-2 border-b border-[var(--aera-accent-primary)] bg-[color-mix(in_srgb,var(--aera-accent-primary)_18%,#0d2137)] px-3 py-1.5">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--aera-accent-primary)]" />
+            <span className="text-[10.5px] uppercase tracking-[0.12em] text-[var(--aera-accent-primary)]">
+              {activeAgent} agent processing
+            </span>
+          </div>
+        )}
 
         <div ref={scrollRef} className="relative h-full overflow-y-auto p-3.5">
           {messages.length === 0 ? (

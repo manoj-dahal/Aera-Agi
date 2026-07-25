@@ -1,5 +1,8 @@
-import { useState } from 'react';
-import { ChevronRight, Folder, FolderOpen, FolderPlus, RefreshCw, Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ChevronRight, Folder, FolderOpen, FolderPlus, MoreVertical,
+  RefreshCw, Search,
+} from 'lucide-react';
 import { cn } from '@utils/cn';
 import type { FileMatch, ProjectSummary } from '@services/types';
 
@@ -12,6 +15,7 @@ export interface WorkspacePanelProps {
   onRefresh: () => void;
   onSearch: (query: string) => void;
   onSelect: (path: string) => void;
+  onReveal?: () => void;
 }
 
 /**
@@ -29,10 +33,25 @@ export function WorkspacePanel({
   onRefresh,
   onSearch,
   onSelect,
+  onReveal,
 }: WorkspacePanelProps) {
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [expanded, setExpanded] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the overflow menu on an outside click.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const away = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [menuOpen]);
 
   const listed = results.length > 0 ? results.map((r) => r.path) : files;
 
@@ -66,6 +85,37 @@ export function WorkspacePanel({
             <FolderPlus size={12} />
           </button>
         )}
+        <div ref={menuRef} className="relative">
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            title="More"
+            aria-label="Workspace menu"
+            className="rounded p-[3px] text-[var(--aera-text-muted)] hover:bg-[var(--aera-bg-hover)] hover:text-[var(--aera-text-primary)]"
+          >
+            <MoreVertical size={12} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-6 z-30 w-40 overflow-hidden rounded-lg border border-[var(--aera-line-strong)] bg-[var(--aera-bg-overlay)] py-1 shadow-xl">
+              {[
+                ['Open Local Folder', onOpenFolder],
+                ['Refresh Index', onRefresh],
+                ['Search Workspace', () => setSearching(true)],
+                ['Reveal in Files', () => onReveal?.()],
+              ].map(([label, action]) => (
+                <button
+                  key={String(label)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    (action as () => void)();
+                  }}
+                  className="block w-full px-3 py-1.5 text-left text-[11px] hover:bg-[var(--aera-bg-hover)]"
+                >
+                  {String(label)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {searching && (
