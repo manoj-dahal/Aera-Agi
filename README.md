@@ -1,16 +1,21 @@
 # AERA
 
-**Artificial Enhanced Reasoning Assistant** — a modular AI Operating System with a
-persistent memory graph, multi-agent orchestration and local-first model routing.
+**Artificial Enhanced Reasoning Assistant** — a native desktop AI Operating System
+with a persistent memory graph, multi-agent orchestration and local-first model
+routing.
 
-[![tests](https://img.shields.io/badge/tests-286%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-356%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+[![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
 
-AERA is not a chatbot wrapper. It is a runtime: requests enter through a Core
-Agent that detects intent, recalls relevant memory, delegates to a specialist
-agent, and writes the outcome back into a shared knowledge graph that every
-other agent can read.
+AERA is not a chatbot wrapper. It is a desktop runtime: requests enter through a
+Core Agent that detects intent, recalls relevant memory, delegates to a
+specialist agent, and writes the outcome back into a shared knowledge graph that
+every other agent can read.
+
+Everything runs on your machine. The kernel executes in-process inside the
+application — no web server, no bound port, no browser.
 
 ---
 
@@ -22,16 +27,35 @@ cd Aera-Agi
 ./scripts/install.sh
 
 source .venv/bin/activate
-aera serve
+aera                      # launches the desktop application
 ```
-
-Open **http://localhost:8080** for the dashboard, `/docs` for the interactive
-API reference.
 
 **No API keys required.** AERA ships with a built-in offline reasoner, so the
 full stack — memory, agents, routing, automation, voice pipeline — runs with
 zero configuration and zero network access. Add a local or cloud model when you
 want production-grade generation.
+
+### Standalone executable
+
+Build a self-contained app that needs no Python on the target machine:
+
+```bash
+./scripts/build-desktop.sh
+```
+
+| Platform | Output | Webview runtime |
+|---|---|---|
+| Windows | `dist/AERA/AERA.exe` | WebView2 (ships with Windows 11) |
+| macOS | `dist/AERA.app` | WebKit (built in) |
+| Linux | `dist/AERA/AERA` | WebKit2GTK (`libwebkit2gtk-4.1-0`) |
+
+### Headless server (optional)
+
+For remote or multi-user deployments, AERA also runs without a window:
+
+```bash
+aera serve      # REST API + WebSocket + browser dashboard on :8080
+```
 
 ### Docker
 
@@ -44,8 +68,9 @@ docker compose --profile full up -d       # + PostgreSQL and Redis
 ### Command line
 
 ```bash
-aera serve                    # API + dashboard
-aera repl                     # interactive session
+aera                          # desktop application (default)
+aera serve                    # headless API server
+aera repl                     # interactive terminal session
 aera chat "explain CQRS"      # one-shot query
 aera index ~/projects/my-app  # index a codebase into memory
 aera memory search "docker"   # query the memory graph
@@ -58,7 +83,9 @@ aera status                   # full system snapshot
 ## Architecture
 
 ```
-                        Dashboard  ·  REST  ·  WebSocket
+              Native window (WebKit / WebView2)  ·  React interface
+                                     │
+                        Python bridge  ·  REST  ·  WebSocket
                                      │
                                  Core Agent
                   intent → recall → plan → delegate → respond
@@ -185,6 +212,34 @@ models:
 
 ---
 
+## Interface
+
+React 19 + TypeScript, built with Vite and Tailwind. The same bundle runs in
+both hosts, detected at runtime:
+
+| Host | Loads from | Transport |
+|---|---|---|
+| Desktop | local files in the native window | direct Python bridge, in-process |
+| Browser | `aera serve` | REST + server-sent events |
+
+```bash
+cd interface
+npm install
+npm run build     # emits to aera/desktop/ui-react/, picked up automatically
+
+npm run dev       # hot reload against a running `aera serve`
+```
+
+Ten pages are wired to live backend data: Dashboard, Memory, Agents, Workspace,
+Models, Automation, Hologram, Security, Settings and System. Terminal, Docker
+and Plugins render an explicit status panel describing what works today and
+what is still missing, rather than controls that do nothing.
+
+If Node is never installed, the app falls back to a dependency-free UI in
+`aera/desktop/ui/` — so `aera` always launches.
+
+---
+
 ## API
 
 63 REST operations plus a WebSocket gateway. Every response uses a consistent
@@ -290,8 +345,9 @@ values only.
 ## Testing
 
 ```bash
-./scripts/test.sh              # 286 tests
-pytest tests/test_memory.py -v # one module
+./scripts/test.sh                    # 331 Python tests
+cd interface && npm test             # 25 TypeScript tests
+pytest tests/test_memory.py -v       # one module
 ```
 
 | Module | Tests | Covers |
@@ -302,6 +358,8 @@ pytest tests/test_memory.py -v # one module
 | `test_ai.py` | 33 | provider adapters, failover, routing modes |
 | `test_api.py` | 66 | all endpoints, auth, rate limits, WebSocket |
 | `test_subsystems.py` | 63 | workspace, automation, voice, hologram, kernel |
+| `test_desktop.py` | 45 | kernel thread, native bridge, streaming, dialogs, sandboxing |
+| `interface/src/__tests__` | 25 | formatting, markdown escaping, design tokens, transport |
 
 Tests run fully offline and deterministically — no network, no API keys, no
 model downloads.
@@ -322,12 +380,21 @@ aera/
 ├── hologram/     avatar state machine
 ├── security/     vault, permissions, audit
 ├── api/          FastAPI app, routers, middleware
-└── web/          dashboard (HTML/CSS/JS, no build step)
+├── desktop/      native window, JS bridge, preferences, fallback UI
+└── web/          browser dashboard for `aera serve`
 
+interface/        React + TypeScript front end
+├── src/pages/        one directory per feature area
+├── src/components/   shared UI primitives
+├── src/design-system/ colours, typography, spacing, themes
+├── src/store/        Zustand state
+└── src/services/     typed client and host-agnostic transport
+
+installer/        PyInstaller spec and frozen entrypoint
 config/           annotated YAML defaults
 docs/             the original design specification (108 documents)
-scripts/          install, run, test, build, clean
-tests/            286 tests
+scripts/          install, run, test, build, build-desktop, clean
+tests/            331 Python tests
 ```
 
 ---
@@ -347,14 +414,24 @@ Built and tested against the specification in `docs/`:
 | Security: vault, permissions, audit | ✅ complete |
 | Voice pipeline, emotion, visemes | ✅ orchestration complete; audio backends pluggable |
 | Hologram avatar state | ✅ state machine complete; renderer is client-side |
-| Web dashboard | ✅ complete |
-| Flutter desktop client | ⬜ planned — no Dart toolchain in this environment |
+| Desktop application (native window, menus, dialogs) | ✅ complete |
+| React + TypeScript interface | ✅ complete |
+| Standalone executable packaging | ✅ spec complete — binaries build in CI |
+| Browser dashboard for headless mode | ✅ complete |
 | PostgreSQL / pgvector backend | ⬜ planned — SQLite + in-process graph today |
-| Plugin marketplace, phone sync, app integrations | ⬜ planned |
+| Terminal UI, Docker management, plugin marketplace | ⬜ planned — status shown in-app |
+| Phone sync, desktop app integrations | ⬜ planned |
 
 The voice engine implements the full pipeline (VAD → STT → intent → memory →
 LLM → emotion → TTS → lip-sync) with headless backends; plugging in Whisper or
 Piper is an interface implementation, not a rewrite.
+
+**On packaging:** the PyInstaller spec, frozen entrypoint and cross-platform
+workflow are complete and every bundled import is verified, but the binaries
+have not been linked and launched here — this development sandbox is headless
+and lacks `libpython3.11.so`. `ci/github-actions-desktop.yml` builds all three
+platforms, checks the bundle contents and smoke-tests the frozen app under a
+virtual display; run it once to produce release artifacts.
 
 ---
 
