@@ -1,0 +1,1 @@
+"""AERA command-line interface."""

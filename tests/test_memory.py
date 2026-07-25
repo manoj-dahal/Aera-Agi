@@ -1,7 +1,7 @@
 """Tests for the Memory Graph engine and API (docs/06-MEMORY-GRAPH.md)."""
 
-from services.memory.graph import MemoryGraph
-from shared.schemas import EdgeRelation, MemoryEdgeCreate, MemoryNodeCreate, NodeType
+from src.memory.graph import MemoryGraph
+from src.common.schemas import EdgeRelation, MemoryEdgeCreate, MemoryNodeCreate, NodeType
 
 # ── Engine-level tests ───────────────────────────────────────
 

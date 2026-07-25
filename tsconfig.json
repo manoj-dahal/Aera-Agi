@@ -16,11 +16,10 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@shared/*": ["shared/*"]
+      "@/*": ["src/dashboard/*"]
     },
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "shared", "vite.config.ts"],
+  "include": ["src/dashboard", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

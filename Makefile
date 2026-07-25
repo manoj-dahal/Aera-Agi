@@ -9,7 +9,7 @@ install: ## Install all dependencies (Node + Python)
 
 dev: ## Run frontend and backend in development mode
 	npm run dev & \
-	python -m services.core.main; \
+	python -m src.main serve; \
 	wait
 
 build: ## Build frontend for production
@@ -21,11 +21,11 @@ test: ## Run all tests
 
 lint: ## Lint and format-check all code
 	npx prettier --check .
-	-ruff check services/ tests/
+	-ruff check src/ tests/
 
 format: ## Auto-format all code
 	npx prettier --write .
-	-ruff format services/ tests/
+	-ruff format src/ tests/
 
 docs: ## Serve documentation locally
 	mkdocs serve

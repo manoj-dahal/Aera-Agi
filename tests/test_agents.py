@@ -1,8 +1,8 @@
 """Tests for the Agent Manager routing and chat pipeline (docs/07-AGENTS.md)."""
 
-from services.agents.manager import AgentManager
-from services.ai.router import ModelRouter
-from services.memory.graph import MemoryGraph
+from src.agents.manager import AgentManager
+from src.ai.router import ModelRouter
+from src.memory.graph import MemoryGraph
 
 
 def make_manager() -> AgentManager:

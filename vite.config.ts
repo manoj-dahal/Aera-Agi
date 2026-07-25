@@ -6,12 +6,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // AERA AGI — frontend build configuration
 export default defineConfig({
-  root: 'src',
-  publicDir: '../public',
+  root: 'src/dashboard',
+  publicDir: resolve(__dirname, 'public'),
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '@shared': resolve(__dirname, 'shared'),
+      '@': resolve(__dirname, 'src/dashboard'),
     },
   },
   server: {
@@ -28,7 +27,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: '../dist',
+    outDir: resolve(__dirname, 'dist'),
     emptyOutDir: true,
     sourcemap: true,
   },

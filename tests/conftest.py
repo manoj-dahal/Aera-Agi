@@ -11,7 +11,7 @@ def client(tmp_path, monkeypatch) -> TestClient:
     """API client backed by a throwaway database and no local LLM."""
     monkeypatch.setenv("AERA_MEMORY_DB", str(tmp_path / "test.db"))
     monkeypatch.setenv("LOCAL_LLM_ENABLED", "false")
-    from services.core.main import app
+    from src.app import app
 
     with TestClient(app) as c:
         yield c

@@ -30,7 +30,7 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
       - run: pip install pytest ruff
-      - run: ruff check services/ tests/ || true
+      - run: ruff check src/ tests/ || true
       - run: pytest tests/ -v || true
 
   docs:
