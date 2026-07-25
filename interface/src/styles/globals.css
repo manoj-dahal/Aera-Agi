@@ -1,0 +1,205 @@
+@import 'tailwindcss';
+
+/**
+ * AERA global styles.
+ *
+ * Theme colours are CSS custom properties written by design-system/themes.ts,
+ * so switching themes at runtime needs no re-render.
+ */
+
+@theme {
+  --color-bg-base: #07090f;
+  --color-bg-raised: #0b0f17;
+  --color-bg-surface: #111725;
+  --color-bg-overlay: #1a2233;
+  --color-bg-hover: #202a3e;
+
+  --color-line-subtle: #1a2233;
+  --color-line-default: #202a3e;
+  --color-line-strong: #2c3a56;
+
+  --color-text-primary: #e9eef8;
+  --color-text-secondary: #b4c0d6;
+  --color-text-muted: #8494b2;
+  --color-text-disabled: #5a6884;
+
+  --color-accent: #4da6ff;
+  --color-accent-2: #7c5cff;
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+:root {
+  /* Defaults; applyTheme() overwrites these at runtime. */
+  --aera-bg-base: #07090f;
+  --aera-bg-raised: #0b0f17;
+  --aera-bg-surface: #111725;
+  --aera-bg-overlay: #1a2233;
+  --aera-bg-hover: #202a3e;
+  --aera-line-subtle: #1a2233;
+  --aera-line-default: #202a3e;
+  --aera-line-strong: #2c3a56;
+  --aera-text-primary: #e9eef8;
+  --aera-text-secondary: #b4c0d6;
+  --aera-text-muted: #8494b2;
+  --aera-text-disabled: #5a6884;
+  --aera-accent-primary: #4da6ff;
+  --aera-accent-secondary: #7c5cff;
+  --aera-success: #34d399;
+  --aera-warning: #fbbf24;
+  --aera-danger: #f87171;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--aera-bg-base);
+  color: var(--aera-text-primary);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Desktop-app feel: text is selectable only where it carries content. */
+body[data-host='desktop'] {
+  user-select: none;
+  cursor: default;
+}
+body[data-host='desktop'] .selectable,
+body[data-host='desktop'] input,
+body[data-host='desktop'] textarea,
+body[data-host='desktop'] pre,
+body[data-host='desktop'] code {
+  user-select: text;
+  cursor: text;
+}
+
+a {
+  color: var(--aera-accent-primary);
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 0;
+  background: none;
+}
+body[data-host='desktop'] button {
+  cursor: default;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--aera-accent-primary);
+  outline-offset: 2px;
+}
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--aera-bg-overlay);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--aera-line-strong);
+}
+
+/* ---------- animation ---------- */
+@keyframes aera-rise {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+}
+@keyframes aera-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes aera-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+@keyframes aera-breathe {
+  to {
+    transform: scale(1.22);
+    box-shadow: 0 0 38px rgba(124, 92, 255, 0.8);
+  }
+}
+
+.animate-rise {
+  animation: aera-rise 0.2s ease;
+}
+.animate-spin-slow {
+  animation: aera-spin 10s linear infinite;
+}
+.animate-pulse-slow {
+  animation: aera-pulse 3s ease-in-out infinite;
+}
+.animate-breathe {
+  animation: aera-breathe 0.55s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- utilities ---------- */
+.text-gradient {
+  background: linear-gradient(135deg, var(--aera-accent-primary), var(--aera-accent-secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.surface {
+  background: var(--aera-bg-surface);
+  border: 1px solid var(--aera-line-default);
+}

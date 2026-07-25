@@ -1,6 +1,8 @@
 """AERA command-line interface.
 
-    aera serve            start the API + dashboard
+    aera                  launch the desktop application (default)
+    aera desktop          launch the desktop application
+    aera serve            optional headless API server
     aera chat "..."       one-shot chat from the terminal
     aera repl             interactive session
     aera status           system snapshot
@@ -43,6 +45,35 @@ async def _with_kernel(args) -> Kernel:
 # --------------------------------------------------------------------------- #
 # commands
 # --------------------------------------------------------------------------- #
+def cmd_desktop(args) -> int:
+    """Launch the native desktop application."""
+    try:
+        from .desktop import run_desktop
+    except ImportError:
+        print(
+            "error: the desktop UI requires pywebview.\n"
+            "  install it with:  pip install 'aera[desktop]'\n"
+            "  or run headless:  aera serve",
+            file=sys.stderr,
+        )
+        return 1
+
+    config = load_config(args.config)
+    if args.quiet:
+        config.logging.level = "WARNING"
+    try:
+        return run_desktop(config, debug=args.debug, gui=args.gui)
+    except Exception as exc:  # noqa: BLE001 - report GUI startup problems clearly
+        print(f"error: could not open the AERA window: {exc}", file=sys.stderr)
+        if "cannot open display" in str(exc).lower() or "gtk" in str(exc).lower():
+            print(
+                "\nThis machine has no graphical display. On a headless server use:\n"
+                "  aera serve      (browser-accessible API + dashboard)",
+                file=sys.stderr,
+            )
+        return 1
+
+
 def cmd_serve(args) -> int:
     import uvicorn
 
@@ -178,6 +209,9 @@ async def cmd_index(args) -> int:
 # --------------------------------------------------------------------------- #
 # parser
 # --------------------------------------------------------------------------- #
+_COMMANDS = {"desktop", "serve", "chat", "repl", "status", "agents", "memory", "index"}
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="aera", description="AERA AI Operating System")
     parser.add_argument("--version", action="version", version=f"AERA {__version__}")
@@ -185,9 +219,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--quiet", "-q", action="store_true", help="reduce log output")
     parser.add_argument("--json", action="store_true", help="machine-readable output")
 
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
-    serve = sub.add_parser("serve", help="start the API server and dashboard")
+    desktop = sub.add_parser("desktop", help="launch the desktop application (default)")
+    desktop.add_argument("--debug", action="store_true", help="open developer tools")
+    desktop.add_argument("--gui", default=None, help="force a GUI backend (qt, gtk, cef)")
+    desktop.set_defaults(func=cmd_desktop, is_async=False)
+
+    serve = sub.add_parser("serve", help="run the headless API server (no window)")
     serve.add_argument("--host", default=None)
     serve.add_argument("--port", type=int, default=None)
     serve.set_defaults(func=cmd_serve, is_async=False)
@@ -220,7 +259,14 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    raw = list(sys.argv[1:] if argv is None else argv)
+    # `aera` with no subcommand launches the desktop application. Global flags
+    # must stay ahead of the injected subcommand, so append rather than prepend.
+    if not any(a in _COMMANDS for a in raw):
+        if not any(a in {"-h", "--help", "--version"} for a in raw):
+            raw = [*raw, "desktop"]
+    args = parser.parse_args(raw)
     try:
         if getattr(args, "is_async", False):
             return asyncio.run(args.func(args))

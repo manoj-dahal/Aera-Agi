@@ -24,6 +24,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+desktop = [
+    "pywebview>=5.0",
+]
+package = [
+    "pywebview>=5.0",
+    "pyinstaller>=6.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
@@ -34,8 +41,16 @@ dev = [
 [project.scripts]
 aera = "aera.cli:main"
 
+[project.gui-scripts]
+# Windows/macOS launcher that opens no console window.
+aera-desktop = "aera.desktop:run_desktop"
+
 [tool.setuptools.packages.find]
 include = ["aera*"]
+
+[tool.setuptools.package-data]
+"aera.desktop" = ["ui/*.html", "ui/*.css", "ui/*.js"]
+"aera.web" = ["*.html", "*.css", "*.js"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -36,3 +36,13 @@ memory-graph.json
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Node / interface
+node_modules/
+interface/node_modules/
+interface/dist/
+.vite/
+*.tsbuildinfo
+
+# Built React UI: regenerate with `cd interface && npm run build`
+aera/desktop/ui-react/

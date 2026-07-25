@@ -21,3 +21,19 @@ git push
 | `docker` | builds the image, runs the container and waits for the health check to report ready |
 
 The suite is fully offline: no API keys, no model downloads, no network calls.
+
+---
+
+## `github-actions-desktop.yml`
+
+Builds the standalone desktop application for **Linux, macOS and Windows**,
+verifies each bundle contains the UI assets and configuration, smoke-tests the
+frozen binary under a virtual display, and attaches the archives to the run.
+Pushing a `v*` tag also publishes a GitHub release.
+
+```bash
+mkdir -p .github/workflows
+git mv ci/github-actions-desktop.yml .github/workflows/desktop.yml
+git commit -m "Enable desktop build workflow"
+git push --tags
+```
