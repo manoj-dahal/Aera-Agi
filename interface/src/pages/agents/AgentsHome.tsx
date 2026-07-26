@@ -4,6 +4,7 @@ import {
   Card,
   CardGrid,
   KeyValue,
+  ErrorState,
   LoadingState,
   PageHeader,
   StatCard,
@@ -16,7 +17,7 @@ import { formatDuration, formatUptime } from '@utils/format';
 
 /** Agent roster with live status and lifecycle control (docs/07-AGENTS.md). */
 export function AgentsHome() {
-  const { agents, summary, loading, load, start, stop, restart } = useAgentStore();
+  const { agents, summary, loading, error, load, start, stop, restart } = useAgentStore();
 
   useEffect(() => void load(), [load]);
 
@@ -49,7 +50,8 @@ export function AgentsHome() {
       </StatRow>
 
       <CardGrid>
-        {loading && agents.length === 0 && <LoadingState />}
+        {error && <ErrorState message={error} onRetry={() => void load()} />}
+        {loading && !error && agents.length === 0 && <LoadingState />}
         {agents.map((agent) => (
           <Card key={agent.name}>
             <div className="mb-1 flex items-center justify-between gap-2">

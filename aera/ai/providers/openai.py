@@ -181,3 +181,27 @@ class OpenRouterProvider(OpenAIProvider):
         options.setdefault("base_url", "https://openrouter.ai/api/v1")
         options.setdefault("model", "openai/gpt-4o-mini")
         super().__init__(**options)
+
+
+class CustomProvider(OpenAIProvider):
+    """A user-supplied OpenAI-compatible endpoint.
+
+    Everything from vLLM and llama.cpp to a company gateway speaks the
+    ``/v1/chat/completions`` contract, so pointing at one needs no new adapter
+    -- only a base URL. This subclass exists so such a provider can carry the
+    user's own name instead of masquerading as ``openai``, which matters when
+    several are registered at once.
+    """
+
+    name = "custom"
+
+    def __init__(self, **options) -> None:
+        # Named before super() so describe() and logging see the real name.
+        label = str(options.pop("label", "") or options.pop("name", "") or "custom").strip()
+        self.name = label.lower().replace(" ", "-") or "custom"
+        # A local endpoint should not be treated as a cloud fallback.
+        base = str(options.get("base_url", ""))
+        self.is_local = any(
+            host in base for host in ("localhost", "127.0.0.1", "0.0.0.0", "::1")
+        )
+        super().__init__(**options)

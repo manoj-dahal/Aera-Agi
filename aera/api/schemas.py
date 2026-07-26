@@ -156,3 +156,19 @@ class WorkflowCreateRequest(BaseModel):
 
 class WorkflowRunRequest(BaseModel):
     variables: dict[str, Any] = Field(default_factory=dict)
+
+
+class AddProviderRequest(BaseModel):
+    """Register an AI provider at runtime.
+
+    ``type`` selects the adapter; ``custom`` covers any OpenAI-compatible
+    server, which is most self-hosted options.
+    """
+
+    name: str = Field(min_length=1, max_length=64, description="How you will refer to it")
+    type: str = Field(default="custom", description="Adapter: custom, openai, ollama, ...")
+    base_url: str | None = Field(default=None, description="e.g. http://localhost:8000/v1")
+    api_key: str | None = None
+    model: str | None = Field(default=None, description="Default model id")
+    options: dict[str, Any] | None = Field(default=None, description="Extra adapter options")
+    replace: bool = Field(default=False, description="Overwrite an existing provider")

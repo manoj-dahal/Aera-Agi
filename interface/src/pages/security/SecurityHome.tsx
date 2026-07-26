@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Button, Card, DataTable, PageHeader, StatCard, StatRow, type Column } from '@components/index';
+import {
+  Button,
+  Card,
+  DataTable,
+  LoadingState,
+  PageHeader,
+  StatCard,
+  StatRow,
+  type Column,
+} from '@components/index';
 import { system } from '@services/api';
 import { formatTime } from '@utils/format';
 import type { AuditEntry } from '@services/types';
@@ -8,14 +17,18 @@ import type { AuditEntry } from '@services/types';
 export function SecurityHome() {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    setLoading(true);
     try {
       const { entries: rows } = await system.audit(100);
       setEntries(rows.slice().reverse());
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'could not load the audit log');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -46,6 +59,8 @@ export function SecurityHome() {
         subtitle="Zero-trust permissions, encrypted secrets and the audit trail"
         action={<Button variant="ghost" onClick={() => void load()}>Refresh</Button>}
       />
+
+      {loading && <LoadingState label="Reading the audit log…" />}
 
       <StatRow>
         <StatCard label="Audit entries" value={entries.length} />

@@ -4,9 +4,11 @@ import { Bot, Cpu, Settings2, Sparkles, Volume2 } from 'lucide-react';
 import {
   Button,
   Card,
+  ErrorState,
   Field,
   Input,
   KeyValue,
+  LoadingState,
   PageHeader,
   Select,
   StatusPill,
@@ -47,16 +49,29 @@ export function SettingsHome() {
   const [secretName, setSecretName] = useState(SECRET_OPTIONS[0]!.value);
   const [secretValue, setSecretValue] = useState('');
   const [theme, setTheme] = useState<ThemeName>('dark');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const showToast = useToast((s) => s.show);
   const isDesktop = detectHost() === 'desktop';
 
   const load = async () => {
-    const [settingsData, healthData] = await Promise.all([
-      system.settings().catch(() => ({})),
-      models.health().catch(() => ({})),
-    ]);
-    setSettings(settingsData as Record<string, unknown>);
-    setProviders(healthData as Record<string, ProviderHealth>);
+    setLoading(true);
+    try {
+      // These used to be .catch(() => ({})), so an unreachable backend was
+      // indistinguishable from a genuinely empty configuration.
+      const [settingsData, healthData] = await Promise.all([
+        system.settings(),
+        models.health(),
+      ]);
+      setSettings(settingsData as Record<string, unknown>);
+      setProviders(healthData as Record<string, ProviderHealth>);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'could not load settings');
+    } finally {
+      setLoading(false);
+    }
+    // Secrets are optional: the vault may be locked, which is not an error.
     try {
       const { secrets: stored } = await system.secrets();
       setSecrets(stored);
@@ -139,6 +154,9 @@ export function SettingsHome() {
         subtitle={SECTIONS.find((s) => s.id === section)!.hint}
         action={back}
       />
+
+      {loading && <LoadingState />}
+      {error && !loading && <ErrorState message={error} onRetry={() => void load()} />}
 
       {section === 'ai' && (
         <div className="grid max-w-4xl gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">

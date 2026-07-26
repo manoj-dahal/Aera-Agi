@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  Button, Card, CardGrid, KeyValue, LoadingState, PageHeader,
-  StatCard, StatRow, StatusPill, Tag,
+  Button, Card, CardGrid, ErrorState, Field, Input, KeyValue, LoadingState,
+  PageHeader, StatCard, StatRow, StatusPill, Tag, useToast,
 } from '@components/index';
 import { models } from '@services/api';
 import { formatDuration } from '@utils/format';
@@ -13,6 +13,10 @@ export function AIModels() {
   const [health, setHealth] = useState<Record<string, ProviderHealth>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState({ name: '', base_url: '', model: '', api_key: '' });
+  const showToast = useToast((s) => s.show);
 
   const load = async () => {
     setLoading(true);
@@ -30,6 +34,54 @@ export function AIModels() {
 
   useEffect(() => void load(), []);
 
+  /**
+   * Register a user-supplied model server.
+   *
+   * Anything speaking the OpenAI chat-completions contract works, which is
+   * most self-hosted options, so only a base URL is genuinely required.
+   */
+  const addProvider = async () => {
+    if (!draft.name.trim() || !draft.base_url.trim()) {
+      showToast('A name and a base URL are required', 'error');
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await models.addProvider({
+        name: draft.name.trim(),
+        type: 'custom',
+        base_url: draft.base_url.trim(),
+        model: draft.model.trim() || undefined,
+        api_key: draft.api_key.trim() || undefined,
+      });
+      // An unreachable endpoint is still registered; say so rather than
+      // implying it is ready to use.
+      showToast(
+        result.warning ?? `Added ${draft.name}`,
+        result.warning ? 'error' : 'success',
+      );
+      setDraft({ name: '', base_url: '', model: '', api_key: '' });
+      setAdding(false);
+      await load();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'could not add the provider', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const testProvider = async (name: string) => {
+    try {
+      const result = await models.testProvider(name);
+      showToast(
+        result.healthy ? `${name}: ${result.models.length} model(s)` : `${name} is not responding`,
+        result.healthy ? 'success' : 'error',
+      );
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'test failed', 'error');
+    }
+  };
+
   const providers = Object.entries(health);
   const localCount = list.filter((m) => m.local).length;
 
@@ -38,8 +90,62 @@ export function AIModels() {
       <PageHeader
         title="Models"
         subtitle="Local-first routing with automatic failover across providers"
-        action={<Button variant="ghost" onClick={() => void load()}>Refresh</Button>}
+        action={
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => void load()}>Refresh</Button>
+            <Button variant="primary" onClick={() => setAdding((v) => !v)}>
+              {adding ? 'Cancel' : 'Add Model'}
+            </Button>
+          </div>
+        }
       />
+
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
+
+      {adding && (
+        <Card title="Add your own model" className="mb-4 max-w-2xl">
+          <p className="mb-3 text-[11.5px] leading-relaxed text-[var(--aera-text-muted)]">
+            Any OpenAI-compatible server works — vLLM, llama.cpp, LM Studio, LiteLLM
+            or a company gateway. Only the name and base URL are required.
+          </p>
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(220px,1fr))]">
+            <Field label="Name">
+              <Input
+                value={draft.name}
+                placeholder="my-server"
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+              />
+            </Field>
+            <Field label="Base URL">
+              <Input
+                value={draft.base_url}
+                placeholder="http://localhost:8000/v1"
+                onChange={(e) => setDraft({ ...draft, base_url: e.target.value })}
+              />
+            </Field>
+            <Field label="Model (optional)">
+              <Input
+                value={draft.model}
+                placeholder="llama-3"
+                onChange={(e) => setDraft({ ...draft, model: e.target.value })}
+              />
+            </Field>
+            <Field label="API key (optional)">
+              <Input
+                type="password"
+                value={draft.api_key}
+                placeholder="leave blank if unauthenticated"
+                onChange={(e) => setDraft({ ...draft, api_key: e.target.value })}
+              />
+            </Field>
+          </div>
+          <div className="mt-3">
+            <Button variant="primary" loading={busy} onClick={() => void addProvider()}>
+              Connect
+            </Button>
+          </div>
+        </Card>
+      )}
 
       <StatRow>
         <StatCard label="Models" value={list.length} />
@@ -68,6 +174,29 @@ export function AIModels() {
               label="Tokens"
               value={`${info.stats.tokens_in} in / ${info.stats.tokens_out} out`}
             />
+            <div className="mt-2 flex gap-1.5">
+              <Button size="sm" variant="ghost" onClick={() => void testProvider(name)}>
+                Test
+              </Button>
+              {/* builtin is the offline fallback and cannot be removed. */}
+              {name !== 'builtin' && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      await models.removeProvider(name);
+                      showToast(`Removed ${name}`, 'success');
+                      await load();
+                    } catch (err) {
+                      showToast(err instanceof Error ? err.message : 'remove failed', 'error');
+                    }
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
           </Card>
         ))}
       </CardGrid>

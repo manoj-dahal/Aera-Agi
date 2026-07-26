@@ -284,6 +284,44 @@ export const models = {
       native: () => nativeCall('provider_health'),
       http: () => httpRequest('/models/health'),
     }),
+
+  /** Adapter names accepted by addProvider. */
+  providerTypes: () =>
+    httpRequest<{ types: string[]; custom: string; note: string }>(
+      '/models/providers/types',
+    ),
+
+  /**
+   * Register your own model at runtime.
+   *
+   * Use type 'custom' with a base_url for anything OpenAI-compatible --
+   * vLLM, llama.cpp, LiteLLM, a company gateway. Previously this needed a
+   * config-file edit and a restart.
+   */
+  addProvider: (provider: {
+    name: string;
+    type?: string;
+    base_url?: string;
+    api_key?: string;
+    model?: string;
+    replace?: boolean;
+  }) =>
+    httpRequest<ProviderHealth & { name: string; warning: string | null }>(
+      '/models/providers',
+      { method: 'POST', body: JSON.stringify(provider) },
+    ),
+
+  /** Health-check one provider and list the models it exposes. */
+  testProvider: (name: string) =>
+    httpRequest<{ provider: string; healthy: boolean; models: string[]; error: string | null }>(
+      `/models/providers/${encodeURIComponent(name)}/test`,
+      { method: 'POST' },
+    ),
+
+  removeProvider: (name: string) =>
+    httpRequest<{ provider: string }>(`/models/providers/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
 };
 
 // --------------------------------------------------------------------------

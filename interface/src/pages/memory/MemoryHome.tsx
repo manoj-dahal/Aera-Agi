@@ -4,6 +4,7 @@ import {
   Card,
   CardGrid,
   EmptyState,
+  ErrorState,
   Input,
   LoadingState,
   PageHeader,
@@ -18,7 +19,8 @@ import type { MemoryNode } from '@services/types';
 
 /** Browse and search the shared Memory Graph (docs/06-MEMORY-GRAPH.md). */
 export function MemoryHome() {
-  const { nodes, results, stats, loading, load, search, consolidate } = useMemoryStore();
+  const { nodes, results, stats, loading, error, load, search, consolidate } =
+    useMemoryStore();
   const [query, setQuery] = useState('');
 
   useEffect(() => void load(), [load]);
@@ -69,8 +71,9 @@ export function MemoryHome() {
       </StatRow>
 
       <CardGrid>
-        {loading && <LoadingState />}
-        {!loading && items.length === 0 && (
+        {error && <ErrorState message={error} onRetry={() => void load()} />}
+        {loading && !error && <LoadingState />}
+        {!loading && !error && !error && items.length === 0 && (
           <EmptyState
             title="No memories yet"
             message="Start a conversation — AERA records every exchange as linked nodes in the graph."

@@ -6,6 +6,7 @@ import {
   Card,
   CodeViewer,
   EmptyState,
+  ErrorState,
   Input,
   StatCard,
   StatRow,
@@ -17,7 +18,7 @@ import { chartColors } from '@design/colors';
 /** Project explorer backed by the workspace indexer (docs/14-WORKSPACE.md). */
 export function WorkspaceHome() {
   const {
-    project, results, selected, loading, canPickFolder,
+    project, results, selected, loading, error, canPickFolder,
     refresh, openDialog, open, reindex, search, select,
   } = useWorkspaceStore();
 
@@ -83,6 +84,10 @@ export function WorkspaceHome() {
     return (
       <div className="flex min-h-0 flex-1 flex-col p-4">
         {toolbar}
+        {/* A failed open must not look the same as never having opened one. */}
+        {error ? (
+          <ErrorState message={error} onRetry={() => void refresh()} />
+        ) : (
         <EmptyState
           title="No project open"
           message={
@@ -91,6 +96,7 @@ export function WorkspaceHome() {
               : 'Enter a project path above. AERA builds a symbol index and writes the project into the memory graph.'
           }
         />
+        )}
       </div>
     );
   }

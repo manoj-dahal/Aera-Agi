@@ -101,6 +101,26 @@ class ModelRouter:
         logger.debug("registered AI provider: %s (local=%s)", provider.name, provider.is_local)
         return provider
 
+    async def unregister(self, name: str) -> bool:
+        """Remove a provider and close its client.
+
+        ``builtin`` is refused: it is the guaranteed fallback, and without it
+        a failed cloud call would have nowhere to land.
+        """
+        key = name.strip().lower()
+        if key == "builtin":
+            raise ValueError("the builtin provider cannot be removed")
+        provider = self._providers.pop(key, None)
+        if provider is None:
+            return False
+        self._stats.pop(key, None)
+        try:
+            await provider.close()
+        except Exception:  # noqa: BLE001 - closing must not mask removal
+            logger.debug("error closing provider %s", key)
+        logger.info("removed AI provider: %s", key)
+        return True
+
     def get(self, name: str) -> AIProvider | None:
         return self._providers.get(name.strip().lower())
 

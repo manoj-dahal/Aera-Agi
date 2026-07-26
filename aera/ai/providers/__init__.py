@@ -10,7 +10,12 @@ from .anthropic import AnthropicProvider
 from .echo import EchoProvider
 from .gemini import GeminiProvider
 from .ollama import OllamaProvider
-from .openai import LMStudioProvider, OpenAIProvider, OpenRouterProvider
+from .openai import (
+    CustomProvider,
+    LMStudioProvider,
+    OpenAIProvider,
+    OpenRouterProvider,
+)
 
 PROVIDER_REGISTRY: dict[str, type[AIProvider]] = {
     "builtin": EchoProvider,
@@ -20,6 +25,8 @@ PROVIDER_REGISTRY: dict[str, type[AIProvider]] = {
     "openai": OpenAIProvider,
     "lmstudio": LMStudioProvider,
     "openrouter": OpenRouterProvider,
+    # Any OpenAI-compatible endpoint the user points us at.
+    "custom": CustomProvider,
     "claude": AnthropicProvider,
     "anthropic": AnthropicProvider,
     "gemini": GeminiProvider,
@@ -40,6 +47,7 @@ def create_provider(name: str, **options) -> AIProvider:
 
 __all__ = [
     "AnthropicProvider",
+    "CustomProvider",
     "EchoProvider",
     "GeminiProvider",
     "LMStudioProvider",

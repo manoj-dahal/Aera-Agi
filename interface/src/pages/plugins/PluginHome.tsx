@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Blocks, ShieldCheck } from 'lucide-react';
 import {
-  Button, Card, KeyValue, PageHeader, StatCard, StatRow, StatusPill, Tag,
+  Button, Card, ErrorState, KeyValue, LoadingState, PageHeader, StatCard, StatRow,
+  StatusPill, Tag,
 } from '@components/index';
 import { useAgentStore } from '@store/index';
 
@@ -13,7 +14,7 @@ import { useAgentStore } from '@store/index';
  * registered capability provider, which is what plugins will hook into.
  */
 export function PluginHome() {
-  const { agents, capabilities, load } = useAgentStore();
+  const { agents, capabilities, loading, error, load } = useAgentStore();
   const [showBuiltIn, setShowBuiltIn] = useState(true);
 
   useEffect(() => void load(), [load]);
@@ -31,6 +32,9 @@ export function PluginHome() {
           </Button>
         }
       />
+
+      {error && <ErrorState message={error} onRetry={() => void load()} />}
+      {loading && !error && agents.length === 0 && <LoadingState />}
 
       <StatRow>
         <StatCard label="Installed" value={0} />
