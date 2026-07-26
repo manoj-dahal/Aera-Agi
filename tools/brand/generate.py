@@ -1,7 +1,7 @@
 # MADE By Manoj Dahal
 # Copyright (c) 2026 Manoj Dahal. All rights reserved.
 # Contact: info@manoj-dahal.com.np
-# AERA — Artificial Enhanced Reasoning Assistant
+# AERA — Artificial Voice Reasoning Assistant
 
 """Brand asset generator.
 
@@ -541,7 +541,7 @@ def make_banner(
 
     draw.text(
         (text_x, title_y + height * 0.250),
-        "Artificial Enhanced Reasoning Assistant",
+        "Artificial Voice Reasoning Assistant",
         font=tagline_font,
         fill=ACCENT,
     )

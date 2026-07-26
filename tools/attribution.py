@@ -1,7 +1,7 @@
 # MADE By Manoj Dahal
 # Copyright (c) 2026 Manoj Dahal. All rights reserved.
 # Contact: info@manoj-dahal.com.np
-# AERA — Artificial Enhanced Reasoning Assistant
+# AERA — Artificial Voice Reasoning Assistant
 
 """Stamp every source file with authorship and contact details.
 
@@ -45,7 +45,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 AUTHOR = "Manoj Dahal"
 EMAIL = "info@manoj-dahal.com.np"
-PROJECT = "AERA — Artificial Enhanced Reasoning Assistant"
+PROJECT = "AERA — Artificial Voice Reasoning Assistant"
 YEAR = "2026"
 
 #: The line that identifies a block as ours. Used to find and replace an

@@ -1,9 +1,9 @@
 # MADE By Manoj Dahal
 # Copyright (c) 2026 Manoj Dahal. All rights reserved.
 # Contact: info@manoj-dahal.com.np
-# AERA — Artificial Enhanced Reasoning Assistant
+# AERA — Artificial Voice Reasoning Assistant
 
-"""AERA - Artificial Enhanced Reasoning Assistant.
+"""AERA - Artificial Voice Reasoning Assistant.
 
 A modular AI Operating System: memory graph, multi-agent orchestration,
 local/cloud model routing, automation, voice and workspace intelligence.

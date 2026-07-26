@@ -1,6 +1,6 @@
 # AERA — Requirements
 
-**Artificial Enhanced Reasoning Assistant.** A native desktop AI operating
+**Artificial Voice Reasoning Assistant.** A native desktop AI operating
 system: persistent memory, an agent roster, a voice with real emotional
 expression, and a holographic avatar.
 

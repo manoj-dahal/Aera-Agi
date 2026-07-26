@@ -1,7 +1,7 @@
 # MADE By Manoj Dahal
 # Copyright (c) 2026 Manoj Dahal. All rights reserved.
 # Contact: info@manoj-dahal.com.np
-# AERA — Artificial Enhanced Reasoning Assistant
+# AERA — Artificial Voice Reasoning Assistant
 
 """FastAPI application factory."""
 
@@ -53,7 +53,7 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "desktop" / "ui-react"
 UI_BUILD_HINT = "cd interface && npm install && npm run build"
 
 DESCRIPTION = """
-**AERA** - Artificial Enhanced Reasoning Assistant.
+**AERA** - Artificial Voice Reasoning Assistant.
 
 A modular AI Operating System combining a persistent Memory Graph, multi-agent
 orchestration, local/cloud model routing, workflow automation, voice interaction
