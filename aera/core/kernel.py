@@ -31,6 +31,7 @@ from ..hologram.loader import AvatarLibrary
 from ..memory.engine import MemoryEngine
 from ..security.vault import AuditLog, PermissionManager, SecretVault
 from ..services.docker import DockerClient
+from ..services.plugins import PluginRegistry
 from ..services.telemetry import TelemetryService
 from ..services.uploads import UploadStore
 from ..skills.engines import ContextEngine, LearningEngine, PlanningEngine, ReasoningEngine
@@ -68,6 +69,7 @@ class Kernel:
             allow_control=self.config.security.allow_docker_control
         )
         self.uploads = UploadStore(self.config.storage_dir / "uploads")
+        self.plugins = PluginRegistry(self.config.storage_dir / "plugins")
         # Background engines (docs: Agent Manager, Skill Manager, Reasoning,
         # Planning, Learning and Context Engines).
         self.skills: SkillManager | None = None
@@ -172,6 +174,10 @@ class Kernel:
         restored = self.uploads.scan()
         if restored:
             logger.info("uploaded files available: %d", len(restored))
+
+        found = self.plugins.scan()
+        if found:
+            logger.info("plugins discovered: %d", len(found))
         self.hologram = HologramController(bus=self.bus, enabled=cfg.settings.hologram)
         await self.bus.subscribe(
             Topics.AVATAR_EMOTION,

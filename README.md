@@ -280,7 +280,7 @@ cd interface && npm install && npm run build
 
 ## API
 
-107 REST operations plus a WebSocket gateway. Every response uses a consistent
+116 REST operations plus a WebSocket gateway. Every response uses a consistent
 envelope.
 
 ```http
@@ -452,7 +452,7 @@ Built and tested against the specification in `docs/`:
 | Memory graph, hybrid recall, consolidation | ✅ complete |
 | Agent framework + 15 specialists | ✅ complete |
 | Model router, 7 providers, failover | ✅ complete |
-| REST API (107 operations) + WebSocket | ✅ complete |
+| REST API (116 operations) + WebSocket | ✅ complete |
 | Workspace indexer, symbol extraction | ✅ complete |
 | Automation engine, triggers, workflows | ✅ complete |
 | Security: vault, permissions, audit | ✅ complete |
@@ -467,7 +467,8 @@ Built and tested against the specification in `docs/`:
 | Audio transcription (AudioAgent → STT backend) | ✅ wired end to end — no STT engine bundled |
 | Vision / image understanding | ⬜ router has no multimodal transport — agent says so |
 | OCR (Tesseract) | ✅ wired — activates when pytesseract is installed |
-| Plugin runtime (manifests, sandbox, permission prompts) | ⬜ planned — no backend; page states this |
+| Plugin discovery, manifests, permission gating | ✅ complete — 15 permissions, partial approval |
+| Plugin code execution | ⬜ needs process isolation — refused explicitly, never a silent no-op |
 | Terminal UI, plugin marketplace | ⬜ planned — status shown in-app |
 | Phone sync, desktop app integrations | ⬜ planned — no Device Agent |
 
