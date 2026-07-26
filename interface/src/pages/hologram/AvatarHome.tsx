@@ -244,6 +244,12 @@ export function AvatarHome() {
                   <Tag>{model.kind}</Tag>
                   {model.variant !== 'unspecified' && <Tag>{model.variant}</Tag>}
                   {model.has_skeleton && <Tag>rigged</Tag>}
+                  {/* Shape keys are what speech drives; say whether they are
+                      usable rather than just present. */}
+                  {model.can_lip_sync && <Tag>lip-sync</Tag>}
+                  {model.has_morph_targets && !model.can_lip_sync && (
+                    <Tag>{model.morph_targets.length} shape keys</Tag>
+                  )}
                 </div>
 
                 {model.parsed ? (
@@ -254,6 +260,16 @@ export function AvatarHome() {
                       <KeyValue
                         label="Dimensions"
                         value={model.dimensions.map((d) => Math.round(d)).join(' × ')}
+                      />
+                    )}
+                    {model.has_morph_targets && (
+                      <KeyValue
+                        label="Lip-sync"
+                        value={
+                          model.can_lip_sync
+                            ? `${Object.keys(model.viseme_bindings).length}/6 visemes`
+                            : 'no matching visemes'
+                        }
                       />
                     )}
                   </>

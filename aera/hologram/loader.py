@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import struct
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -46,6 +47,69 @@ TEXTURE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".tga", ".bmp"}
 
 #: A model larger than this is almost certainly a mistake or a bad unit scale.
 MAX_MODEL_BYTES = 512 * 1024 * 1024
+
+#: Substrings that identify a morph target for each viseme AERA emits.
+#:
+#: ``aera.voice.engine._VISEME_MAP`` produces six shapes. Riggers name their
+#: shape keys with no shared convention -- ARKit uses ``jawOpen``, VRM uses
+#: ``A``/``I``/``U``, Oculus uses ``viseme_aa``, and Blender exports whatever
+#: the artist typed -- so each shape is matched against several spellings.
+#: Ordered most to least specific; the first hit wins.
+_VISEME_ALIASES: dict[str, tuple[str, ...]] = {
+    "open": ("viseme_aa", "jawopen", "mouthopen", "vrc.v_aa", "aa", "ah", "a", "e", "o"),
+    "closed": ("viseme_pp", "mouthclose", "vrc.v_pp", "mouthpress", "pp", "mbp", "m", "closed"),
+    "teeth": ("viseme_ff", "vrc.v_ff", "mouthfunnel", "ff", "fv"),
+    "tongue": ("viseme_dd", "viseme_nn", "vrc.v_dd", "tonguout", "tongueout", "dd", "nn", "l"),
+    # "sil" is silence, not a narrow mouth -- it belongs to neutral, and
+    # listing it here let narrow claim vrc.v_sil first.
+    "narrow": ("viseme_ss", "vrc.v_ss", "mouthpucker", "mouthnarrow", "ss", "u"),
+    "neutral": ("viseme_sil", "vrc.v_sil", "sil", "neutral", "rest", "basis", "idle"),
+}
+
+
+def _normalise_morph_name(name: str) -> str:
+    """Lower-case and strip separators so spellings compare equal.
+
+    ``Viseme_AA``, ``viseme aa`` and ``visemeAA`` all reduce to ``visemeaa``.
+    """
+    return "".join(c for c in name.lower() if c.isalnum())
+
+
+def match_visemes(targets: Sequence[str]) -> dict[str, str]:
+    """Bind AERA's viseme shapes to a model's morph target names.
+
+    Returns ``{shape: target_name}`` for every shape that could be matched.
+    A target is claimed by at most one shape, so a model whose only mouth key
+    is ``jawOpen`` maps ``open`` and honestly reports nothing else.
+    """
+    if not targets:
+        return {}
+
+    normalised = {name: _normalise_morph_name(name) for name in targets}
+    bindings: dict[str, str] = {}
+    claimed: set[str] = set()
+
+    for shape, aliases in _VISEME_ALIASES.items():
+        for alias in aliases:
+            key = _normalise_morph_name(alias)
+            # Exact match first: "a" must not be satisfied by "jawOpen".
+            hit = next(
+                (n for n, norm in normalised.items() if norm == key and n not in claimed),
+                None,
+            )
+            if hit is None and len(key) > 2:
+                # Then substring, but only for names long enough to be
+                # unambiguous -- "a" as a substring matches almost anything.
+                hit = next(
+                    (n for n, norm in normalised.items() if key in norm and n not in claimed),
+                    None,
+                )
+            if hit is not None:
+                bindings[shape] = hit
+                claimed.add(hit)
+                break
+
+    return bindings
 
 
 class AvatarKind(str, Enum):
@@ -110,8 +174,31 @@ class AvatarModel:
     has_normals: bool = False
     has_uvs: bool = False
     has_skeleton: bool = False
+    #: Morph target ("shape key") names, in glTF target order. Lip-sync and
+    #: expressions drive these, so an avatar without them can still be
+    #: rendered but cannot mouth words.
+    morph_targets: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     parsed: bool = False
+
+    @property
+    def has_morph_targets(self) -> bool:
+        return bool(self.morph_targets)
+
+    @property
+    def viseme_bindings(self) -> dict[str, str]:
+        """Map AERA's viseme shapes onto this model's morph target names."""
+        return match_visemes(self.morph_targets)
+
+    @property
+    def can_lip_sync(self) -> bool:
+        """Whether speech can move this model's mouth.
+
+        A model needs at least the open/closed pair for lip movement to read
+        as speech rather than a twitch.
+        """
+        bindings = self.viseme_bindings
+        return "open" in bindings and "closed" in bindings
 
     @property
     def dimensions(self) -> tuple[float, float, float] | None:
@@ -138,6 +225,10 @@ class AvatarModel:
             "has_normals": self.has_normals,
             "has_uvs": self.has_uvs,
             "has_skeleton": self.has_skeleton,
+            "morph_targets": self.morph_targets,
+            "has_morph_targets": self.has_morph_targets,
+            "viseme_bindings": self.viseme_bindings,
+            "can_lip_sync": self.can_lip_sync,
             "warnings": self.warnings,
             "parsed": self.parsed,
         }
@@ -226,6 +317,8 @@ def parse_obj(path: Path, *, max_scan_bytes: int = 200 * 1024 * 1024) -> dict[st
         "has_normals": normals > 0,
         "has_uvs": uvs > 0,
         "has_skeleton": False,
+        # OBJ is a static format: no rig, no shape keys.
+        "morph_targets": [],
         "warnings": warnings,
     }
 
@@ -250,7 +343,13 @@ def parse_gltf(path: Path) -> dict[str, Any]:
     has_normals = False
     has_uvs = False
 
+    morph_targets: list[str] = []
+
     for mesh in meshes:
+        # Morph target names live in mesh.extras.targetNames by convention --
+        # glTF has no first-class field for them. Without names a model still
+        # animates, but nothing can tell which target is which mouth shape.
+        target_names = (mesh.get("extras") or {}).get("targetNames") or []
         for primitive in mesh.get("primitives", []):
             attributes = primitive.get("attributes", {})
             position = attributes.get("POSITION")
@@ -260,6 +359,16 @@ def parse_gltf(path: Path) -> dict[str, Any]:
                 has_normals = True
             if "TEXCOORD_0" in attributes:
                 has_uvs = True
+
+            targets = primitive.get("targets") or []
+            for index in range(len(targets)):
+                name = (
+                    target_names[index]
+                    if index < len(target_names)
+                    else f"{mesh.get('name', 'mesh')}_target_{index}"
+                )
+                if name not in morph_targets:
+                    morph_targets.append(name)
 
             indices = primitive.get("indices")
             if indices is not None and indices < len(accessors):
@@ -297,6 +406,13 @@ def parse_gltf(path: Path) -> dict[str, Any]:
         warnings.append("no TEXCOORD_0; textures cannot be applied")
     if not meshes:
         warnings.append("document contains no meshes")
+    if morph_targets and not match_visemes(morph_targets):
+        # Having shape keys but none recognisable is worth saying: the model
+        # can be posed, but speech will not move its mouth.
+        warnings.append(
+            f"{len(morph_targets)} morph target(s) but none match a viseme; "
+            "lip-sync will not drive this model"
+        )
 
     return {
         "vertices": vertices,
@@ -307,6 +423,7 @@ def parse_gltf(path: Path) -> dict[str, Any]:
         "has_normals": has_normals,
         "has_uvs": has_uvs,
         "has_skeleton": bool(skins),
+        "morph_targets": morph_targets,
         "warnings": warnings,
     }
 
@@ -425,6 +542,7 @@ class AvatarLibrary:
         model.has_normals = data["has_normals"]
         model.has_uvs = data["has_uvs"]
         model.has_skeleton = data["has_skeleton"]
+        model.morph_targets = data.get("morph_targets", [])
         model.warnings.extend(data["warnings"])
         model.parsed = True
 

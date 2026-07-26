@@ -56,11 +56,39 @@ On scan, each model is inspected and reported with:
 
 - vertex and triangle counts, bounding box, materials, textures
 - whether it has normals, UVs and a skeleton
+- **morph targets** (shape keys) and which of AERA's six visemes they bind to
 - **warnings** for anything that will break rendering: out-of-range face
   indices, missing normals or UVs, a missing `.mtl`, an implausible export
   scale, or an empty file
 
 Nothing is silently repaired. If a file has a problem you are told what it is.
+
+## Lip-sync
+
+Speech drives morph targets, so a model needs mouth shape keys for its lips to
+move. AERA emits six visemes — `open`, `closed`, `teeth`, `tongue`, `narrow`,
+`neutral` — and binds each to whatever your rig calls them. These conventions
+are all recognised:
+
+| Convention | Example keys |
+|---|---|
+| Oculus / Meta | `viseme_aa`, `viseme_PP`, `viseme_FF`, `viseme_sil` |
+| ARKit | `jawOpen`, `mouthClose`, `mouthFunnel`, `mouthPucker` |
+| VRM / VRChat | `vrc.v_aa`, `vrc.v_pp`, `vrc.v_ss` |
+| Blender single letters | `A`, `E`, `O`, `M`, `F`, `Basis` |
+
+Case and separators are ignored, so `Viseme_AA`, `viseme aa` and `VISEMEAA`
+are the same key.
+
+A model needs at least **open** and **closed** to lip-sync — one mouth shape
+alone reads as a twitch, not speech. The Hologram page shows a `lip-sync` tag
+when a model qualifies and how many of the six visemes were bound. If a model
+has shape keys but none match, you get a warning saying so rather than silent
+stillness.
+
+> **Exporting from Blender:** shape key names travel in `mesh.extras.targetNames`.
+> Tick **Shape Keys** under Geometry when exporting glTF, or the targets ship
+> unnamed and nothing can tell which is which.
 
 ## Naming
 

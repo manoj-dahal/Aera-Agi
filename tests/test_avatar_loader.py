@@ -18,6 +18,7 @@ from aera.hologram.loader import (
     AvatarKind,
     AvatarLibrary,
     AvatarVariant,
+    match_visemes,
     parse_gltf,
     parse_obj,
 )
@@ -417,3 +418,175 @@ class TestKernelIntegration:
     async def test_library_lives_under_storage(self, kernel):
         assert kernel.avatars.root.name == "avatars"
         assert str(kernel.avatars.root).startswith(str(kernel.config.storage_dir))
+
+
+# --------------------------------------------------------------------------- #
+# morph targets / lip-sync
+# --------------------------------------------------------------------------- #
+def morph_doc(target_names, *, count=2):
+    """A glTF whose mesh carries morph targets with the given names."""
+    document = json.loads(json.dumps(GLTF_DOC))
+    document["meshes"][0]["primitives"][0]["targets"] = [
+        {"POSITION": 0} for _ in range(count)
+    ]
+    document["meshes"][0]["name"] = "Face"
+    if target_names is not None:
+        document["meshes"][0]["extras"] = {"targetNames": target_names}
+    return document
+
+
+class TestVisemeMatching:
+    """Riggers use no shared naming convention for shape keys.
+
+    The voice engine emits six viseme shapes; each has to bind onto whatever
+    the artist happened to call their morph targets.
+    """
+
+    def test_oculus_convention(self):
+        bindings = match_visemes(
+            ["viseme_sil", "viseme_PP", "viseme_FF", "viseme_DD", "viseme_SS", "viseme_aa"]
+        )
+        assert bindings["open"] == "viseme_aa"
+        assert bindings["closed"] == "viseme_PP"
+        assert bindings["neutral"] == "viseme_sil"
+
+    def test_arkit_convention(self):
+        bindings = match_visemes(
+            ["jawOpen", "mouthClose", "mouthFunnel", "mouthPucker", "tongueOut"]
+        )
+        assert bindings["open"] == "jawOpen"
+        assert bindings["closed"] == "mouthClose"
+
+    def test_vrm_convention(self):
+        bindings = match_visemes(["vrc.v_aa", "vrc.v_pp", "vrc.v_ff", "vrc.v_sil"])
+        assert bindings["open"] == "vrc.v_aa"
+        assert bindings["neutral"] == "vrc.v_sil"
+
+    def test_single_letter_blender_keys(self):
+        bindings = match_visemes(["Basis", "A", "E", "O", "M", "F"])
+        assert bindings["open"] in {"A", "E", "O"}
+        assert bindings["closed"] == "M"
+
+    def test_separators_and_case_are_ignored(self):
+        assert match_visemes(["Viseme AA"])["open"] == "Viseme AA"
+        assert match_visemes(["VISEME_AA"])["open"] == "VISEME_AA"
+
+    def test_a_target_is_never_claimed_twice(self):
+        """Two shapes sharing one morph target would fight over it."""
+        bindings = match_visemes(["viseme_aa", "viseme_pp", "viseme_ff"])
+        assert len(set(bindings.values())) == len(bindings)
+
+    def test_non_mouth_shapes_match_nothing(self):
+        """Blink and brow keys must not be mistaken for mouth shapes."""
+        assert match_visemes(["eyeBlinkLeft", "eyeBlinkRight", "browInnerUp"]) == {}
+
+    def test_short_aliases_require_an_exact_match(self):
+        # "a" as a substring would otherwise match "jawOpen", "hair", ...
+        assert "open" not in match_visemes(["hairPhysics"])
+
+    def test_empty_input(self):
+        assert match_visemes([]) == {}
+
+
+class TestMorphTargetParsing:
+    def test_targets_are_read_from_extras(self, tmp_path):
+        path = tmp_path / "face.gltf"
+        path.write_text(json.dumps(morph_doc(["viseme_aa", "viseme_PP"])))
+
+        data = parse_gltf(path)
+
+        assert data["morph_targets"] == ["viseme_aa", "viseme_PP"]
+
+    def test_unnamed_targets_get_positional_names(self, tmp_path):
+        """glTF allows targets with no names; they still have to be listed."""
+        path = tmp_path / "face.gltf"
+        path.write_text(json.dumps(morph_doc(None)))
+
+        data = parse_gltf(path)
+
+        assert data["morph_targets"] == ["Face_target_0", "Face_target_1"]
+
+    def test_a_model_without_targets_reports_an_empty_list(self, tmp_path):
+        path = tmp_path / "plain.gltf"
+        path.write_text(json.dumps(GLTF_DOC))
+
+        assert parse_gltf(path)["morph_targets"] == []
+
+    def test_obj_reports_no_targets(self, tmp_path):
+        """OBJ is a static format; it cannot carry shape keys."""
+        path = tmp_path / "model.obj"
+        path.write_text(MINIMAL_OBJ)
+
+        assert parse_obj(path)["morph_targets"] == []
+
+    def test_glb_carries_targets_too(self, tmp_path):
+        path = tmp_path / "face.glb"
+        write_glb(path, morph_doc(["viseme_aa", "viseme_pp"]))
+
+        assert parse_gltf(path)["morph_targets"] == ["viseme_aa", "viseme_pp"]
+
+    def test_unusable_shape_keys_produce_a_warning(self, tmp_path):
+        """Shape keys that match no viseme mean speech cannot move the mouth."""
+        path = tmp_path / "face.gltf"
+        path.write_text(json.dumps(morph_doc(["browUp", "eyeBlink"])))
+
+        warnings = parse_gltf(path)["warnings"]
+
+        assert any("lip-sync" in w for w in warnings)
+
+    def test_usable_shape_keys_produce_no_warning(self, tmp_path):
+        path = tmp_path / "face.gltf"
+        path.write_text(json.dumps(morph_doc(["viseme_aa", "viseme_pp"])))
+
+        assert not any("lip-sync" in w for w in parse_gltf(path)["warnings"])
+
+
+class TestModelLipSyncReporting:
+    def test_model_exposes_bindings(self, library):
+        library.root.mkdir(parents=True, exist_ok=True)
+        (library.root / "anime-g.gltf").write_text(
+            json.dumps(morph_doc(["viseme_aa", "viseme_pp"]))
+        )
+
+        [model] = library.scan()
+
+        assert model.has_morph_targets is True
+        assert model.can_lip_sync is True
+        assert model.viseme_bindings["open"] == "viseme_aa"
+
+    def test_model_without_mouth_keys_cannot_lip_sync(self, library):
+        library.root.mkdir(parents=True, exist_ok=True)
+        (library.root / "anime-g.gltf").write_text(
+            json.dumps(morph_doc(["eyeBlinkLeft", "browInnerUp"]))
+        )
+
+        [model] = library.scan()
+
+        assert model.has_morph_targets is True
+        # Present but unusable: the distinction the UI needs to show.
+        assert model.can_lip_sync is False
+
+    def test_lip_sync_needs_both_open_and_closed(self, library):
+        """One mouth shape alone is a twitch, not speech."""
+        library.root.mkdir(parents=True, exist_ok=True)
+        (library.root / "anime-g.gltf").write_text(
+            json.dumps(morph_doc(["jawOpen"], count=1))
+        )
+
+        [model] = library.scan()
+
+        assert model.viseme_bindings == {"open": "jawOpen"}
+        assert model.can_lip_sync is False
+
+    def test_serialised_payload_carries_the_fields(self, library):
+        library.root.mkdir(parents=True, exist_ok=True)
+        (library.root / "anime-g.gltf").write_text(
+            json.dumps(morph_doc(["viseme_aa", "viseme_pp"]))
+        )
+
+        [model] = library.scan()
+        payload = model.to_dict()
+
+        assert payload["can_lip_sync"] is True
+        assert payload["morph_targets"] == ["viseme_aa", "viseme_pp"]
+        assert payload["viseme_bindings"]["closed"] == "viseme_pp"

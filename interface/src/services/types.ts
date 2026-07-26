@@ -318,6 +318,13 @@ export interface AvatarModelInfo {
   has_normals: boolean;
   has_uvs: boolean;
   has_skeleton: boolean;
+  /** Shape-key names, in glTF target order. */
+  morph_targets: string[];
+  has_morph_targets: boolean;
+  /** AERA viseme shape -> this model's morph target name. */
+  viseme_bindings: Record<string, string>;
+  /** Whether speech can actually move this model's mouth. */
+  can_lip_sync: boolean;
   warnings: string[];
   parsed: boolean;
 }
