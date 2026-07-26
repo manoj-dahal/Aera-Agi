@@ -1,0 +1,14 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Voice Reasoning Assistant
+
+# Persistence (docs/25-DATABASE.md)
+# sqlite is the local-first default; switch to postgres for multi-user
+# deployments and set dsn accordingly.
+database:
+  driver: sqlite
+  path: ./storage/aera.db
+  dsn: null
+  pool_size: 5
+  backup_enabled: true

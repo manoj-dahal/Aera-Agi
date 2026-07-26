@@ -1,0 +1,19 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Voice Reasoning Assistant
+
+# AERA system configuration (docs/config/System-Config.md)
+system:
+  name: AERA
+  version: 1.0.0
+  environment: development
+  debug: false
+  language: en
+  timezone: UTC
+  auto_update: true
+  workspace: ~/Workspace
+  logs: ./storage/logs
+  cache: ./storage/cache
+  temp: ./storage/temp
+  storage: ./storage
