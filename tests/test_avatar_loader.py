@@ -721,3 +721,85 @@ class TestArchiveScanning:
         assert len(models) == 1
         # A zip that could not be read is left in place rather than deleted.
         assert (library.root / "broken.zip").exists()
+
+
+# --------------------------------------------------------------------------- #
+# upload surface
+# --------------------------------------------------------------------------- #
+class TestUploadEndpoint:
+    """What a user can actually get into the library over HTTP."""
+
+    @pytest.fixture
+    def client(self, config):
+        from fastapi.testclient import TestClient
+
+        from aera.api.app import create_app
+
+        with TestClient(create_app(config)) as c:
+            yield c
+
+    def test_formats_advertises_archives(self, client):
+        data = client.get("/api/v1/avatars/formats").json()["data"]
+
+        assert "zip" in data["archives"]
+        # Companion files must be listed or a .bin upload looks unsupported.
+        assert "bin" in data["companions"]
+
+    def test_uploads_a_model(self, client, tmp_path):
+        payload = json.dumps(GLTF_DOC).encode()
+
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("anime-g.gltf", payload, "model/gltf+json")},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["data"]["model"]["variant"] == "feminine"
+
+    def test_uploads_and_unpacks_an_archive(self, client, tmp_path):
+        archive = sketchfab_zip(tmp_path / "anime-g.zip")
+
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("anime-g.zip", archive.read_bytes(), "application/zip")},
+        )
+
+        data = response.json()["data"]
+        assert data["extracted"] == ["anime-g/scene.gltf"]
+        # The folder names the model, since scene.gltf says nothing.
+        assert data["model"]["variant"] == "feminine"
+
+    def test_rejects_an_unsupported_type(self, client):
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("notes.txt", b"hello", "text/plain")},
+        )
+
+        assert response.status_code == 400
+        assert "unsupported" in response.json()["error"]
+
+    def test_oversized_uploads_are_refused_without_leaving_a_partial(
+        self, client, monkeypatch
+    ):
+        """The stream is capped mid-write, so the partial file must be removed."""
+        from aera.api.routers import avatars as router
+
+        monkeypatch.setattr(router, "MAX_UPLOAD_BYTES", 4096)
+
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("big.glb", b"\0" * 200_000, "model/gltf-binary")},
+        )
+
+        assert response.status_code == 400
+        assert "4 kB" in response.json()["error"], "size must read sensibly, not '0 MB'"
+        assert client.get("/api/v1/avatars").json()["data"]["count"] == 0
+
+    def test_companion_files_are_accepted(self, client):
+        """A .gltf needs its .bin; rejecting it would break the model."""
+        response = client.post(
+            "/api/v1/avatars/upload",
+            files={"file": ("scene.bin", b"\0" * 64, "application/octet-stream")},
+        )
+
+        assert response.status_code == 200

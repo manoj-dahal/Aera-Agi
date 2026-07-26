@@ -25,6 +25,8 @@ interface NativeBridge {
   workspace_search(query: string, limit?: number): Promise<Envelope<unknown>>;
   read_workspace_file(relative: string): Promise<Envelope<unknown>>;
   reveal_in_file_manager(path: string): Promise<Envelope<unknown>>;
+  import_avatar_dialog(): Promise<Envelope<unknown>>;
+  import_avatar_files(paths: string[]): Promise<Envelope<unknown>>;
   memory_search(query: string, limit?: number): Promise<Envelope<unknown>>;
   memory_list(limit?: number): Promise<Envelope<unknown>>;
   memory_stats(): Promise<Envelope<unknown>>;

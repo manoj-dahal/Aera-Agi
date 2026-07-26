@@ -178,3 +178,40 @@ describe('Docker: a real Engine connector, not a status panel', () => {
     expect(page).toContain('allow_docker_control');
   });
 });
+
+describe('Avatar upload: getting a model in from the user side', () => {
+  const page = src('pages/hologram/AvatarHome.tsx');
+  const api = src('services/api.ts');
+  const store = src('store/useAvatarStore.ts');
+
+  it('accepts the archive marketplaces actually hand out', () => {
+    // A Sketchfab download is a .zip; rejecting it makes the file unusable.
+    expect(page).toContain('.zip');
+  });
+
+  it('reports upload progress', () => {
+    // fetch() cannot report progress, so a large model looked like a hang.
+    expect(api).toContain('XMLHttpRequest');
+    expect(api).toContain('upload.onprogress');
+    expect(store).toContain('progress');
+  });
+
+  it('shows the progress bar and the failure reason', () => {
+    expect(page).toContain('Uploading {uploading}');
+    expect(page).toContain('{error}');
+  });
+
+  it('surfaces upload failures instead of swallowing them', () => {
+    // upload() resolves to null on failure; that used to be ignored.
+    expect(page).toContain('could not upload');
+  });
+
+  it('copies from disk on the desktop rather than through the browser', () => {
+    expect(page).toContain("detectHost() === 'desktop'");
+    expect(api).toContain('import_avatar_files');
+  });
+
+  it('tells the user archives are unpacked', () => {
+    expect(page).toContain('unpacked automatically');
+  });
+});

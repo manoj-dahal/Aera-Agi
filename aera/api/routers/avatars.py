@@ -31,6 +31,19 @@ COMPANIONS = (".mtl", ".bin", ".png", ".jpg", ".jpeg", ".webp", ".tga", ".bmp")
 ARCHIVE = ".zip"
 
 
+def _describe_size(size_bytes: int) -> str:
+    """Human-readable byte count.
+
+    Integer-dividing by a megabyte reported "0 MB" for any smaller limit,
+    which reads as a bug rather than a limit.
+    """
+    if size_bytes >= 1_048_576:
+        return f"{size_bytes / 1_048_576:.0f} MB"
+    if size_bytes >= 1024:
+        return f"{size_bytes / 1024:.0f} kB"
+    return f"{size_bytes} bytes"
+
+
 def _library(kernel):
     if kernel.avatars is None:
         raise ValidationError("the avatar library is unavailable")
@@ -89,7 +102,10 @@ async def supported_formats():
                 "obj": "Supported; place the .mtl and texture files in the same folder.",
                 "fbx": FBX_NOTE,
                 "vrm": "Catalogued but not parsed; VRM is glTF-based, so export GLB instead.",
+                "zip": "Marketplace bundle; unpacked on upload, the archive is not kept.",
             },
+            "archives": [ARCHIVE.lstrip(".")],
+            "companions": [c.lstrip(".") for c in COMPANIONS],
             "max_upload_mb": MAX_UPLOAD_BYTES // 1_048_576,
         }
     )
@@ -130,7 +146,7 @@ async def upload_avatar(
                     handle.close()
                     target.unlink(missing_ok=True)
                     raise ValidationError(
-                        f"upload exceeds the {MAX_UPLOAD_BYTES // 1_048_576} MB limit"
+                        f"{name} exceeds the {_describe_size(MAX_UPLOAD_BYTES)} upload limit"
                     )
                 handle.write(chunk)
     except ValidationError:

@@ -13,6 +13,7 @@ import {
 } from '@components/index';
 import { useAvatarStore } from '@store/index';
 import { hologram, voice } from '@services/api';
+import { detectHost } from '@services/transport';
 import { emotionColors } from '@design/colors';
 import { cn } from '@utils/cn';
 import type { AvatarState } from '@services/types';
@@ -27,7 +28,8 @@ const GESTURES = ['idle', 'nod', 'shake', 'wave', 'point', 'think', 'shrug', 'le
  * dropped into the avatars directory or uploaded here.
  */
 export function AvatarHome() {
-  const { models, active, loading, load, scan, select, upload, remove, useOrb } =
+  const { models, active, loading, uploading, progress, error, load, scan, select, upload,
+    importNative, remove, useOrb } =
     useAvatarStore();
   const [state, setState] = useState<AvatarState | null>(null);
   const [speech, setSpeech] = useState('Hello, I am AERA.');
@@ -50,13 +52,33 @@ export function AvatarHome() {
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return;
+
+    // On the desktop the file already exists on disk, so copy it directly
+    // rather than reading a few hundred megabytes through the browser.
+    if (detectHost() === 'desktop') {
+      const paths = Array.from(files)
+        .map((file) => (file as File & { path?: string }).path)
+        .filter((path): path is string => Boolean(path));
+      if (paths.length === files.length) {
+        if (await importNative(paths)) {
+          showToast(`Imported ${paths.length} file(s)`, 'success');
+        } else {
+          showToast(useAvatarStore.getState().error ?? 'import failed', 'error');
+        }
+        return;
+      }
+    }
+
     for (const file of Array.from(files)) {
       const model = await upload(file);
-      if (model) {
-        showToast(`Uploaded ${model.name}`, 'success');
-        if (model.warnings.length) {
-          showToast(model.warnings[0]!, 'error');
-        }
+      if (!model) {
+        // upload() returns null on failure; the reason is on the store.
+        showToast(useAvatarStore.getState().error ?? `could not upload ${file.name}`, 'error');
+        continue;
+      }
+      showToast(`Uploaded ${model.name}`, 'success');
+      if (model.warnings.length) {
+        showToast(model.warnings[0]!, 'error');
       }
     }
   };
@@ -95,7 +117,7 @@ export function AvatarHome() {
       <input
         ref={fileInput}
         type="file"
-        accept=".glb,.gltf,.obj,.mtl,.fbx,.vrm,.png,.jpg"
+        accept=".glb,.gltf,.obj,.mtl,.bin,.fbx,.vrm,.zip,.png,.jpg,.jpeg"
         multiple
         hidden
         onChange={(e) => void handleFiles(e.target.files)}
@@ -194,6 +216,30 @@ export function AvatarHome() {
         Model library
       </h3>
 
+      {uploading && (
+        <div className="mb-2 rounded-lg border border-[var(--aera-line-default)] bg-[var(--aera-bg-surface)] px-3 py-2">
+          <div className="mb-1 flex items-center justify-between text-[11.5px]">
+            <span className="text-[var(--aera-text-secondary)]">Uploading {uploading}</span>
+            <span className="font-mono text-[var(--aera-text-muted)]">
+              {Math.round(progress * 100)}%
+            </span>
+          </div>
+          <div className="h-1 overflow-hidden rounded-full bg-[var(--aera-bg-overlay)]">
+            <div
+              className="h-full rounded-full bg-[var(--aera-accent-primary)] transition-[width] duration-150"
+              style={{ width: `${Math.round(progress * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {error && !uploading && (
+        <div className="mb-2 flex items-start gap-1.5 rounded-lg border border-[var(--aera-danger)] px-3 py-2 text-[11.5px] text-[var(--aera-danger)]">
+          <AlertTriangle size={12} className="mt-px shrink-0" />
+          <span className="selectable">{error}</span>
+        </div>
+      )}
+
       <div
         onDragEnter={(e) => {
           e.preventDefault();
@@ -217,10 +263,10 @@ export function AvatarHome() {
           <div className="py-8 text-center">
             <Box size={22} className="mx-auto mb-2 text-[var(--aera-text-disabled)]" />
             <p className="text-[12.5px] text-[var(--aera-text-muted)]">
-              {loading ? 'Scanning…' : 'No models yet. Drop a .glb here, or upload one.'}
+              {loading ? 'Scanning…' : 'No models yet. Drop a .glb or a .zip here, or upload one.'}
             </p>
             <p className="mt-1 text-[11px] text-[var(--aera-text-disabled)]">
-              GLB is recommended: geometry, textures and rigging in a single file.
+              GLB is recommended. Marketplace .zip downloads are unpacked automatically.
             </p>
           </div>
         ) : (

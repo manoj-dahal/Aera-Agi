@@ -302,6 +302,17 @@ export interface SkillGap {
   reason: string | null;
 }
 
+/** Result of an upload. Archives report every model they contained. */
+export interface AvatarUploadResult {
+  file: string;
+  size_mb: number;
+  model: AvatarModelInfo | null;
+  /** Archive imports only: paths pulled out of the zip. */
+  extracted?: string[];
+  /** Archive imports only: one entry per model found inside. */
+  models?: AvatarModelInfo[];
+}
+
 export interface AvatarModelInfo {
   id: string;
   name: string;

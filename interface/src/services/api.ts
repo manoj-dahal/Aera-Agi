@@ -9,6 +9,7 @@ import { call, httpRequest, nativeCall } from './transport';
 import type {
   AgentsPayload,
   AvatarModelInfo,
+  AvatarUploadResult,
   AuditEntry,
   AvatarState,
   DockerContainer,
@@ -411,16 +412,64 @@ export const avatars = {
   formats: () => httpRequest<Record<string, unknown>>('/avatars/formats'),
 
   /** Upload a model file. Streams through the browser's multipart encoder. */
-  upload: async (file: File) => {
-    const body = new FormData();
-    body.append('file', file);
-    const response = await fetch('/api/v1/avatars/upload', { method: 'POST', body });
-    const envelope = await response.json();
-    if (!response.ok || envelope.success === false) {
-      throw new Error(envelope.error ?? 'upload failed');
-    }
-    return envelope.data as { file: string; size_mb: number; model: AvatarModelInfo | null };
-  },
+  /**
+   * Upload a model or a marketplace archive.
+   *
+   * Uses XMLHttpRequest rather than fetch because fetch cannot report upload
+   * progress, and a character model is routinely hundreds of megabytes -- a
+   * button that sits there for a minute with no feedback reads as broken.
+   */
+  upload: (file: File, onProgress?: (fraction: number) => void) =>
+    new Promise<AvatarUploadResult>((resolve, reject) => {
+      const body = new FormData();
+      body.append('file', file);
+
+      const request = new XMLHttpRequest();
+      request.open('POST', '/api/v1/avatars/upload');
+
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress?.(event.loaded / event.total);
+      };
+
+      request.onload = () => {
+        let envelope: { success?: boolean; error?: string; data?: AvatarUploadResult };
+        try {
+          envelope = JSON.parse(request.responseText);
+        } catch {
+          reject(new Error(`upload failed (HTTP ${request.status})`));
+          return;
+        }
+        if (request.status >= 400 || envelope.success === false) {
+          reject(new Error(envelope.error ?? `upload failed (HTTP ${request.status})`));
+          return;
+        }
+        onProgress?.(1);
+        resolve(envelope.data as AvatarUploadResult);
+      };
+
+      request.onerror = () => reject(new Error('upload failed: the connection dropped'));
+      request.onabort = () => reject(new Error('upload cancelled'));
+
+      request.send(body);
+    }),
+
+  /**
+   * Import files already on disk, without reading them through the browser.
+   *
+   * Desktop only. The HTTP path has to load the whole file into memory and
+   * post it back to a server in the same process; this copies it directly.
+   */
+  importNative: (paths: string[]) =>
+    nativeCall<{ imported: string[]; skipped: { file: string; reason: string }[] }>(
+      'import_avatar_files',
+      paths,
+    ),
+
+  /** Native file picker, desktop only. Returns null when cancelled. */
+  importDialog: () =>
+    nativeCall<{ imported: string[]; models: AvatarModelInfo[] } | null>(
+      'import_avatar_dialog',
+    ),
 };
 
 export const system = {

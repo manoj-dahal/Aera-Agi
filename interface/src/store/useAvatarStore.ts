@@ -9,11 +9,17 @@ interface AvatarState {
   active: AvatarModelInfo | null;
   loading: boolean;
   error: string | null;
+  /** Name of the file currently uploading, or null when idle. */
+  uploading: string | null;
+  /** 0..1 for the file in flight. */
+  progress: number;
 
   load: () => Promise<void>;
   scan: () => Promise<void>;
   select: (modelId: string) => Promise<void>;
   upload: (file: File) => Promise<AvatarModelInfo | null>;
+  /** Desktop: copy files from disk without going through the browser. */
+  importNative: (paths: string[]) => Promise<boolean>;
   remove: (modelId: string) => Promise<void>;
   /** Clear the selection so the particle orb renders instead. */
   useOrb: () => void;
@@ -24,6 +30,8 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
   active: null,
   loading: false,
   error: null,
+  uploading: null,
+  progress: 0,
 
   load: async () => {
     set({ loading: true });
@@ -60,15 +68,33 @@ export const useAvatarStore = create<AvatarState>((set, get) => ({
   },
 
   upload: async (file) => {
-    set({ loading: true });
+    set({ uploading: file.name, progress: 0, error: null });
     try {
-      const result = await avatars.upload(file);
+      const result = await avatars.upload(file, (fraction) => set({ progress: fraction }));
+      await get().load();
+      set({ uploading: null, progress: 0 });
+      // An archive may hold several models; report the first for the toast.
+      return result.model ?? result.models?.[0] ?? null;
+    } catch (error) {
+      set({
+        uploading: null,
+        progress: 0,
+        error: error instanceof Error ? error.message : 'upload failed',
+      });
+      return null;
+    }
+  },
+
+  importNative: async (paths) => {
+    set({ loading: true, error: null });
+    try {
+      await avatars.importNative(paths);
       await get().load();
       set({ loading: false });
-      return result.model;
+      return true;
     } catch (error) {
-      set({ loading: false, error: error instanceof Error ? error.message : 'upload failed' });
-      return null;
+      set({ loading: false, error: error instanceof Error ? error.message : 'import failed' });
+      return false;
     }
   },
 

@@ -31,12 +31,27 @@ Then pick them up:
 curl -X POST http://localhost:8080/api/v1/avatars/scan
 ```
 
-Or just restart AERA — it scans on startup. You can also upload without
-copying files:
+Or just restart AERA — it scans on startup.
+
+## Uploading from the app
+
+**Hologram → Upload Model**, or drag files onto the model library. Both accept
+`.glb`, `.gltf`, `.obj`, `.fbx`, `.vrm` and `.zip`, plus companion files
+(`.bin`, `.mtl`, textures). A progress bar shows the transfer, and failures
+say why rather than doing nothing.
+
+On the **desktop app** the file is copied straight from disk — a character
+model is often hundreds of megabytes, and pushing that through the browser to
+a server in the same process is wasted work.
+
+Over HTTP:
 
 ```bash
 curl -F file=@anime-g.glb http://localhost:8080/api/v1/avatars/upload
+curl -F file=@anime-g.zip http://localhost:8080/api/v1/avatars/upload  # unpacked
 ```
+
+The limit is 512 MB per file.
 
 > **Note on paths.** `/home/user/Aera-Agi/` is the repository checkout. When
 > running the packaged desktop app, state lives in the OS app-data directory

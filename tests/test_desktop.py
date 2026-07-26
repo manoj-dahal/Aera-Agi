@@ -319,3 +319,102 @@ class TestUIResolution:
         root = Path(__file__).resolve().parent.parent
         assert not (root / "aera" / "desktop" / "ui").exists(), "the fallback shell is back"
         assert not (root / "aera" / "web").exists(), "the vanilla web shell is back"
+
+
+class TestNativeAvatarImport:
+    """Desktop import copies from disk instead of via the browser.
+
+    A character model is routinely hundreds of megabytes; reading that into
+    JS memory and posting it back to a server in the same process is wasteful
+    when the file is already on the filesystem.
+    """
+
+    @pytest.fixture
+    def bridge(self, tmp_path):
+        import types
+
+        from aera.desktop.bridge import DesktopBridge
+        from aera.hologram.loader import AvatarLibrary
+
+        library = AvatarLibrary(tmp_path / "avatars")
+        app = types.SimpleNamespace(kernel=types.SimpleNamespace(avatars=library))
+        instance = DesktopBridge(app)
+        instance.library = library
+        return instance
+
+    @staticmethod
+    def _gltf(path):
+        import json
+
+        path.write_text(
+            json.dumps(
+                {
+                    "asset": {"version": "2.0"},
+                    "meshes": [],
+                    "accessors": [],
+                }
+            )
+        )
+        return path
+
+    def test_copies_a_model_into_the_library(self, bridge, tmp_path):
+        source = self._gltf(tmp_path / "anime-g.gltf")
+
+        result = bridge.import_avatar_files([str(source)])
+
+        assert result["success"] is True
+        assert (bridge.library.root / "anime-g.gltf").is_file()
+        # The original must stay where the user put it.
+        assert source.is_file()
+
+    def test_unpacks_an_archive(self, bridge, tmp_path):
+        import json
+        import zipfile
+
+        archive = tmp_path / "anime-g.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("scene.gltf", json.dumps({"asset": {"version": "2.0"}}))
+
+        result = bridge.import_avatar_files([str(archive)])
+
+        assert result["success"] is True
+        assert result["data"]["models"][0]["variant"] == "feminine"
+
+    def test_rejects_an_unsupported_type(self, bridge, tmp_path):
+        junk = tmp_path / "notes.txt"
+        junk.write_text("hello")
+
+        result = bridge.import_avatar_files([str(junk)])
+
+        assert result["success"] is False
+        assert "unsupported" in result["error"]
+
+    def test_reports_a_missing_file(self, bridge, tmp_path):
+        result = bridge.import_avatar_files([str(tmp_path / "ghost.glb")])
+
+        assert result["success"] is False
+        assert "not found" in result["error"]
+
+    def test_imports_the_good_files_and_lists_the_rest(self, bridge, tmp_path):
+        """One bad file in a multi-select must not sink the whole import."""
+        good = self._gltf(tmp_path / "anime-g.gltf")
+        bad = tmp_path / "notes.txt"
+        bad.write_text("x")
+
+        result = bridge.import_avatar_files([str(good), str(bad)])
+
+        assert result["success"] is True
+        assert result["data"]["imported"] == ["anime-g.gltf"]
+        assert result["data"]["skipped"][0]["file"] == "notes.txt"
+
+    def test_fails_clearly_without_a_library(self, tmp_path):
+        import types
+
+        from aera.desktop.bridge import DesktopBridge
+
+        app = types.SimpleNamespace(kernel=types.SimpleNamespace(avatars=None))
+
+        result = DesktopBridge(app).import_avatar_files([str(tmp_path / "a.glb")])
+
+        assert result["success"] is False
+        assert "unavailable" in result["error"]

@@ -13,14 +13,19 @@ from __future__ import annotations
 import asyncio
 import json
 import platform
+import shutil
 import subprocess
 import threading
 from pathlib import Path
 from typing import Any
 
 from ..core.logging import get_logger
+from ..hologram.loader import RECOGNISED
 
 logger = get_logger("desktop.bridge")
+
+#: What the native importer will copy: models plus marketplace archives.
+AVATAR_IMPORT_SUFFIXES = RECOGNISED | {".zip"}
 
 
 class DesktopBridge:
@@ -220,6 +225,87 @@ class DesktopBridge:
         except OSError as exc:
             return self._err(str(exc))
         return self._ok({"path": str(target)})
+
+    # ------------------------------------------------------------------ #
+    # avatars
+    # ------------------------------------------------------------------ #
+    def import_avatar_dialog(self) -> dict:
+        """Pick model files natively and copy them into the avatar library.
+
+        The browser upload path has to read the whole file into memory and
+        push it back out over HTTP to a server in this same process. A
+        character model is routinely hundreds of megabytes, so on the desktop
+        the file is copied straight from disk instead.
+        """
+        import webview
+
+        if self._window is None:
+            return self._err("no window")
+
+        library = getattr(self.app.kernel, "avatars", None)
+        if library is None:
+            return self._err("the avatar library is unavailable")
+
+        try:
+            selection = self._window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=True,
+                file_types=("3D models (*.glb;*.gltf;*.obj;*.fbx;*.vrm;*.zip)",),
+            )
+        except Exception as exc:  # noqa: BLE001
+            return self._err(f"dialog failed: {exc}")
+
+        if not selection:
+            return self._ok(None, "Cancelled")
+        return self.import_avatar_files(list(selection))
+
+    def import_avatar_files(self, paths: list[str]) -> dict:
+        """Copy models already on disk into the avatar library.
+
+        Also used by the drag-and-drop path, where the desktop shell can see
+        the real filesystem path rather than only the browser's File object.
+        """
+        library = getattr(self.app.kernel, "avatars", None)
+        if library is None:
+            return self._err("the avatar library is unavailable")
+
+        library.root.mkdir(parents=True, exist_ok=True)
+        imported: list[str] = []
+        skipped: list[dict[str, str]] = []
+
+        for raw in paths:
+            source = Path(raw).expanduser()
+            if not source.is_file():
+                skipped.append({"file": source.name, "reason": "not found"})
+                continue
+            if source.suffix.lower() not in AVATAR_IMPORT_SUFFIXES:
+                skipped.append({"file": source.name, "reason": f"unsupported {source.suffix}"})
+                continue
+            try:
+                # copy2 keeps mtime, so re-imports are recognisably the same file.
+                shutil.copy2(source, library.root / source.name)
+            except OSError as exc:
+                skipped.append({"file": source.name, "reason": str(exc)})
+                continue
+            imported.append(source.name)
+
+        if not imported:
+            return self._err(
+                "nothing imported: " + "; ".join(f"{s['file']} ({s['reason']})" for s in skipped)
+                if skipped
+                else "nothing imported"
+            )
+
+        # scan() unpacks any archive that was copied in and re-reads the library.
+        models = library.scan()
+        return self._ok(
+            {
+                "imported": imported,
+                "skipped": skipped,
+                "models": [m.to_dict() for m in models],
+            },
+            f"Imported {len(imported)} file(s)",
+        )
 
     # ------------------------------------------------------------------ #
     # memory
