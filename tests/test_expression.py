@@ -270,6 +270,29 @@ class TestEngineIntegration:
 
         assert engine.expression.mood.decayed() < first
 
+    async def test_an_explicit_emotion_still_carries_intensity(self):
+        """Naming an emotion used to hardcode intensity to 0.6 and skip mood."""
+        from aera.voice.engine import VoiceEngine
+
+        engine = VoiceEngine()
+        for _ in range(3):
+            await engine.speak("Everything failed badly.")
+
+        result = await engine.speak("Understood.", emotion="sad")
+
+        assert result.intensity != 0.6
+        assert result.mood["label"] in ("subdued", "low")
+
+    async def test_an_explicit_emotion_still_moves_the_mood(self):
+        from aera.voice.engine import VoiceEngine
+
+        engine = VoiceEngine()
+        before = engine.expression.mood.decayed()
+
+        await engine.speak("The service failed and is down.", emotion="serious")
+
+        assert engine.expression.mood.decayed() != before
+
     def test_the_legacy_helper_still_works(self):
         """detect_emotion is used elsewhere; its signature must not change."""
         emotion, confidence = detect_emotion("Sorry, it failed")
@@ -309,19 +332,16 @@ class TestExpressionApi:
 
         assert client.get("/api/v1/voice/mood").json()["data"]["valence"] == 0.0
 
-    def test_expression_can_be_turned_off(self, client):
-        """Some users want an assistant that does not perform."""
-        client.post("/api/v1/voice/mood/enabled?enabled=false")
+    def test_expression_cannot_be_turned_off(self, client):
+        """There is no off switch: flat delivery sounded broken, not neutral."""
+        assert client.post("/api/v1/voice/mood/enabled?enabled=false").status_code == 404
 
-        result = client.post(
-            "/api/v1/voice/speak", json={"text": "That is fantastic!"}
-        ).json()["data"]
+    def test_mood_always_reports_enabled(self, client):
+        assert client.get("/api/v1/voice/mood").json()["data"]["enabled"] is True
 
-        assert result["emotion"] == "neutral"
-
-    def test_turning_it_back_on_restores_expression(self, client):
-        client.post("/api/v1/voice/mood/enabled?enabled=false")
-        client.post("/api/v1/voice/mood/enabled?enabled=true")
+    def test_expression_survives_the_legacy_config_flag(self, client):
+        """An old voice.yaml with emotion:false must not flatten delivery."""
+        client.app.state.kernel.voice.config.emotion = False
 
         result = client.post(
             "/api/v1/voice/speak", json={"text": "That is fantastic!"}

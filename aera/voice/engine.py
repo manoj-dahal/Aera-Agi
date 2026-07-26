@@ -301,14 +301,22 @@ class VoiceEngine:
         # symbols and would not change the sentiment.
         spoken = normalise_for_speech(text) or text
 
-        if emotion is None and self.config.emotion:
-            reading = self.expression.analyse(text)
-            emotion_value, confidence = reading.emotion, reading.confidence
+        # Expression is always on. Analysis runs even when the caller names an
+        # emotion, so the standing mood keeps moving and the delivery still
+        # has intensity behind it -- a forced label used to come out flat,
+        # hardcoded at 0.6 and ignoring the mood entirely.
+        reading = self.expression.analyse(text)
+
+        if emotion is not None:
+            # The caller decides *what* is felt; the analyser still decides
+            # how strongly, from the words and the mood behind them.
+            emotion_value = Emotion(emotion)
+            confidence = 1.0
             intensity = reading.intensity
         else:
-            emotion_value = Emotion(emotion) if emotion else Emotion.NEUTRAL
-            confidence = 1.0
-            intensity = 0.6
+            emotion_value = reading.emotion
+            confidence = reading.confidence
+            intensity = reading.intensity
 
         self.state = VoiceState.SPEAKING
         result = await self.tts.synthesize(
@@ -374,7 +382,8 @@ class VoiceEngine:
             "session": self.session_id,
             "wake_word": self.config.wake_word,
             "language": self.config.language,
-            "emotion_enabled": self.config.emotion,
+            # Always on; the field remains for existing clients.
+            "emotion_enabled": True,
             "hologram_sync": self.config.hologram_sync,
             "stt_backend": self.stt.name,
             "tts_backend": self.tts.name,

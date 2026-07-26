@@ -150,6 +150,8 @@ class VoiceSection(BaseModel):
     enabled: bool = True
     wake_word: str = "AERA"
     language: str = "en"
+    #: Retained for compatibility. Expression is always active: a flat
+    #: delivery made AERA sound broken rather than neutral.
     emotion: bool = True
     hologram_sync: bool = True
     noise_reduction: bool = True

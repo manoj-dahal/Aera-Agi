@@ -10,7 +10,7 @@ audio — play them directly.
 | `girl-recovery.mp3` | happy | Failure → recovery; the closing clause wins |
 | `boy-serious.mp3` | serious | Lowest contour, deliberate pacing |
 | `boy-curious.mp3` | curious | Rising terminal pitch on the question |
-| `boy-flat.mp3` | *(off)* | Expression disabled — no contour, no mood |
+| `boy-flat.mp3` | *(historic)* | How the removed "expression off" mode sounded |
 | `normalised-after.mp3` | — | Spoken form: "87%" → "eighty seven percent" |
 
 ## What the analyser does with these
@@ -63,11 +63,19 @@ after ten minutes of quiet it is *even* again.
 ```bash
 curl localhost:8080/api/v1/voice/mood          # {"valence": -0.32, "label": "subdued"}
 curl -X POST localhost:8080/api/v1/voice/mood/reset
-curl -X POST 'localhost:8080/api/v1/voice/mood/enabled?enabled=false'
 ```
 
-With expression off AERA speaks flatly: no detection, no mood, no contour.
-That is `boy-flat.mp3`.
+**Expression is always on.** There is no off switch: a flat delivery made AERA
+sound broken rather than neutral, so the endpoint that disabled it was
+removed. Mood can still be reset, which returns the baseline to even without
+flattening the voice.
+
+Naming an emotion explicitly does not bypass expression either —
+`speak(text, emotion="sad")` fixes *what* is felt while the analyser still
+decides how strongly, from the words and the standing mood. Previously that
+path hardcoded intensity to 0.6 and skipped the mood entirely.
+
+`boy-flat.mp3` is kept as a record of how the disabled mode sounded.
 
 ## Honest limits
 

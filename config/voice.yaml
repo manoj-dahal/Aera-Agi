@@ -3,6 +3,8 @@ voice:
   enabled: true
   wake_word: AERA
   language: en
+  # Expression is always active; this is kept only so an existing
+  # voice.yaml still loads. Setting it false no longer flattens delivery.
   emotion: true
   hologram_sync: true
   noise_reduction: true

@@ -190,7 +190,9 @@ async def get_mood(voice=Depends(get_voice)):
     return ok(
         {
             **voice.expression.mood.to_dict(),
-            "enabled": voice.config.emotion,
+            # Expression is not optional. Kept in the payload so a client
+            # does not have to infer it from the absence of a field.
+            "enabled": True,
         }
     )
 
@@ -200,22 +202,6 @@ async def reset_mood(voice=Depends(get_voice)):
     """Clear the baseline back to neutral."""
     voice.expression.mood.reset()
     return ok(voice.expression.mood.to_dict(), "Mood reset to neutral")
-
-
-@voice_router.post("/mood/enabled")
-async def set_mood_enabled(enabled: bool, voice=Depends(get_voice)):
-    """Turn expression off entirely.
-
-    With this off AERA speaks flatly: no emotion detection, no mood, no
-    contour. Some users want an assistant that does not perform.
-    """
-    voice.config.emotion = enabled
-    if not enabled:
-        voice.expression.mood.reset()
-    return ok(
-        {"enabled": enabled, **voice.expression.mood.to_dict()},
-        "Expression enabled" if enabled else "Expression off - flat delivery",
-    )
 
 
 @voice_router.post("/analyse")

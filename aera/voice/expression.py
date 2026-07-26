@@ -109,7 +109,7 @@ _CUES: list[tuple[Emotion, tuple[str, ...], float]] = [
     ), 0.95),
     (Emotion.SAD, (
         r"\b(sorry|unfortunately|failed|failure|regret|unable|lost|broken|"
-        r"could not|couldn't)\b", r":\(",
+        r"could not|couldn't|disaster|crashed?|outage|down)\b", r":\(",
     ), 0.9),
 ]
 
