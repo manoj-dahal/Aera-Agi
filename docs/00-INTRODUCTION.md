@@ -10,7 +10,7 @@ Status: Design Specification
 
 # Introduction
 
-AERA (Artificial Voice Reasoning Assistant) is a next-generation AI Operating System that combines artificial intelligence, persistent memory, automation, local and cloud AI models, voice interaction, and desktop application integration into a single platform.
+AERA (Artificial Enhanced Reasoning Assistant) is a next-generation AI Operating System that combines artificial intelligence, persistent memory, automation, local and cloud AI models, voice interaction, and desktop application integration into a single platform.
 
 Instead of acting as a simple chatbot, AERA functions as an intelligent operating environment capable of understanding long-term context, managing complex workflows, and collaborating with users across creative, technical, and professional tasks.
 
@@ -403,8 +403,3 @@ Future releases will introduce:
 AERA is designed to become an intelligent AI operating environment rather than a traditional assistant.
 
 By combining memory, reasoning, automation, local AI, cloud AI, voice interaction, and application integration into one cohesive system, AERA provides a foundation for next-generation human-computer collaboration.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -154,8 +154,3 @@ Every application can communicate with
 # Summary
 
 Apps System provides intelligent management of every application inside the AERA ecosystem.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -399,8 +399,3 @@ Planned
 # Summary
 
 The Writing Agent is AERA's intelligent content creation engine. It generates, edits, reviews, and optimizes technical documentation, reports, articles, and structured content while collaborating with the Memory Agent, Research Agent, and other specialized agents to produce accurate, context-aware, and professional-quality writing.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

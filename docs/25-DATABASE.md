@@ -595,8 +595,3 @@ Planned
 # Summary
 
 The Database System is the persistent foundation of AERA. It combines PostgreSQL for structured data, Redis for caching and messaging, a vector database for AI embeddings, and the Memory Graph for knowledge relationships. Together, these components provide a secure, scalable, and high-performance storage platform that powers conversations, AI reasoning, automation, workspaces, and long-term memory.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

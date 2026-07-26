@@ -576,8 +576,3 @@ Planned
 # Summary
 
 The Deployment System provides a flexible and production-ready deployment architecture for AERA. It supports local desktops, enterprise servers, cloud platforms, Docker, and Kubernetes while offering automated installation, secure configuration, monitoring, backup, scaling, and disaster recovery. This ensures AERA can be deployed reliably from a single developer workstation to large-scale enterprise environments.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

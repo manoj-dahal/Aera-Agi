@@ -445,8 +445,3 @@ Planned
 # Summary
 
 The Device Agent is AERA's hardware and device intelligence engine. It discovers, monitors, synchronizes, and manages computers, mobile devices, peripherals, and IoT hardware while collaborating with other AI agents to provide a unified, secure, and intelligent device management experience across the entire AERA ecosystem.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

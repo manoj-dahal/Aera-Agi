@@ -514,8 +514,3 @@ Planned improvements
 # Summary
 
 The Automation System is AERA's orchestration engine. It combines event-driven workflows, AI agents, application integrations, and intelligent scheduling into a unified automation platform. By learning from previous executions and integrating with the Memory Graph, AERA continuously improves workflow efficiency while maintaining security, flexibility, and reliability.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

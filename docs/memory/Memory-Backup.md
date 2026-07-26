@@ -84,8 +84,3 @@ Ready
 # Summary
 
 Memory Backup ensures that AERA's complete cognitive state can be securely restored at any time.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

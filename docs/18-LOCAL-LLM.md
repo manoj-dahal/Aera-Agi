@@ -473,8 +473,3 @@ Planned improvements
 # Summary
 
 The Local LLM System is AERA's primary AI execution environment. It automatically detects supported runtimes, intelligently routes requests between specialized local models, manages GPU resources, and integrates every model with the Memory Graph, Agent System, and AI Router. The result is a fast, private, and highly capable offline AI platform that can seamlessly cooperate with cloud providers when configured.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

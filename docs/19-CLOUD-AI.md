@@ -448,8 +448,3 @@ Planned improvements
 # Summary
 
 The Cloud AI System extends AERA with access to powerful online AI providers while working seamlessly alongside the Local LLM System. Through intelligent routing, secure API management, shared memory integration, and automatic failover, AERA delivers scalable, multimodal AI capabilities while allowing users to balance privacy, performance, and operational cost.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

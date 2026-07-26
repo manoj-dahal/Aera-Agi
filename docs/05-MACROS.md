@@ -343,8 +343,3 @@ Planned enhancements include:
 # Summary
 
 The Macros page is the cognitive center of AERA. It presents a unified Memory Graph while all memory processing, learning, synchronization, and agent collaboration occur transparently in the background. This design keeps the interface simple while exposing the intelligence of the system through a single interactive graph.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

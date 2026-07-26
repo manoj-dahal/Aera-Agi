@@ -493,8 +493,3 @@ Planned
 # Summary
 
 The Planning Agent is AERA's strategic coordination engine. It transforms user goals into structured execution plans by analyzing objectives, breaking down complex tasks, scheduling work, coordinating specialized AI agents, and continuously adapting plans based on progress, context, and available resources.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -462,8 +462,3 @@ Planned improvements
 # Summary
 
 The Performance System is AERA's optimization layer. It continuously monitors hardware resources, AI workloads, background services, and user activity to intelligently allocate resources, maximize responsiveness, and minimize power consumption. Through adaptive scheduling, caching, and automatic optimization, AERA delivers a consistently fast and efficient user experience across a wide range of hardware.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

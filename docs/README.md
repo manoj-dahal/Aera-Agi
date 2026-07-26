@@ -348,26 +348,18 @@ All rights reserved.
 
 # Repository Structure
 
-The documents in this directory are the original **design specification**.
-`REQUIREMENTS.md` at the repository root is the **conformance record**: what
-is built, what is built with a limit, and what is not built at all. Where the
-two differ, that file is what exists.
-
 ```
 AERA/
-├── aera/          the Python package: kernel, agents, memory, voice, api
-├── interface/     React + TypeScript front end, the only UI
-├── tests/         1,845 tests
-├── docs/          this documentation set
-├── config/        layered YAML configuration
-├── installer/     PyInstaller spec
-├── ci/            build workflows
-├── tools/         brand and asset generation
-├── REQUIREMENTS.md  what is built, and what is not
+├── app/
+├── backend/
+├── ai/
+├── agents/
+├── memory/
+├── models/
+├── workspace/
+├── docs/
+├── docker/
+├── config/
+├── scripts/
 └── README.md
 ```
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)
