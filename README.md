@@ -399,7 +399,13 @@ pytest tests/test_memory.py -v       # one module
 | `test_desktop.py` | 45 | kernel thread, native bridge, streaming, dialogs, sandboxing |
 | `test_requirements.py` | 29 | tap-to-memory, ethical-hacking scope, extended roster |
 | `test_media_agents.py` | 30 | document parsing, capability gating, SSRF guard |
-| `interface/src/__tests__` | 56 | formatting, markdown escaping, tokens, transport, layout, requirements |
+| `test_languages.py` | 252 | 35 language packs, per-language numbers, cue sweep |
+| `test_scripts.py` | 187 | visemes across 9 writing systems, script detection |
+| `test_phonetics.py` | 47 | spoken-form normalisation, grapheme visemes |
+| `test_expression.py` | 49 | mood decay, negation scope, prosody, SSML |
+| `test_voice_personas.py` | 56 | anime-g / anime-b acoustics, per-emotion timbre |
+| `test_voice_backends.py` | 30 | Piper and system TTS probing, fallback |
+| `interface/src/__tests__` | 294 | components rendered in jsdom, language picker, layout, transport |
 
 Tests run fully offline and deterministically — no network, no API keys, no
 model downloads.
@@ -416,7 +422,7 @@ aera/
 ├── agents/       base framework, registry, 15 specialists
 ├── workspace/    project scanner and indexer
 ├── automation/   workflow engine
-├── voice/        STT/TTS pipeline, emotion, visemes
+├── voice/        STT/TTS pipeline, emotion, 35 language packs, visemes
 ├── hologram/     avatar state machine
 ├── security/     vault, permissions, audit
 ├── api/          FastAPI app, routers, middleware
@@ -475,6 +481,23 @@ Built and tested against the specification in `docs/`:
 The voice engine implements the full pipeline (VAD → STT → intent → memory →
 LLM → emotion → TTS → lip-sync) with headless backends; plugging in Whisper or
 Piper is an interface implementation, not a rewrite.
+
+**Languages.** 35 packs supply emotion cues, negation, intensifiers and number
+words; the analysis machinery around them is language-independent. Numbers
+follow each language's own grammar rather than English word order — German
+*siebenundachtzig*, French *quatre-vingt-sept*, Hindi *सत्तासी*, and lakh/crore
+grouping across the subcontinent. Twelve packs deliberately keep numerals
+instead of guessing: Japanese and Korean readings depend on the counter that
+follows, and ten Indic packs have irregular 21-99 forms not carried here.
+`GET /api/v1/voice/languages` reports which case each language is in.
+
+Lip-sync covers nine writing systems with real articulation — Latin, Cyrillic,
+Greek, Arabic, Hebrew, the Indic abugidas, Thai, Kana and Hangul. Han gets
+syllable timing only, because mapping a character to its reading needs a
+dictionary AERA does not bundle; Georgian, Armenian, Ethiopic, Lao, Khmer and
+Myanmar are recognised and get the same timing-only treatment until they have
+tables. `ALPHABETIC` and `TIMING_ONLY` in `aera/voice/scripts.py` state which,
+and an import-time check keeps the claim honest.
 
 **On packaging:** the PyInstaller spec, frozen entrypoint and cross-platform
 workflow are complete and every bundled import is verified, but the binaries

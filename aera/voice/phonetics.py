@@ -23,45 +23,18 @@ from ..core.logging import get_logger
 
 logger = get_logger("voice.phonetics")
 
-_ONES = (
-    "zero one two three four five six seven eight nine ten eleven twelve "
-    "thirteen fourteen fifteen sixteen seventeen eighteen nineteen"
-).split()
-_TENS = (
-    "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
-)
-_SCALES = ((1_000_000_000, "billion"), (1_000_000, "million"), (1_000, "thousand"))
-
-
 def say_number(value: int) -> str:
-    """Spell an integer the way it is read aloud."""
-    if value < 0:
-        return f"minus {say_number(-value)}"
-    if value < 20:
-        return _ONES[value]
-    if value < 100:
-        tens, ones = divmod(value, 10)
-        return _TENS[tens] + (f" {_ONES[ones]}" if ones else "")
-    if value < 1000:
-        hundreds, rest = divmod(value, 100)
-        out = f"{_ONES[hundreds]} hundred"
-        return f"{out} and {say_number(rest)}" if rest else out
-    for size, name in _SCALES:
-        if value >= size:
-            count, rest = divmod(value, size)
-            out = f"{say_number(count)} {name}"
-            return f"{out} {say_number(rest)}" if rest else out
-    return str(value)
+    """Spell an integer in English, the way it is read aloud.
 
+    A thin wrapper over the English language pack. This used to be a second,
+    independent implementation, and the two had already drifted: it said
+    "three hundred and forty two" while the pack said "three hundred forty
+    two" for the same input, and the pack is the one the pipeline actually
+    calls. One reader now, so they cannot disagree again.
+    """
+    from .languages import ENGLISH, say_number_in
 
-def _say_decimal(text: str) -> str:
-    """"3.5" -> "three point five"; digits after the point are read singly."""
-    whole, _, fraction = text.partition(".")
-    spoken = say_number(int(whole or 0))
-    if fraction:
-        digits = " ".join(_ONES[int(d)] for d in fraction if d.isdigit())
-        return f"{spoken} point {digits}"
-    return spoken
+    return say_number_in(value, ENGLISH)
 
 
 #: Abbreviations whose trailing dot is not a sentence boundary. Without this
@@ -179,6 +152,16 @@ def normalise_for_speech(text: str, language: str = "en") -> str:
         out,
     )
 
+    def _unit_percent(match: re.Match[str], pack: Any) -> str:
+        amount = match.group(1).replace(",", "")
+        singular, plural = pack.units.get("%", _UNITS["%"])
+        value = float(amount)
+        word = singular if value == 1 else plural
+        if "%" in pack.units_before:
+            # Chinese puts the unit first: 百分之八十七.
+            return f"{word}{_decimal(amount)}"
+        return f"{_decimal(amount)} {word}"
+
     # Numbers with units: "87%" -> "eighty seven percent".
     def _unit(match: re.Match[str]) -> str:
         amount = match.group(1).replace(",", "")
@@ -189,11 +172,17 @@ def normalise_for_speech(text: str, language: str = "en") -> str:
             return match.group(0)
         singular, plural = pack.units.get(unit, _UNITS[unit])
         value = float(amount)
-        return f"{_decimal(amount)} {singular if value == 1 else plural}"
+        word = singular if value == 1 else plural
+        if unit in pack.units_before:
+            return f"{word}{_decimal(amount)}"
+        return f"{_decimal(amount)} {word}"
 
     # Two patterns: "%" is not a word character, so a trailing \b after it
     # can never assert and the alternation silently skipped every percentage.
-    out = re.sub(r"([\d,]+(?:\.\d+)?)\s?(%)", _unit, out)
+    # Arabic and Persian write the percent sign as ٪ (U+066A) and Chinese
+    # text sometimes uses the full-width ％. Matching only "%" left those
+    # unspoken -- "٨٧٪" came out as "sab'a wa thamanun" then a bare symbol.
+    out = re.sub(r"([\d,]+(?:\.\d+)?)\s?[٪％%]", lambda m: _unit_percent(m, pack), out)
     out = re.sub(
         r"([\d,]+(?:\.\d+)?)\s?(ms|kb|mb|gb|tb|khz|hz)\b",
         _unit,
@@ -237,56 +226,20 @@ def normalise_for_speech(text: str, language: str = "en") -> str:
 # --------------------------------------------------------------------------- #
 # graphemes -> visemes
 # --------------------------------------------------------------------------- #
-#: Multi-letter clusters that make one sound. Longest first so "tch" wins
-#: over "ch", and checked before single letters.
-_CLUSTERS: tuple[tuple[str, str], ...] = (
-    ("tch", "tongue"), ("sch", "narrow"),
-    ("th", "tongue"), ("sh", "narrow"), ("ch", "narrow"), ("ph", "teeth"),
-    ("wh", "narrow"), ("ck", "tongue"), ("ng", "tongue"), ("qu", "narrow"),
-    ("ee", "narrow"), ("ea", "open"), ("oo", "narrow"), ("ou", "open"),
-    ("ow", "open"), ("ai", "open"), ("ay", "open"), ("oa", "open"),
-    ("ie", "narrow"), ("ei", "narrow"), ("au", "open"), ("aw", "open"),
-)
-
-_SINGLE: dict[str, str] = {
-    **dict.fromkeys("aeiou", "open"),
-    **dict.fromkeys("bmp", "closed"),
-    **dict.fromkeys("fv", "teeth"),
-    **dict.fromkeys("dlnrt", "tongue"),
-    **dict.fromkeys("csxz", "narrow"),
-    **dict.fromkeys("gjk", "tongue"),
-    **dict.fromkeys("wy", "narrow"),
-    "h": "open",
-    "q": "narrow",
-}
-
-
 def word_to_visemes(word: str) -> list[str]:
     """Mouth shapes for one word, one per sound rather than per letter.
 
-    Handles clusters and drops the silent final e, so "make" gives three
-    shapes instead of four and does not animate a letter nobody says.
+    Delegates to ``scripts`` so this works outside the Latin alphabet. It
+    previously matched Latin letters only and returned a single ``neutral``
+    for anything else, which meant the avatar's mouth held one position for
+    a whole Devanagari, Cyrillic, Arabic, Kana, Hangul or Han word. With
+    thirty-five languages that was most of them.
     """
-    lowered = "".join(c for c in word.lower() if c.isalpha())
-    if not lowered:
+    from .scripts import shapes_for
+
+    shapes = shapes_for(word)
+    if not shapes:
         return []
-
-    # Silent final e: "make", "site", "close" -- but not "the" or "be",
-    # where the e is the only vowel sound.
-    if len(lowered) > 3 and lowered.endswith("e") and lowered[-2] not in "aeiou":
-        lowered = lowered[:-1]
-
-    shapes: list[str] = []
-    index = 0
-    while index < len(lowered):
-        for cluster, shape in _CLUSTERS:
-            if lowered.startswith(cluster, index):
-                shapes.append(shape)
-                index += len(cluster)
-                break
-        else:
-            shapes.append(_SINGLE.get(lowered[index], "neutral"))
-            index += 1
 
     # Collapse repeats: "gg" in "trigger" is one mouth position, not two.
     collapsed: list[str] = []

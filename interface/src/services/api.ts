@@ -37,6 +37,8 @@ import type {
   SystemStatus,
   TaskResult,
   Telemetry,
+  VoiceLanguage,
+  VoiceLanguages,
   VoiceStatus,
   WorkflowInfo,
   WorkflowRun,
@@ -362,6 +364,19 @@ export const voice = {
     ),
   analyseEmotion: (text: string) =>
     httpRequest<{ emotion: string; confidence: number }>('/voice/emotion', json({ text })),
+
+  /** Every language with a real expression pack, and which one is active. */
+  languages: () => httpRequest<VoiceLanguages>('/voice/languages'),
+
+  /**
+   * Switch the language used for emotion detection and number reading.
+   * An unsupported code is accepted and flagged rather than refused.
+   */
+  setLanguage: (code: string) =>
+    httpRequest<{ language: string; pack: VoiceLanguage; supported: boolean }>(
+      `/voice/languages/${encodeURIComponent(code)}`,
+      { method: 'POST' },
+    ),
 };
 
 export const hologram = {

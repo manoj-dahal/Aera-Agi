@@ -52,66 +52,20 @@ _MOOD_WEIGHT: dict[Emotion, float] = {
     Emotion.SAD: -0.80,
 }
 
-#: Words that flip the polarity of what follows.
-_NEGATIONS = re.compile(
-    r"\b(not|no|never|cannot|can't|won't|isn't|aren't|wasn't|weren't|doesn't|"
-    r"didn't|don't|couldn't|shouldn't|wouldn't|hardly|barely|fails? to|"
-    r"without|lack(?:s|ing)?)\b"
+#: Signals that are punctuation, not vocabulary, so they apply in every
+#: language. These were lost when the cue tables moved into language packs:
+#: the packs carry words only, and nothing replaced the "!!"  / "?" / ":)"
+#: patterns, so "It worked!!" and "All done :)" both went back to reading
+#: NEUTRAL in English.
+_PUNCTUATION_CUES: tuple[tuple[Emotion, re.Pattern[str], float], ...] = (
+    # Two or more exclamation marks read as excitement in any script.
+    (Emotion.EXCITED, re.compile(r"[!！]{2,}"), 0.9),
+    (Emotion.HAPPY, re.compile(r":\)|:-\)|:D|=\)|\U0001F600-\U0001F60F"), 0.7),
+    (Emotion.SAD, re.compile(r":\(|:-\(|=\("), 0.8),
+    # A question at the end of the utterance, in Latin, Arabic, Greek or
+    # full-width punctuation.
+    (Emotion.CURIOUS, re.compile(r"[?？؟;]\s*$"), 0.55),
 )
-
-#: Words that amplify whatever they modify.
-_INTENSIFIERS = re.compile(
-    r"\b(very|really|extremely|incredibly|absolutely|totally|完全|so|much|"
-    r"deeply|highly|seriously|terribly|utterly|completely)\b"
-)
-
-#: A negation's scope ends at a clause boundary: in "not X, but Y", the
-#: negation applies to X and leaves Y alone.
-_CLAUSE_BREAK = re.compile(r"\b(but|however|although|though|yet|whereas)\b|[,;:]")
-
-#: Words that soften a claim, lowering confidence and flattening delivery.
-_HEDGES = re.compile(
-    r"\b(maybe|perhaps|possibly|might|could be|probably|seems?|appears?|"
-    r"i think|somewhat|slightly|fairly|kind of|sort of)\b"
-)
-
-#: Emotion cues. Ordered most to least specific; each entry is
-#: (emotion, patterns, weight).
-_CUES: list[tuple[Emotion, tuple[str, ...], float]] = [
-    (Emotion.EXCITED, (
-        r"\b(amazing|awesome|fantastic|incredible|brilliant|wonderful|perfect)\b",
-        r"!{2,}", r"\b(wow|yay|hooray)\b",
-    ), 1.0),
-    (Emotion.HAPPY, (
-        r"\b(great|good news|glad|happy|pleased|nice work|well done|success|"
-        r"thanks|thank you|working|complete[d]?)\b", r":\)|:D",
-        # Recovery reads as relief, and outweighs the failure it followed.
-        r"\b(fixed|resolved|recovered|repaired|sorted|back up|works now|"
-        r"up and running)\b",
-    ), 0.8),
-    (Emotion.CONFIDENT, (
-        r"\b(certainly|definitely|absolutely|confirmed|verified|guaranteed|"
-        r"of course|no problem)\b",
-    ), 0.7),
-    (Emotion.CURIOUS, (
-        r"\?\s*$", r"\b(interesting|wonder|curious|how come|what if)\b",
-    ), 0.6),
-    (Emotion.CALM, (
-        r"\b(steady|stable|fine|alright|no rush|take your time|all good)\b",
-    ), 0.5),
-    (Emotion.CONCERNED, (
-        r"\b(warning|careful|risk|danger|caution|deprecated|breaking|"
-        r"unstable|might fail|watch out)\b",
-    ), 0.85),
-    (Emotion.SERIOUS, (
-        r"\b(critical|security|vulnerability|urgent|fatal|severe|breach|"
-        r"immediately|must not)\b",
-    ), 0.95),
-    (Emotion.SAD, (
-        r"\b(sorry|unfortunately|failed|failure|regret|unable|lost|broken|"
-        r"could not|couldn't|disaster|crashed?|outage|down)\b", r":\(",
-    ), 0.9),
-]
 
 #: How much each emotion's cues count. Distress outweighs delight, because a
 #: warning missed matters more than a compliment missed.
@@ -277,8 +231,41 @@ class ExpressionAnalyser:
                 else []
             )
 
+            for emotion, pattern, weight_hint in _PUNCTUATION_CUES:
+                if not pattern.search(sentence):
+                    continue
+                score = weight_hint * recency * boost * (0.6 if hedged else 1.0)
+                scores[emotion] = scores.get(emotion, 0.0) + score
+                reasons.append(f"{emotion.value} from punctuation in sentence {index + 1}")
+
+            # Collect every cue match first, then drop the ones that sit
+            # inside a longer match. French "bien sûr" (confident) contains
+            # "bien" (happy) and Chinese "好奇" (curious) contains "好"
+            # (happy); counting both scored the phrase twice and the
+            # heavier-weighted substring won, so "bien sûr" read as happy.
+            # The longest match at a position is the one the writer meant.
+            spans: list[tuple[int, int, Emotion]] = []
             for emotion, pattern in rules["cues"].items():
-                positions = [m.start() for m in pattern.finditer(lowered)]
+                for match in pattern.finditer(lowered):
+                    spans.append((match.start(), match.end(), emotion))
+
+            kept: list[tuple[int, int, Emotion]] = [
+                span
+                for span in spans
+                if not any(
+                    other is not span
+                    and other[0] <= span[0]
+                    and other[1] >= span[1]
+                    and (other[1] - other[0]) > (span[1] - span[0])
+                    for other in spans
+                )
+            ]
+
+            by_emotion: dict[Emotion, list[int]] = {}
+            for start, _, emotion in kept:
+                by_emotion.setdefault(emotion, []).append(start)
+
+            for emotion, positions in by_emotion.items():
                 hits = len(positions)
                 weight = _CUE_WEIGHT.get(emotion, 0.8)
                 if not hits:

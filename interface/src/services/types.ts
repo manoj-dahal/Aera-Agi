@@ -358,6 +358,30 @@ export interface SystemStatus {
   skills?: SkillSummary;
 }
 
+export interface VoiceLanguage {
+  code: string;
+  label: string;
+  /** The language's own name for itself, for the picker. */
+  endonym: string;
+  emotion_cues: number;
+  has_numbers: boolean;
+  /** False where numerals are kept: counter-dependent or irregular readings. */
+  spells_all_numbers: boolean;
+  script: string;
+  rtl: boolean;
+}
+
+export interface VoiceLanguages {
+  languages: VoiceLanguage[];
+  count: number;
+  active: string;
+  supported: boolean;
+  spell_numbers: string[];
+  rtl: string[];
+  active_pack: VoiceLanguage;
+  fallback: string;
+}
+
 export interface VoiceStatus {
   enabled: boolean;
   state: 'idle' | 'listening' | 'processing' | 'speaking';

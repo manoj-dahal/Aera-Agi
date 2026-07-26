@@ -280,13 +280,22 @@ async def list_languages(voice=Depends(get_voice)):
     Anything not listed still works, but falls back to English cue matching,
     which will misread sentiment. ``supported`` says which case you are in.
     """
-    from ...voice.languages import is_supported, supported
+    from ...voice.languages import get_pack, is_supported, supported
 
+    packs = supported()
     return ok(
         {
-            "languages": supported(),
+            "languages": packs,
+            "count": len(packs),
             "active": voice.config.language,
             "supported": is_supported(voice.config.language),
+            # Which of them read every number as words. The rest keep
+            # numerals where a table would be guessing.
+            "spell_numbers": sorted(
+                entry["code"] for entry in packs if entry["spells_all_numbers"]
+            ),
+            "rtl": sorted(entry["code"] for entry in packs if entry["rtl"]),
+            "active_pack": get_pack(voice.config.language).to_dict(),
             "fallback": "en",
         }
     )

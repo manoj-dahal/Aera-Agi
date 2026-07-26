@@ -14,10 +14,10 @@ import {
   StatusPill,
   useToast,
 } from '@components/index';
-import { models, system } from '@services/api';
+import { models, system, voice } from '@services/api';
 import { detectHost } from '@services/transport';
 import { applyTheme, themes, type ThemeName } from '@design/themes';
-import type { ProviderHealth } from '@services/types';
+import type { ProviderHealth, VoiceLanguages } from '@services/types';
 
 type Section = 'ai' | 'voice' | 'system';
 
@@ -49,6 +49,7 @@ export function SettingsHome() {
   const [secretName, setSecretName] = useState(SECRET_OPTIONS[0]!.value);
   const [secretValue, setSecretValue] = useState('');
   const [theme, setTheme] = useState<ThemeName>('dark');
+  const [languages, setLanguages] = useState<VoiceLanguages | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const showToast = useToast((s) => s.show);
@@ -78,6 +79,13 @@ export function SettingsHome() {
     } catch {
       setSecrets({});
     }
+    // So is the language catalogue: an older backend has no /voice/languages,
+    // and the section should degrade to the read-only view rather than break.
+    try {
+      setLanguages(await voice.languages());
+    } catch {
+      setLanguages(null);
+    }
   };
 
   useEffect(() => void load(), []);
@@ -91,6 +99,21 @@ export function SettingsHome() {
       void load();
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'could not save', 'error');
+    }
+  };
+
+  const changeLanguage = async (code: string) => {
+    try {
+      const result = await voice.setLanguage(code);
+      setLanguages((current) => (current ? { ...current, active: code } : current));
+      showToast(
+        result.supported
+          ? `Voice language set to ${result.pack.endonym}`
+          : `No pack for "${code}" — falling back to English cues`,
+        result.supported ? 'success' : 'error',
+      );
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'could not switch language', 'error');
     }
   };
 
@@ -220,6 +243,50 @@ export function SettingsHome() {
 
       {section === 'voice' && (
         <div className="grid max-w-4xl gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+          {languages && (
+            <Card title={`Language (${languages.count})`}>
+              <Field label="Spoken language">
+                <Select
+                  value={languages.active}
+                  onChange={(e) => void changeLanguage(e.target.value)}
+                >
+                  {languages.languages.map((entry) => (
+                    <option key={entry.code} value={entry.code}>
+                      {entry.endonym === entry.label
+                        ? entry.label
+                        : `${entry.endonym} — ${entry.label}`}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <KeyValue
+                label="emotion cues"
+                value={<span className="font-mono text-[11px]">{languages.active_pack.emotion_cues}</span>}
+              />
+              <KeyValue
+                label="script"
+                value={
+                  <span className="font-mono text-[11px]">
+                    {languages.active_pack.script}
+                    {languages.active_pack.rtl ? ' (right to left)' : ''}
+                  </span>
+                }
+              />
+              {/* Stated rather than left to be discovered: Japanese, Korean
+                  and ten Indic packs keep numerals, because their readings
+                  depend on a counter or on irregular forms not carried here. */}
+              <KeyValue
+                label="numbers"
+                value={
+                  <span className="font-mono text-[11px]">
+                    {languages.active_pack.spells_all_numbers
+                      ? 'spoken as words'
+                      : 'read as digits'}
+                  </span>
+                }
+              />
+            </Card>
+          )}
           {detail('Voice', settings.voice)}
           <NestedLink to="/hologram" Icon={Sparkles} label="Hologram" hint="Avatar emotion and gestures" />
         </div>
