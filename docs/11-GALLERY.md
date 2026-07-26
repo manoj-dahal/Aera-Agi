@@ -349,3 +349,8 @@ Planned improvements
 # Summary
 
 The Gallery is an AI-powered media hub that combines local media management, optional online browsing, intelligent analysis, and Memory Graph integration. It enables users to organize, search, and recall media naturally while background services handle indexing, tagging, and optimization automatically.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

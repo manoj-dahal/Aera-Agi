@@ -338,3 +338,8 @@ Planned improvements
 # Summary
 
 The Git Integration module transforms version control into an intelligent development workflow. By combining repository awareness, AI-assisted code review, commit generation, branch management, and Memory Graph integration, AERA helps developers manage projects more efficiently while preserving complete project history and context.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -108,3 +108,8 @@ Relaxed Posture
 # Summary
 
 Idle Animation ensures the AERA avatar remains visually engaging and lifelike, using subtle movements and context-aware behaviors to create a natural, always-present AI assistant.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

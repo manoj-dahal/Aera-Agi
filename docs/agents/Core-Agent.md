@@ -613,3 +613,8 @@ Planned
 # Summary
 
 The Core Agent is the brain of AERA. It orchestrates all specialized agents, manages conversations, coordinates memory, routes AI requests, maintains context, and ensures secure, efficient execution of every task. Rather than replacing specialized agents, it acts as an intelligent coordinator that brings together their capabilities into a seamless AI experience.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

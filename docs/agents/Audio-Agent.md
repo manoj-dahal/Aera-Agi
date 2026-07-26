@@ -2,7 +2,8 @@
 
 Version: 1.0.0
 
-Status: Core System Agent
+Status: Core System Agent — registered but **disabled by default**, because it needs a speech-to-text engine that is not bundled.
+Enable with `agents.audio` in `config/agents.yaml`.
 
 Priority: High
 
@@ -389,3 +390,8 @@ Planned
 # Summary
 
 The Audio Agent is AERA's dedicated audio intelligence engine. It records, enhances, transcribes, analyzes, and organizes audio from meetings, voice notes, multimedia, and live streams while integrating with the Memory Graph and collaborating with other AI agents to provide searchable, structured, and actionable audio intelligence.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

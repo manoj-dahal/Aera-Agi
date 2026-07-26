@@ -1,0 +1,9 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Voice Reasoning Assistant
+
+logging:
+  level: INFO
+  json_format: false
+  file: ./storage/logs/aera.log

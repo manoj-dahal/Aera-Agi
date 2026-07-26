@@ -455,3 +455,8 @@ Planned
 # Summary
 
 The Voice Agent is AERA's conversational interface. It combines real-time speech recognition, expressive speech synthesis, emotion-aware dialogue, wake word detection, multilingual communication, and hologram synchronization to create natural, responsive, and intelligent voice interactions while working seamlessly with the Core Agent, Memory Graph, and specialized AI agents.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

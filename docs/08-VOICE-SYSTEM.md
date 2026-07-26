@@ -2,7 +2,9 @@
 
 Version: 1.0.0
 
-Status: Design Specification
+Status: Design Specification. Implementation conformance is recorded in
+REQUIREMENTS.md at the repository root; where the two differ, that file
+is what was built.
 
 ---
 
@@ -251,12 +253,44 @@ Wake word processing should run locally whenever possible.
 
 # Multi-Language Support
 
-Features
+**35 language packs are implemented.** A pack supplies emotion cues,
+negations, intensifiers, hedges, clause breaks, number words and unit names.
+The analysis machinery around them is language-independent.
 
-- Automatic language detection
-- Real-time language switching
+Europe and the Americas — en es fr de it pt nl sv pl ru uk el tr
+
+South Asia — hi ne mr bn gu pa ta te kn ml si ur
+
+Middle East — ar he fa
+
+East and South-East Asia, Africa — ja zh ko th vi id sw
+
+## Numbers follow each language's own grammar
+
+Not English word order in translated words. German says *siebenundachtzig*,
+French *quatre-vingt-sept*, Hindi *सत्तासी*, Chinese *八十七*. Indic languages
+group by lakh and crore rather than by thousand.
+
+23 of 35 packs spell every integer. The remaining
+12 keep numerals on purpose: Japanese and Korean readings
+depend on the counter that follows, and ten Indic packs have irregular 21-99
+forms that are not carried here. `GET /api/v1/voice/languages` reports
+`spells_all_numbers` per language so a caller is never guessing.
+
+Right-to-left: ar fa he ur.
+
+## Lip-sync across writing systems
+
+18 scripts get real articulation — one mouth shape per sound.
+8 get syllable timing only: Han needs a reading dictionary
+that is not bundled, and Georgian, Armenian, Ethiopic, Lao, Khmer and Myanmar
+have no table yet. `ALPHABETIC` and `TIMING_ONLY` in `aera/voice/scripts.py`
+state which, and an import-time check asserts the claim matches the code.
+
+## Not implemented
+
+- Automatic language detection — the language is set, not inferred
 - Accent adaptation
-- Multilingual conversations
 
 ---
 
@@ -328,6 +362,32 @@ User controls include:
 
 ---
 
+# Singing
+
+Speech prosody cannot be relabelled as song. Sung pitch is quantised to a
+scale where spoken pitch glides; sung timing is fixed by the bar where spoken
+timing follows stress; the unit is the syllable, not the word.
+
+`POST /api/v1/voice/sing` returns a note plan: which syllable sounds, at what
+pitch, in which bar, for how long. It is derived from the words — syllable
+count, stress placement, phrase endings — not composed.
+
+12 scales are available, including bhairav and hijaz, because the
+language packs cover South Asia and the Middle East and a major scale would be
+the wrong default there. 8 tempo marks from grave to presto.
+Simple and compound time signatures.
+
+Emotion picks the key, tempo and time signature: sad is 62 bpm natural minor
+in 3/4, excited is 152 bpm major in 4/4.
+
+`POST /api/v1/voice/music/analyse` reads a lyric without setting it — metre,
+rhyme scheme, verse and chorus structure, syllable counts.
+
+**This returns a note plan, not audio.** Rendering it needs a real voice
+model; the response says so rather than returning silence.
+
+---
+
 # Future Enhancements
 
 Planned improvements
@@ -345,3 +405,8 @@ Planned improvements
 # Summary
 
 The Voice System provides a natural, context-aware communication layer for AERA. By combining speech recognition, memory, AI reasoning, expressive speech synthesis, and synchronized hologram animation, it creates an intuitive and immersive conversational experience while maintaining user privacy and responsive performance.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

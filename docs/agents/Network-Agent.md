@@ -460,3 +460,8 @@ Planned
 # Summary
 
 The Network Agent is AERA's intelligent networking engine. It manages connectivity, monitors network health, discovers services and devices, optimizes communication, and ensures secure, reliable data exchange across local systems, cloud infrastructure, AI services, containers, and remote devices. Working closely with the Security, Device, Automation, and Ethical Hacking Agents, it provides the networking foundation that enables the entire AERA ecosystem to operate efficiently and securely.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

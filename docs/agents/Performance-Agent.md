@@ -496,3 +496,8 @@ Planned
 # Summary
 
 The Performance Agent is AERA's intelligent optimization engine. It continuously monitors hardware, software, AI workloads, containers, and network resources to maximize speed, efficiency, and stability. Through predictive analytics, automated optimization, and deep integration with the Core Agent and supporting agents, it ensures that the entire AERA ecosystem operates at peak performance while maintaining safety, reliability, and user control.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

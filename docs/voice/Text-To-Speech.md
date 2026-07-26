@@ -2,7 +2,7 @@
 
 Version: 1.0.0
 
-Status: Stable
+Status: Implemented, with the bundled-synthesiser limit stated below.
 
 Priority: Critical
 
@@ -42,12 +42,35 @@ Audio Output
 
 # Features
 
-- Neural Voices
-- Streaming Audio
-- Emotion Support
-- Voice Personalities
-- Multi-Language
-- Offline Voices
+- Emotion Support — nine emotions, each with its own acoustics
+- Voice Personalities — anime-g, anime-b and the neutral AERA voice
+- Multi-Language — 35 language packs drive normalisation and expression
+- Offline — no network call on any synthesis path
+
+## What produces the audio
+
+Three backends, tried in order by `best_available()`:
+
+1. **Piper** — neural, offline, genuinely speaks words. Needs a `.onnx`
+   voice model, which is a separate download from
+   `huggingface.co/rhasspy/piper-voices`. Install with
+   `pip install -e ".[voice]"` and set `voice.piper_model`.
+2. **System TTS** — espeak-ng or macOS `say`. Lower quality, usually already
+   present. The language is passed through, so Spanish is read with Spanish
+   letter-to-sound rules.
+3. **Formant synthesiser** — the bundled fallback.
+
+**The bundled fallback does not articulate words.** It is a formant vocoder:
+the audio carries the persona's pitch, pacing, emotional acoustics and
+lip-sync timing, and it exists so those can be developed and heard without a
+downloadable model. It does not produce intelligible speech.
+`GET /api/v1/voice/backends` reports `synthesises_speech` so a caller can
+tell which of the three is active without inspecting a result.
+
+## Not implemented
+
+- Streaming audio — synthesis returns a complete result
+- Voice cloning
 - Voice Speed Control
 - Pitch Control
 
@@ -97,3 +120,8 @@ tts:
 # Summary
 
 Text-to-Speech gives AERA a natural, expressive speaking voice.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

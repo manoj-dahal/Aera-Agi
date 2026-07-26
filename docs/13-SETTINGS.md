@@ -443,3 +443,8 @@ Planned additions
 # Summary
 
 The Settings page follows a minimalist design with only three primary categories—**AI**, **Voice**, and **System**. Advanced configuration remains organized within these sections, while background services manage AI models, memory, plugins, voice, applications, and security automatically without overwhelming the user.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

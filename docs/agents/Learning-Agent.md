@@ -443,3 +443,8 @@ Planned
 # Summary
 
 The Learning Agent is AERA's adaptive intelligence engine. It continuously learns user preferences, workflows, habits, and reusable skills to personalize the entire AERA experience. Through secure collaboration with the Memory Graph and other AI agents, it transforms experience into structured knowledge, enabling smarter recommendations, more efficient automation, and increasingly personalized assistance while keeping the user in control of what is learned and retained.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

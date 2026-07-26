@@ -567,3 +567,8 @@ Planned
 # Summary
 
 The API System provides a unified communication layer for AERA. Through REST APIs, WebSocket streaming, internal service APIs, plugin interfaces, and secure authentication, it enables seamless interaction between AI models, agents, applications, devices, plugins, and external systems while maintaining high performance, scalability, and security.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)
