@@ -236,12 +236,16 @@ class AudioAgent(Agent):
     capabilities = (Capability.VOICE,)
     priority = 5
 
+    #: Refuse to read an entire recording into memory. Roughly an hour of
+    #: 16 kHz mono PCM; anything larger should be chunked by the caller.
+    MAX_BYTES = 120_000_000
+
     async def handle(self, task: Task) -> TaskResult:
         path = task.context.get("path") or _first_path(task.input)
         backend = getattr(self.ctx, "voice", None)
         stt_name = getattr(getattr(backend, "stt", None), "name", "null")
 
-        if stt_name == "null":
+        if backend is None or stt_name == "null":
             return TaskResult(
                 task_id=task.id,
                 agent=self.name,
@@ -255,11 +259,93 @@ class AudioAgent(Agent):
                 data={"path": path, "stt_backend": stt_name},
             )
 
+        if not path:
+            return TaskResult(
+                task_id=task.id,
+                agent=self.name,
+                success=False,
+                output="Tell me which audio file to transcribe.",
+                error="no audio path given",
+                data={"stt_backend": stt_name},
+            )
+
+        audio_path = Path(path).expanduser()
+        if not audio_path.is_file():
+            return TaskResult(
+                task_id=task.id,
+                agent=self.name,
+                success=False,
+                output=f"I could not find {audio_path}.",
+                error=f"file not found: {audio_path}",
+                data={"path": str(audio_path), "stt_backend": stt_name},
+            )
+
+        size = audio_path.stat().st_size
+        if size > self.MAX_BYTES:
+            return TaskResult(
+                task_id=task.id,
+                agent=self.name,
+                success=False,
+                output=(
+                    f"{audio_path.name} is {size / 1_000_000:.0f} MB, above the "
+                    f"{self.MAX_BYTES // 1_000_000} MB limit for a single "
+                    "transcription. Split it into shorter clips."
+                ),
+                error="audio file too large",
+                data={"path": str(audio_path), "bytes": size, "stt_backend": stt_name},
+            )
+
+        try:
+            audio = audio_path.read_bytes()
+        except OSError as exc:
+            return TaskResult(
+                task_id=task.id, agent=self.name, success=False, error=str(exc),
+            )
+
+        # The voice engine owns the backend and the state machine, so go
+        # through it rather than calling the backend directly.
+        try:
+            transcript = await backend.listen(
+                audio, language=task.context.get("language")
+            )
+        except Exception as exc:  # noqa: BLE001 - any backend failure
+            return TaskResult(
+                task_id=task.id,
+                agent=self.name,
+                success=False,
+                output=f"Transcription failed: {exc}",
+                error=f"STT backend '{stt_name}' failed: {exc}",
+                data={"path": str(audio_path), "stt_backend": stt_name},
+            )
+
+        text = (transcript.text or "").strip()
+        if not text:
+            # Silence is a real outcome, but it is not a successful read.
+            return TaskResult(
+                task_id=task.id,
+                agent=self.name,
+                success=False,
+                output="No speech was detected in that recording.",
+                error="empty transcript",
+                data={
+                    "path": str(audio_path),
+                    "stt_backend": stt_name,
+                    "duration_ms": transcript.duration_ms,
+                },
+            )
+
         return TaskResult(
             task_id=task.id,
             agent=self.name,
-            output=f"Transcription would run through the '{stt_name}' backend.",
-            data={"path": path, "stt_backend": stt_name},
+            output=text,
+            data={
+                "path": str(audio_path),
+                "stt_backend": stt_name,
+                "language": transcript.language,
+                "confidence": transcript.confidence,
+                "duration_ms": transcript.duration_ms,
+                "characters": len(text),
+            },
         )
 
 

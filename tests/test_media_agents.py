@@ -231,3 +231,136 @@ class TestFullRoster:
         # Terminal executes shell commands; web makes outbound requests.
         assert "terminal" not in registry.names()
         assert "web" not in registry.names()
+
+
+class TestAudioTranscription:
+    """AudioAgent with a live STT backend.
+
+    A regression suite: the agent used to return success=True with the text
+    "Transcription would run through the '<name>' backend" whenever a backend
+    was registered -- reporting success while doing no work, which is exactly
+    the fabrication these agents exist to avoid. Nothing caught it because
+    every test ran against the null backend.
+    """
+
+    @staticmethod
+    def _wav(path):
+        import struct
+        import wave
+
+        with wave.open(str(path), "wb") as handle:
+            handle.setnchannels(1)
+            handle.setsampwidth(2)
+            handle.setframerate(16_000)
+            handle.writeframes(struct.pack("<h", 0) * 1600)
+        return path
+
+    @staticmethod
+    def _context(agent_context, stt):
+        from aera.voice.engine import VoiceEngine
+
+        agent_context.voice = VoiceEngine(stt=stt)
+        return agent_context
+
+    async def test_transcribes_through_the_backend(self, agent_context, tmp_path, stt_factory):
+        clip = self._wav(tmp_path / "clip.wav")
+        context = self._context(agent_context, stt_factory("hello world"))
+
+        result = await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert result.success is True
+        assert result.output == "hello world"
+        assert result.data["characters"] == len("hello world")
+        assert result.data["stt_backend"] == "fake-stt"
+
+    async def test_passes_the_audio_bytes_to_the_backend(
+        self, agent_context, tmp_path, stt_factory
+    ):
+        """The file must actually be read, not just named."""
+        clip = self._wav(tmp_path / "clip.wav")
+        stt = stt_factory("ok")
+        context = self._context(agent_context, stt)
+
+        await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert stt.received == clip.read_bytes()
+
+    async def test_forwards_the_requested_language(self, agent_context, tmp_path, stt_factory):
+        clip = self._wav(tmp_path / "clip.wav")
+        stt = stt_factory("bonjour")
+        context = self._context(agent_context, stt)
+
+        await run(AudioAgent, context, f"transcribe {clip}", language="fr")
+
+        assert stt.language == "fr"
+
+    async def test_reports_metadata_from_the_transcript(
+        self, agent_context, tmp_path, stt_factory
+    ):
+        clip = self._wav(tmp_path / "clip.wav")
+        context = self._context(agent_context, stt_factory("hi"))
+
+        result = await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert result.data["confidence"] == 0.97
+        assert result.data["duration_ms"] == 1200.0
+
+    async def test_silence_is_not_a_success(self, agent_context, tmp_path, stt_factory):
+        """An empty transcript is a real outcome but not a successful read."""
+        clip = self._wav(tmp_path / "clip.wav")
+        context = self._context(agent_context, stt_factory(""))
+
+        result = await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert result.success is False
+        assert "No speech" in result.output
+
+    async def test_backend_failure_is_surfaced(self, agent_context, tmp_path, stt_factory):
+        clip = self._wav(tmp_path / "clip.wav")
+        context = self._context(agent_context, stt_factory(RuntimeError("model corrupt")))
+
+        result = await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert result.success is False
+        assert "model corrupt" in result.error
+
+    async def test_missing_file_is_reported(self, agent_context, tmp_path, stt_factory):
+        context = self._context(agent_context, stt_factory("x"))
+
+        result = await run(AudioAgent, context, f"transcribe {tmp_path / 'absent.wav'}")
+
+        assert result.success is False
+        assert "not found" in result.error
+
+    async def test_requires_a_path(self, agent_context, stt_factory):
+        context = self._context(agent_context, stt_factory("x"))
+
+        result = await run(AudioAgent, context, "transcribe the recording")
+
+        assert result.success is False
+        assert result.error == "no audio path given"
+
+    async def test_oversized_audio_is_refused(
+        self, agent_context, tmp_path, stt_factory, monkeypatch
+    ):
+        """Whole-file reads must not be able to exhaust memory."""
+        clip = self._wav(tmp_path / "clip.wav")
+        context = self._context(agent_context, stt_factory("x"))
+        monkeypatch.setattr(AudioAgent, "MAX_BYTES", 10)
+
+        result = await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert result.success is False
+        assert result.error == "audio file too large"
+
+    async def test_never_claims_success_without_transcribing(
+        self, agent_context, tmp_path, stt_factory
+    ):
+        """The exact regression: success implies real output from the backend."""
+        clip = self._wav(tmp_path / "clip.wav")
+        context = self._context(agent_context, stt_factory("actual words"))
+
+        result = await run(AudioAgent, context, f"transcribe {clip}")
+
+        assert "would run" not in result.output
+        assert result.success is (result.output == "actual words")

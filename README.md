@@ -464,8 +464,12 @@ Built and tested against the specification in `docs/`:
 | Browser dashboard for headless mode | ✅ complete |
 | PostgreSQL / pgvector backend | ⬜ planned — SQLite + in-process graph today |
 | Docker: containers, images, volumes, networks, logs, stats | ✅ complete — Engine API over the Unix socket |
+| Audio transcription (AudioAgent → STT backend) | ✅ wired end to end — no STT engine bundled |
+| Vision / image understanding | ⬜ router has no multimodal transport — agent says so |
+| OCR (Tesseract) | ✅ wired — activates when pytesseract is installed |
+| Plugin runtime (manifests, sandbox, permission prompts) | ⬜ planned — no backend; page states this |
 | Terminal UI, plugin marketplace | ⬜ planned — status shown in-app |
-| Phone sync, desktop app integrations | ⬜ planned |
+| Phone sync, desktop app integrations | ⬜ planned — no Device Agent |
 
 The voice engine implements the full pipeline (VAD → STT → intent → memory →
 LLM → emotion → TTS → lip-sync) with headless backends; plugging in Whisper or

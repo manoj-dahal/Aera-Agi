@@ -61,3 +61,38 @@ async def kernel(config):
         yield k
     finally:
         await k.stop()
+
+
+@pytest.fixture
+def stt_factory():
+    """Build a fake STT backend that records what it was handed.
+
+    The real backends (Whisper and friends) are not bundled, so agent-level
+    transcription is covered with a stand-in that satisfies the STTBackend
+    contract. Pass an exception to simulate a backend that fails.
+    """
+    from aera.voice.engine import STTBackend, Transcript
+
+    def make(result):
+        class FakeSTT(STTBackend):
+            name = "fake-stt"
+
+            def __init__(self) -> None:
+                self.received: bytes | None = None
+                self.language: str | None = None
+
+            async def transcribe(self, audio: bytes, *, language: str = "en") -> Transcript:
+                self.received = audio
+                self.language = language
+                if isinstance(result, Exception):
+                    raise result
+                return Transcript(
+                    text=result,
+                    confidence=0.97,
+                    language=language,
+                    duration_ms=1200.0,
+                )
+
+        return FakeSTT()
+
+    return make
