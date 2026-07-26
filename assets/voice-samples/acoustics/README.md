@@ -1,62 +1,53 @@
 # Per-emotion acoustics
 
-Nine renders of the same line, one per emotion, in the `anime-g` voice.
+Eighteen WAVs: **both characters, all nine emotions**, every pair speaking the
+same line. Produced by AERA's own bundled synthesiser, so these are what the
+runtime actually generates today — not a reference recording.
 
-> *"Hello, I am AERA. The deployment has finished."*
+The boy's nine were missing entirely before, which meant the per-emotion
+acoustic profiles could only be heard in one voice and any per-persona
+difference in them was untestable by ear.
 
-| Emotion | Pitch | Jitter | Breath | Tremor | Vibrato | Bright |
-|---|---:|---:|---:|---:|---:|---:|
-| excited | 310 Hz | 0.009 | 0.04 | 0.030 | 7.0 Hz | 1.22 |
-| happy | 286 Hz | 0.006 | 0.05 | 0.015 | 6.2 Hz | 1.12 |
-| curious | 276 Hz | 0.005 | 0.07 | 0.010 | 6.0 Hz | 1.10 |
-| confident | 261 Hz | 0.002 | 0.03 | 0.000 | 5.0 Hz | 1.05 |
-| neutral | 255 Hz | 0.004 | 0.06 | 0.000 | 5.2 Hz | 1.00 |
-| calm | 246 Hz | 0.003 | 0.10 | 0.000 | 4.4 Hz | 0.94 |
-| concerned | 243 Hz | 0.010 | 0.09 | 0.035 | 5.6 Hz | 0.96 |
-| serious | 234 Hz | 0.003 | 0.02 | 0.000 | 4.2 Hz | 0.88 |
-| sad | 224 Hz | 0.012 | 0.20 | 0.050 | 3.6 Hz | 0.80 |
+## What varies
 
-## What each dimension does
+Pitch and speed alone give a chipmunk-and-slug range: the same voice fast and
+high, or slow and low. These profiles also vary how *steady* the voice is, how
+much breath is in it, and how bright the timbre sits — the dimensions
+phonetics research consistently ties to perceived emotion.
 
-**Pitch** was previously the only thing that changed, which gave the same
-voice transposed rather than a different feeling.
+| Emotion | Jitter | Breath | Tremor | Vibrato | Brightness | Attack |
+|---|---|---|---|---|---|---|
+| excited | 0.009 | 0.04 | 0.03 | 7.0 Hz | 1.22 | 1.5 |
+| happy | 0.006 | 0.05 | 0.015 | 6.2 Hz | 1.12 | 1.2 |
+| confident | 0.002 | 0.03 | 0.0 | 5.0 Hz | 1.05 | 1.35 |
+| curious | 0.005 | 0.07 | 0.01 | 6.0 Hz | 1.10 | 1.1 |
+| neutral | 0.004 | 0.06 | 0.0 | 5.2 Hz | 1.00 | 1.0 |
+| calm | 0.003 | 0.10 | 0.0 | 4.4 Hz | 0.94 | 0.75 |
+| concerned | 0.010 | 0.09 | 0.035 | 5.6 Hz | 0.96 | 1.1 |
+| serious | 0.003 | 0.02 | 0.0 | 4.2 Hz | 0.88 | 1.4 |
+| sad | 0.012 | 0.20 | 0.05 | 3.6 Hz | 0.80 | 0.55 |
 
-**Jitter** — cycle-to-cycle pitch instability. Distress raises it; certainty
-is near-periodic. Confident is the steadiest profile at 0.002, sad the least
-at 0.012.
+Confident is deliberately the steadiest profile — certainty sounds periodic.
+Serious has low breath and no tremor, because gravity is controlled rather
+than shaky. Sad is the breathiest by a factor of four.
 
-**Breathiness** — aperiodic noise mixed with the tone. This is what makes a
-voice sound tired or fragile rather than merely lower. Sad carries six times
-the breath of confident.
+## These do not articulate words
 
-**Tremor** — slow amplitude shake. Present in distress, absent entirely from
-confident and serious, because gravity is controlled rather than wavering.
+A formant vocoder carries pitch, pacing and mouth timing. It does not produce
+intelligible speech, and nothing here should be mistaken for a voice recording.
+See the parent README for how to install a real engine.
 
-**Vibrato rate** — 3.6 Hz when low, 7.0 Hz when aroused. Nearly a factor of
-two between sad and excited.
+## Measuring them
 
-**Brightness** — upper-formant gain. Bright reads alert, dark reads withdrawn.
+The signal is dominated by its formants: "open" uses F1 = 730 Hz against a
+145 Hz fundamental, and brightness scales F1 differently per persona. Probing
+energy at the persona's pitch therefore reads formant leakage, and can rank
+the wrong voice higher — which it does for four of the nine emotions.
 
-**Harmonic tilt** and **attack** also vary: a tense voice has a stronger
-second harmonic, and an urgent one has a sharper onset.
-
-## Verified in the waveform
-
-The profiles are measured in the rendered audio, not just asserted in the
-config — `tests/test_voice_personas.py` checks that sad measures noisier and
-swings more than confident.
-
-Worth noting one measurement trap. A raw sample-difference metric reported sad
-as *smoother* than confident despite three times the breath, because sadness
-also darkens the formants and weakens the second harmonic, and those effects
-swamp the noise. Measuring the residual after smoothing, relative to signal
-level, gives the correct answer: 0.677 for sad against 0.607 for confident.
-
-## The usual caveat
-
-These WAVs come from AERA's bundled formant synthesiser. It carries pitch,
-timing, breath and tremor faithfully but does not articulate words — the
-acoustic profile is real, the speech is not. See `../README.md`.
+The fundamental is verifiable two ways that do work: the oscillator's own
+arithmetic reproduces the requested pitch to within 0.05 Hz, and measuring a
+sustained vowel separates the fundamental from the formant, which is what
+`tests/test_voice_personas.py` does.
 
 ---
 

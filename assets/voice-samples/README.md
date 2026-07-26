@@ -1,35 +1,68 @@
 # Voice samples
 
-Two characters, three emotions each. **These are real spoken audio** — play
+Two characters, **all nine emotions each**. These are real spoken audio — play
 them directly.
 
-| File | Character | Line |
-|---|---|---|
-| `anime-g-neutral.mp3` | Anime Girl | "Hello! I'm AERA. How can I help you today?" |
-| `anime-g-excited.mp3` | Anime Girl | "That's amazing! Everything finished perfectly!" |
-| `anime-g-sad.mp3` | Anime Girl | "I'm sorry. Unfortunately the deployment failed…" |
-| `anime-b-neutral.mp3` | Anime Boy | "Hello! I'm AERA. How can I help you today?" |
-| `anime-b-excited.mp3` | Anime Boy | "That's amazing! Everything finished perfectly!" |
-| `anime-b-sad.mp3` | Anime Boy | "I'm sorry. Unfortunately the deployment failed…" |
+The engine has nine emotions and this folder previously covered three, so six
+of the nine were undocumented by ear: you could read that `concerned` existed
+but never hear what it sounded like.
 
-48 kHz MP3, ~1–2 seconds each.
+| Emotion | Anime Girl | Anime Boy | Line |
+|---|---|---|---|
+| neutral | `anime-g-neutral.mp3` | `anime-b-neutral.mp3` | "Hello! I'm AERA. How can I help you today?" |
+| happy | `anime-g-happy.mp3` | `anime-b-happy.mp3` | "Good news! The build is green and every test passed." |
+| excited | `anime-g-excited.mp3` | `anime-b-excited.mp3` | "That's amazing! Everything finished perfectly!" |
+| calm | `anime-g-calm.mp3` | `anime-b-calm.mp3` | "Everything is steady. Take your time, there's no rush at all." |
+| concerned | `anime-g-concerned.mp3` | `anime-b-concerned.mp3` | "Careful — that change looks risky. The database is unstable right now." |
+| sad | `anime-g-sad.mp3` | `anime-b-sad.mp3` | "I'm sorry. Unfortunately the deployment failed…" |
+| serious | `anime-g-serious.mp3` | `anime-b-serious.mp3` | "This is critical. A security vulnerability was found…" |
+| confident | `anime-g-confident.mp3` | *pending* | "Absolutely. I've verified it twice — this will work." |
+| curious | `anime-g-curious.mp3` | *pending* | "That's interesting. I wonder what happens if we try it the other way?" |
+
+Every pair speaks the **same line**, so the two characters compare directly:
+any difference you hear is the character, not the words.
+
+`anime-b-confident` and `anime-b-curious` are not yet rendered — the
+speech tool caps generation at ten clips per turn and they fell past it. They
+are the only two gaps and are named here rather than quietly omitted.
+
+48 kHz MP3, roughly 1–3 seconds each. All verified distinct by SHA-256 and
+checked for a valid MP3 frame header, so none is a truncated or empty file.
 
 ## Two different things live here
 
 **The MP3s** were rendered by a neural TTS engine. They are what the characters
 should sound like — the reference the runtime is aiming at.
 
-**`formant/*.wav`** were produced by AERA's own bundled synthesiser
+**`acoustics/*.wav`** were produced by AERA's own bundled synthesiser
 (`aera.voice.personas`). That is a formant vocoder: it carries each persona's
-pitch, pacing and lip-sync timing, but it does **not** articulate words. Useful
-for checking mouth movement lines up; not speech.
+pitch, pacing, per-emotion acoustics and lip-sync timing, but it does **not**
+articulate words. Useful for checking mouth movement lines up; not speech.
 
-The gap between the two folders is the honest state of the feature. AERA can
-describe a voice precisely and animate to it, but cannot yet *say* anything,
-because no pretrained voice model can be downloaded in this environment —
-HuggingFace, GitHub release assets and the Piper CDN are all unreachable.
-`piper-tts` itself installs from PyPI without trouble; only the weights are
-blocked.
+Both characters now have all nine there too. The boy's nine were missing
+entirely, so the per-emotion acoustic profiles could only be heard in one
+voice.
+
+The gap between the MP3s and the WAVs is the honest state of the feature. AERA
+can describe a voice precisely and animate to it, but cannot yet *say*
+anything, because no pretrained voice model can be downloaded in this
+environment — HuggingFace, GitHub release assets and the Piper CDN are all
+unreachable. `piper-tts` itself installs from PyPI without trouble; only the
+weights are blocked.
+
+## A note on measuring these
+
+The WAVs are dominated by their formants, not their fundamental: "open" uses
+F1 = 730 Hz against a 145 Hz fundamental, and brightness scales F1 differently
+per persona. A naive Goertzel probe at the persona's pitch therefore reads
+formant leakage and can rank the wrong voice higher.
+
+Verified the right way instead — the oscillator's own arithmetic renders the
+requested pitch to within 0.05 Hz, and
+`tests/test_voice_personas.py::test_the_audio_carries_the_persona_pitch`
+measures on a sustained vowel where the fundamental is separable. Anyone
+re-checking these by ear or by FFT should know that before concluding the
+pitch is wrong.
 
 ## Persona parameters
 
@@ -79,46 +112,15 @@ curl localhost:8080/api/v1/voice/backends
  "backends": [{"name": "piper", "available": true, "detail": "ready with en_US-amy-medium.onnx"}]}
 ```
 
-Every unavailable backend reports what would fix it, rather than only that it
-is missing.
+## Other folders
 
-The personas drive whichever engine is active: pitch and pace become Piper's
-length scale, jitter and breathiness become its noise scale, and on espeak the
-persona's fundamental is passed as an explicit pitch.
-
-## Wiring in a different engine
-
-Personas are engine-agnostic — each carries hints for the common backends:
-
-```python
-from aera.voice.personas import ANIME_GIRL
-ANIME_GIRL.engine_hints["piper"]  # {'voice': 'en_US-amy-medium', 'length_scale': 0.94}
-```
-
-Implement `TTSBackend.synthesize` against your engine and pass it in:
-
-```python
-from aera.voice.engine import VoiceEngine
-kernel.voice = VoiceEngine(config.voice, tts=YourBackend())
-```
-
-Pitch, speed and emotion mapping carry over unchanged, and
-`/api/v1/voice/personas` will report `synthesises_speech: true` once a real
-backend is registered.
-
-## Regenerating the formant set
-
-```bash
-python -c "
-from pathlib import Path
-from aera.voice.personas import ANIME_GIRL, ANIME_BOY, synthesize_wav
-from aera.voice.engine import Emotion
-for p in (ANIME_GIRL, ANIME_BOY):
-    for e in (Emotion.NEUTRAL, Emotion.EXCITED, Emotion.SAD):
-        synthesize_wav('Hello! I am AERA.', p, emotion=e,
-                       path=Path(f'assets/voice-samples/formant/{p.id}-{e.value}.wav'))
-"
-```
+| Folder | What is in it |
+|---|---|
+| `acoustics/` | 18 formant WAVs — both characters, all nine emotions |
+| `casting/` | 8 candidate voices, awaiting a choice |
+| `expression/` | Lines demonstrating negation, recovery and prosody |
+| `languages/` | The same greeting in six languages |
+| `formant/` | Six earlier WAVs, kept for comparison |
 
 ---
 

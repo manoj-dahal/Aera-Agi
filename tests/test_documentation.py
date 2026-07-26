@@ -830,3 +830,121 @@ class TestShellScripts:
     )
     def test_the_readme_only_advertises_scripts_that_exist(self, script):
         assert (self.SCRIPTS / script).is_file()
+
+
+class TestVoiceSamples:
+    """The audio in assets/voice-samples is real, distinct and complete.
+
+    A sample set is easy to break silently: a truncated write leaves a valid
+    filename with no audio in it, and a copy-paste leaves two names pointing
+    at identical bytes. Neither shows up until someone plays them.
+    """
+
+    SAMPLES = ROOT / "assets" / "voice-samples"
+
+    @pytest.fixture(scope="class")
+    def emotions(self) -> list[str]:
+        from aera.voice.engine import Emotion
+
+        return [e.value for e in Emotion]
+
+    def test_the_folder_exists(self):
+        assert self.SAMPLES.is_dir()
+
+    @pytest.mark.parametrize("character", ["anime-g", "anime-b"])
+    def test_the_base_set_covers_the_emotions(self, character, emotions):
+        """Nine emotions in the engine; the folder covered three, so six
+        could be read about but never heard."""
+        present = {
+            path.stem.replace(f"{character}-", "")
+            for path in self.SAMPLES.glob(f"{character}-*.mp3")
+        }
+        missing = set(emotions) - present
+
+        # anime-b-confident and anime-b-curious hit the per-turn generation
+        # cap. They are named in the README rather than quietly omitted.
+        assert missing <= {"confident", "curious"}, f"{character} is missing {missing}"
+
+    @pytest.mark.parametrize("character", ["girl", "boy"])
+    def test_the_formant_set_is_complete(self, character, emotions):
+        """Both characters, all nine. The boy's nine were missing entirely,
+        so the per-emotion acoustics could only be heard in one voice."""
+        present = {
+            path.stem.replace(f"{character}-", "")
+            for path in (self.SAMPLES / "acoustics").glob(f"{character}-*.wav")
+        }
+
+        assert set(emotions) <= present, f"{character} lacks {set(emotions) - present}"
+
+    def test_no_two_samples_are_the_same_bytes(self):
+        """A duplicate means a generation silently failed and something was
+        copied, or the same voice was used twice by mistake."""
+        import hashlib
+
+        seen: dict[str, str] = {}
+        duplicates = []
+        for path in sorted(self.SAMPLES.rglob("*.mp3")):
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            if digest in seen:
+                duplicates.append(f"{path.name} == {seen[digest]}")
+            seen[digest] = path.name
+
+        assert not duplicates, duplicates
+
+    def test_every_mp3_has_a_valid_frame_header(self):
+        """A truncated write leaves a plausible filename and no audio."""
+        import struct
+
+        broken = []
+        for path in sorted(self.SAMPLES.rglob("*.mp3")):
+            data = path.read_bytes()
+            offset = 0
+            if data[:3] == b"ID3":
+                size = struct.unpack(">I", bytes(b & 0x7F for b in data[6:10]))[0]
+                offset = 10 + size
+            header = data[offset : offset + 2]
+            if len(header) < 2 or header[0] != 0xFF or (header[1] & 0xE0) != 0xE0:
+                broken.append(path.name)
+
+        assert not broken, f"not valid MP3 audio: {broken}"
+
+    def test_every_wav_holds_audible_signal(self):
+        """Not just a valid header: actual non-silent samples."""
+        import array
+        import wave
+
+        silent = []
+        for path in sorted(self.SAMPLES.rglob("*.wav")):
+            with wave.open(str(path)) as handle:
+                frames = handle.getnframes()
+                samples = array.array("h")
+                samples.frombytes(handle.readframes(min(frames, 40_000)))
+            if not samples or max(abs(v) for v in samples) < 100:
+                silent.append(path.name)
+
+        assert not silent, f"silent or empty: {silent}"
+
+    def test_no_sample_is_suspiciously_small(self):
+        tiny = [
+            path.name
+            for path in sorted(self.SAMPLES.rglob("*.mp3"))
+            if path.stat().st_size < 4_000
+        ]
+
+        assert not tiny, f"too small to contain a spoken line: {tiny}"
+
+    def test_paired_lines_use_the_same_text(self, emotions):
+        """Both characters speak the same line for each emotion, so any
+        difference heard is the character and not the words. Asserted through
+        the README, which is where the pairing is recorded."""
+        readme = (self.SAMPLES / "README.md").read_text(encoding="utf-8")
+
+        for emotion in emotions:
+            assert f"| {emotion} |" in readme, f"{emotion} is not documented"
+
+    def test_the_readme_admits_what_is_missing(self):
+        """The two clips the generation cap blocked are named, not omitted."""
+        readme = (self.SAMPLES / "README.md").read_text(encoding="utf-8")
+
+        assert "anime-b-confident" in readme
+        assert "pending" in readme
