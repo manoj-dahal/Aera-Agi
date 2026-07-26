@@ -46,6 +46,8 @@ import type {
   Telemetry,
   VoiceLanguage,
   VoiceLanguages,
+  VoicePersona,
+  VoicePersonas,
   VoiceStatus,
   WorkflowInfo,
   WorkflowRun,
@@ -373,6 +375,22 @@ export const voice = {
     httpRequest<{ emotion: string; confidence: number }>('/voice/emotion', json({ text })),
 
   /** Every language with a real expression pack, and which one is active. */
+  /** The two bundled voices plus any the user has registered. */
+  personas: () => httpRequest<VoicePersonas>('/voice/personas'),
+
+  setPersona: (id: string) =>
+    httpRequest<VoicePersona>(`/voice/personas/${encodeURIComponent(id)}`, { method: 'POST' }),
+
+  /** Register a Piper .onnx model as a selectable voice. */
+  addVoice: (body: { label: string; model_path: string; variant?: string; notes?: string }) =>
+    httpRequest<VoicePersona>('/voice/voices', json(body)),
+
+  removeVoice: (id: string) =>
+    httpRequest<{ removed: string; active: string }>(
+      `/voice/voices/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    ),
+
   languages: () => httpRequest<VoiceLanguages>('/voice/languages'),
 
   /**

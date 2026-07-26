@@ -219,7 +219,7 @@ _EMOTION_SPEED: dict[Emotion, float] = {
 
 ANIME_GIRL = VoicePersona(
     id="anime-g",
-    label="Anime Girl",
+    label="Girl (voice)",
     description="Bright, light and expressive. Pairs with the anime-g avatar.",
     variant="feminine",
     # Above the ~200 Hz adult female average: anime delivery is pitched up.
@@ -237,7 +237,7 @@ ANIME_GIRL = VoicePersona(
 
 ANIME_BOY = VoicePersona(
     id="anime-b",
-    label="Anime Boy",
+    label="Boy (voice)",
     description="Warm, steady and youthful. Pairs with the anime-b avatar.",
     variant="masculine",
     # Above the ~120 Hz adult male average, and deliberately not so low that
@@ -267,7 +267,18 @@ NEUTRAL = VoicePersona(
     engine_hints={"piper": {"voice": "en_US-lessac-medium"}},
 )
 
-PERSONAS: dict[str, VoicePersona] = {p.id: p for p in (ANIME_GIRL, ANIME_BOY, NEUTRAL)}
+#: The voices a user chooses between. Exactly two, by decision rather than
+#: by accident: a list of three where the third is an unnamed "AERA" is not
+#: a choice anyone can make meaningfully, and the honest answer to "I want a
+#: different voice" is to let them supply one -- see aera/services/voices.py.
+PERSONAS: dict[str, VoicePersona] = {p.id: p for p in (ANIME_GIRL, ANIME_BOY)}
+
+#: Every persona the engine can resolve, including the internal fallback.
+#: NEUTRAL is deliberately absent from PERSONAS above -- it is what an
+#: unknown id resolves to, not something to offer in a picker.
+ALL_PERSONAS: dict[str, VoicePersona] = {
+    p.id: p for p in (ANIME_GIRL, ANIME_BOY, NEUTRAL)
+}
 
 #: Avatar variant -> persona, so selecting a model picks up its voice.
 BY_VARIANT: dict[str, VoicePersona] = {
@@ -279,10 +290,14 @@ BY_VARIANT: dict[str, VoicePersona] = {
 
 
 def get_persona(persona_id: str | None) -> VoicePersona:
-    """Look up a persona, falling back to the neutral voice."""
+    """Look up a persona, falling back to the neutral voice.
+
+    Resolves against ALL_PERSONAS rather than the two offered in a picker,
+    so an existing config naming "aera" keeps working.
+    """
     if not persona_id:
         return NEUTRAL
-    return PERSONAS.get(persona_id.strip().lower(), NEUTRAL)
+    return ALL_PERSONAS.get(persona_id.strip().lower(), NEUTRAL)
 
 
 def persona_for_variant(variant: str | None) -> VoicePersona:

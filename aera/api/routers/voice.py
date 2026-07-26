@@ -122,13 +122,29 @@ async def list_personas(kernel=Depends(get_kernel_dep)):
     backend = getattr(kernel.voice, "tts", None)
     active = backend.persona.id if isinstance(backend, PersonaTTS) else None
 
+    builtin = [
+        {**p.to_dict(), "custom": False, "synthesises_speech": False}
+        for p in PERSONAS.values()
+    ]
+    custom = [v.to_dict() for v in kernel.voices.all()]
+
     return ok(
         {
-            "personas": [p.to_dict() for p in PERSONAS.values()],
-            "active": active,
+            # Exactly two by default, plus whatever the user has added.
+            "personas": builtin + custom,
+            "builtin": [p["id"] for p in builtin],
+            "custom": [v["id"] for v in custom],
+            "active": active or kernel.config.voice.persona,
             "engine": getattr(backend, "name", "unknown"),
-            "synthesises_speech": False,
+            # True only when the active voice is a real model.
+            "synthesises_speech": any(
+                v["id"] == active and v["available"] for v in custom
+            ),
             "note": FORMANT_NOTE,
+            "add_your_own": (
+                "POST /voice/voices with a Piper .onnx model path. The two "
+                "bundled voices do not articulate words; a real model does."
+            ),
         }
     )
 
@@ -140,10 +156,19 @@ async def set_persona(persona_id: str, kernel=Depends(get_kernel_dep)):
     from ...voice.personas import PERSONAS
 
     key = persona_id.strip().lower()
-    if key not in PERSONAS:
+    custom = kernel.voices.get(key)
+    if key not in PERSONAS and custom is None:
         raise ValidationError(
-            f"unknown persona '{persona_id}'",
-            details={"available": sorted(PERSONAS)},
+            f"unknown voice '{persona_id}'",
+            details={
+                "builtin": sorted(PERSONAS),
+                "custom": [v.id for v in kernel.voices.all()],
+            },
+        )
+    if custom is not None and not custom.exists:
+        raise ValidationError(
+            f"the model file for '{key}' is missing",
+            details={"path": custom.model_path, "remedy": "restore it or remove the voice"},
         )
 
     persona = kernel.use_voice_persona(key)
@@ -444,3 +469,69 @@ async def emotion_timeline(payload: SpeakRequest, voice=Depends(get_voice)):
         timeline.to_dict(),
         f"{len(timeline.spans)} span(s), {timeline.changes} change(s)",
     )
+
+
+# --------------------------------------------------------------------------- #
+# custom voices
+# --------------------------------------------------------------------------- #
+@voice_router.get("/voices")
+async def list_custom_voices(kernel=Depends(get_kernel_dep)):
+    """Voices the user has added, beyond the two that ship."""
+    return ok(kernel.voices.to_dict())
+
+
+@voice_router.post("/voices")
+async def add_custom_voice(payload: dict, kernel=Depends(get_kernel_dep)):
+    """Register a Piper voice model so it appears in the settings picker.
+
+    Takes a path to an ``.onnx`` file with its ``.onnx.json`` beside it. The
+    model is validated now rather than at the first attempt to speak, so a
+    truncated download or a renamed audio file fails while the user is
+    looking at it.
+    """
+    from ...core.errors import ValidationError
+
+    path = (payload or {}).get("model_path")
+    label = (payload or {}).get("label")
+    if not path:
+        raise ValidationError("a 'model_path' is required")
+    if not label:
+        raise ValidationError("a 'label' is required, so the voice has a name to pick")
+
+    voice = kernel.voices.add(
+        label,
+        path,
+        config_path=payload.get("config_path"),
+        variant=payload.get("variant", "unspecified"),
+        notes=payload.get("notes", ""),
+    )
+    return ok(voice.to_dict(), f"Registered {voice.label}")
+
+
+@voice_router.post("/voices/inspect")
+async def inspect_voice_model(payload: dict):
+    """Check a model without registering it, so a picker can pre-validate."""
+    from ...core.errors import ValidationError
+    from ...services.voices import inspect_model
+
+    path = (payload or {}).get("model_path")
+    if not path:
+        raise ValidationError("a 'model_path' is required")
+
+    from pathlib import Path as _Path
+
+    return ok(inspect_model(_Path(path), payload.get("config_path")))
+
+
+@voice_router.delete("/voices/{voice_id}")
+async def remove_custom_voice(voice_id: str, kernel=Depends(get_kernel_dep)):
+    """Forget a voice. The model file on disk is left where it is."""
+    from ...core.errors import ValidationError
+
+    if not kernel.voices.remove(voice_id.strip().lower()):
+        raise ValidationError(f"no custom voice '{voice_id}'")
+
+    # Fall back to a bundled voice if the one being removed was in use.
+    if kernel.config.voice.persona == voice_id:
+        kernel.use_voice_persona("anime-g")
+    return ok({"removed": voice_id, "active": kernel.config.voice.persona})

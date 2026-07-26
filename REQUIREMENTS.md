@@ -46,6 +46,8 @@ test in `tests/test_requirements.py`.
 | R8 | Terminal-like default tools, with Git enabled by default | ✅ | `aera/skills/registry.py` |
 | R9 | The three-dot menu carries update options | ✅ | `interface/src/components/` |
 | R10 | Avatar variants are named `anime-g` and `anime-b` | ✅ | `aera/voice/personas.py` |
+| R13 | Exactly two default voices: Girl and Boy | ✅ | Was three; the unnamed "AERA" is now an internal fallback only |
+| R14 | The user can add their own voice | ✅ | `aera/services/voices.py` — Piper `.onnx`, validated at registration |
 | R11 | Voice must be multi-language | ✅ | 35 packs — §5 |
 | R12 | Voice must express the lyrics and rhythm of a song | ✅ | `aera/voice/music.py` — §6 |
 
@@ -136,6 +138,8 @@ The three that ship off do so because each can act outside the process:
 | Speech-to-text | 🟡 | Pipeline complete; the bundled backend accepts pre-transcribed text. No Whisper adapter yet |
 | Text-to-speech | 🟡 | Piper and system TTS supported. Without a model, a formant vocoder that does not articulate words |
 | Emotional expression | ✅ | 9 emotions, mood that persists and decays, per-emotion acoustics |
+| Voice selection | ✅ | Two bundled voices plus user-registered models, in Settings |
+| Voice cloning from a recording | ⬜ | Needs a training pipeline that is not bundled. A dropped MP3 is refused by name, not stored and ignored |
 | Emotion over time | ✅ | Per-clause spans with millisecond bounds and blend durations, scaled onto the audio length. A line that turns partway through no longer gets one flat expression |
 | Multi-language | ✅ | 35 language packs |
 | Lip-sync visemes | ✅ | 9 writing systems articulated, 7 timing-only |
@@ -153,8 +157,8 @@ The three that ship off do so because each can act outside the process:
 
 | Requirement | Value |
 |---|---|
-| REST operations | **133** |
-| Voice endpoints | **19** |
+| REST operations | **137** |
+| Voice endpoints | **22** |
 | Transport | HTTP plus a WebSocket gateway |
 | Response envelope | Consistent `{success, data, message}` |
 
@@ -259,7 +263,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **2,090 passing, 2 skipped** |
+| Python tests pass | all | **2,128 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |

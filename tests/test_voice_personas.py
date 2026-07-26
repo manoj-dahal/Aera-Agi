@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 from aera.api.app import create_app
 from aera.voice.engine import Emotion
 from aera.voice.personas import (
+    ALL_PERSONAS,
     ANIME_BOY,
     ANIME_GIRL,
     FORMANT_NOTE,
@@ -209,7 +210,10 @@ class TestVariantMapping:
         from aera.hologram.loader import AvatarVariant
 
         for variant in AvatarVariant:
-            assert persona_for_variant(variant.value) in PERSONAS.values()
+            # ALL_PERSONAS, not PERSONAS: an avatar with no declared variant
+            # maps to the neutral fallback, which is deliberately absent from
+            # the two offered in the picker.
+            assert persona_for_variant(variant.value) in ALL_PERSONAS.values()
 
 
 class TestEmotionResponse:
@@ -378,8 +382,10 @@ class TestVoiceApi:
         assert data["synthesises_speech"] is False
         assert data["note"] == FORMANT_NOTE
 
-    @pytest.mark.parametrize("persona_id", ["anime-g", "anime-b", "aera"])
+    @pytest.mark.parametrize("persona_id", ["anime-g", "anime-b"])
     def test_switching_voice(self, client, persona_id):
+        """Exactly two voices are offered. "aera" still resolves internally
+        as the fallback, but is no longer something a user picks."""
         response = client.post(f"/api/v1/voice/personas/{persona_id}")
 
         assert response.status_code == 200
@@ -390,14 +396,16 @@ class TestVoiceApi:
         response = client.post("/api/v1/voice/personas/nope")
 
         assert response.status_code == 400
-        assert "anime-g" in response.json()["details"]["available"]
+        # The error names the built-in voices and any the user has added,
+        # since either is a valid choice.
+        assert "anime-g" in response.json()["details"]["builtin"]
 
     def test_preview_does_not_change_the_active_voice(self, client):
-        client.post("/api/v1/voice/personas/aera")
+        client.post("/api/v1/voice/personas/anime-b")
 
         client.post("/api/v1/voice/preview?persona_id=anime-g")
 
-        assert client.get("/api/v1/voice/personas").json()["data"]["active"] == "aera"
+        assert client.get("/api/v1/voice/personas").json()["data"]["active"] == "anime-b"
 
     def test_preview_reports_pitch_and_timing(self, client):
         data = client.post(

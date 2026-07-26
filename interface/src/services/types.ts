@@ -378,6 +378,30 @@ export interface VoiceLanguage {
   rtl: boolean;
 }
 
+export interface VoicePersona {
+  id: string;
+  label: string;
+  variant: string;
+  /** False for the two bundled voices: they do not articulate words. */
+  synthesises_speech: boolean;
+  custom: boolean;
+  /** Custom voices only: whether the model file is still on disk. */
+  available?: boolean;
+  language?: string;
+  sample_rate?: number;
+}
+
+export interface VoicePersonas {
+  personas: VoicePersona[];
+  builtin: string[];
+  custom: string[];
+  active: string | null;
+  engine: string;
+  synthesises_speech: boolean;
+  note: string;
+  add_your_own: string;
+}
+
 export interface VoiceLanguages {
   languages: VoiceLanguage[];
   count: number;

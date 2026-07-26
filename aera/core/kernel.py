@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from pathlib import Path
 from typing import Any
 
 from ..agents import (
@@ -39,6 +40,7 @@ from ..services.docker import DockerClient
 from ..services.plugins import PluginRegistry
 from ..services.telemetry import TelemetryService
 from ..services.uploads import UploadStore
+from ..services.voices import VoiceLibrary
 from ..skills.engines import ContextEngine, LearningEngine, PlanningEngine, ReasoningEngine
 from ..skills.manager import SkillManager
 from ..voice.engine import VoiceEngine
@@ -75,6 +77,7 @@ class Kernel:
         )
         self.uploads = UploadStore(self.config.storage_dir / "uploads")
         self.plugins = PluginRegistry(self.config.storage_dir / "plugins")
+        self.voices = VoiceLibrary(self.config.storage_dir / "voices")
         # Background engines (docs: Agent Manager, Skill Manager, Reasoning,
         # Planning, Learning and Context Engines).
         self.skills: SkillManager | None = None
@@ -319,9 +322,22 @@ class Kernel:
         """
         from ..voice.personas import PersonaTTS, get_persona
 
-        persona = get_persona(persona_id)
+        # A user-registered voice is selected exactly like a built-in one.
+        custom = self.voices.get((persona_id or "").strip().lower())
+        persona = custom.to_persona() if custom else get_persona(persona_id)
+
         if isinstance(self.voice.tts, PersonaTTS):
             self.voice.tts.use(persona)
+        elif custom is not None:
+            # A Piper backend needs pointing at the new model, otherwise
+            # switching voice would change the label and nothing else.
+            model = custom.model_path
+            if hasattr(self.voice.tts, "model_path"):
+                self.voice.tts.model_path = Path(model)
+                self.voice.tts._voice = None  # force a reload on next use
+            self.config.voice.piper_model = model
+
+        self.config.voice.persona = persona.id
         return persona.to_dict()
 
     def use_avatar_voice(self, variant: str | None) -> dict[str, Any]:

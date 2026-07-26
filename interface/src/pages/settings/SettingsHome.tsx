@@ -24,7 +24,7 @@ import {
 import { models, system, voice } from '@services/api';
 import { detectHost } from '@services/transport';
 import { applyTheme, themes, type ThemeName } from '@design/themes';
-import type { ProviderHealth, VoiceLanguages } from '@services/types';
+import type { ProviderHealth, VoiceLanguages, VoicePersonas } from '@services/types';
 
 type Section = 'ai' | 'voice' | 'system';
 
@@ -57,6 +57,9 @@ export function SettingsHome() {
   const [secretValue, setSecretValue] = useState('');
   const [theme, setTheme] = useState<ThemeName>('dark');
   const [languages, setLanguages] = useState<VoiceLanguages | null>(null);
+  const [voices, setVoices] = useState<VoicePersonas | null>(null);
+  const [newVoiceLabel, setNewVoiceLabel] = useState('');
+  const [newVoicePath, setNewVoicePath] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const showToast = useToast((s) => s.show);
@@ -93,6 +96,11 @@ export function SettingsHome() {
     } catch {
       setLanguages(null);
     }
+    try {
+      setVoices(await voice.personas());
+    } catch {
+      setVoices(null);
+    }
   };
 
   useEffect(() => void load(), []);
@@ -106,6 +114,46 @@ export function SettingsHome() {
       void load();
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'could not save', 'error');
+    }
+  };
+
+  const changeVoice = async (id: string) => {
+    try {
+      const persona = await voice.setPersona(id);
+      setVoices((current) => (current ? { ...current, active: id } : current));
+      showToast(`Voice set to ${persona.label}`, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'could not switch voice', 'error');
+    }
+  };
+
+  const addVoice = async () => {
+    if (!newVoiceLabel.trim() || !newVoicePath.trim()) {
+      return showToast('A name and a model path are both required', 'error');
+    }
+    try {
+      const added = await voice.addVoice({
+        label: newVoiceLabel.trim(),
+        model_path: newVoicePath.trim(),
+      });
+      setNewVoiceLabel('');
+      setNewVoicePath('');
+      showToast(`Added ${added.label}`, 'success');
+      void load();
+    } catch (error) {
+      // The API validates the model and explains what is wrong with it;
+      // showing that verbatim is more use than a generic failure.
+      showToast(error instanceof Error ? error.message : 'could not add voice', 'error');
+    }
+  };
+
+  const removeVoice = async (id: string) => {
+    try {
+      await voice.removeVoice(id);
+      showToast('Voice removed', 'success');
+      void load();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'could not remove voice', 'error');
     }
   };
 
@@ -250,6 +298,67 @@ export function SettingsHome() {
 
       {section === 'voice' && (
         <div className="grid max-w-4xl gap-3 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
+          {voices && (
+            <Card title="Voice">
+              <Field label="Speaking voice">
+                <Select
+                  value={voices.active ?? voices.builtin[0]}
+                  onChange={(e) => void changeVoice(e.target.value)}
+                >
+                  {voices.personas.map((persona) => (
+                    <option
+                      key={persona.id}
+                      value={persona.id}
+                      disabled={persona.custom && persona.available === false}
+                    >
+                      {persona.label}
+                      {persona.custom && persona.available === false ? ' — model missing' : ''}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              {/* Stated rather than discovered from the audio: the two
+                  bundled voices carry pitch and timing but do not speak
+                  words. A registered model does. */}
+              <KeyValue
+                label="speech"
+                value={
+                  <span className="font-mono text-[11px]">
+                    {voices.synthesises_speech
+                      ? 'articulates words'
+                      : 'pitch and timing only — add a model for speech'}
+                  </span>
+                }
+              />
+
+              {voices.custom.map((id) => (
+                <div key={id} className="flex items-center justify-between gap-2 pt-1">
+                  <span className="font-mono text-[11px] text-[var(--aera-muted)]">{id}</span>
+                  <Button variant="ghost" onClick={() => void removeVoice(id)}>
+                    Remove
+                  </Button>
+                </div>
+              ))}
+
+              <Field label="Add a voice (Piper .onnx model)">
+                <Input
+                  placeholder="Name, e.g. Narrator"
+                  value={newVoiceLabel}
+                  onChange={(e) => setNewVoiceLabel(e.target.value)}
+                />
+              </Field>
+              <Field label="Model path">
+                <Input
+                  placeholder="~/voices/en_US-amy-medium.onnx"
+                  value={newVoicePath}
+                  onChange={(e) => setNewVoicePath(e.target.value)}
+                />
+              </Field>
+              <Button onClick={() => void addVoice()}>Add voice</Button>
+            </Card>
+          )}
+
           {languages && (
             <Card title={`Language (${languages.count})`}>
               <Field label="Spoken language">
