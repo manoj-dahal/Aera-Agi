@@ -51,6 +51,31 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"message":"hello"}' | grep -q '"success":true'
 
+  interface:
+    name: interface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: interface/package-lock.json
+
+      - name: Install
+        run: cd interface && npm ci
+
+      - name: Typecheck
+        run: cd interface && npm run typecheck
+
+      - name: Test
+        run: cd interface && npm test
+
+      # The interface is the only UI, so a broken build ships no app at all.
+      - name: Build
+        run: cd interface && npm run build
+
   docker:
     name: docker build
     runs-on: ubuntu-latest

@@ -36,9 +36,8 @@ like the packaged app.
 npm run build      # type-check, then emit to ../aera/desktop/ui-react/
 ```
 
-The desktop shell prefers that directory when it exists and falls back to the
-dependency-free UI in `aera/desktop/ui/` otherwise — so the app still runs if
-Node was never installed.
+Both the desktop shell and `aera serve` load that directory. It is the only
+UI, so the app will not start until it has been built once.
 
 ```bash
 npm run typecheck  # tsc --noEmit

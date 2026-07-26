@@ -8,17 +8,20 @@ fails only at build time. These tests catch that in CI instead.
 from __future__ import annotations
 
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 from PIL import Image
 
 from tools.brand.generate import (
+    ACCENT,
     ICON_SIZES,
     draw_mark,
     make_banner,
     make_favicon,
     make_icon,
     make_social,
+    make_svg,
     make_wordmark,
     write_ico,
 )
@@ -186,9 +189,10 @@ class TestGeneratedFilesExist:
     def test_readme_references_the_banner(self):
         assert "assets/brand/banner.png" in (REPO / "README.md").read_text()
 
-    def test_web_apps_reference_the_favicon(self):
-        for relative in ("interface/index.html", "aera/desktop/ui/index.html"):
-            assert "favicon.png" in (REPO / relative).read_text(), f"{relative} has no favicon"
+    def test_the_document_references_the_favicon(self):
+        """index.html is generated, so the favicon link lives in its source."""
+        document = (REPO / "interface" / "src" / "document.ts").read_text()
+        assert "favicon.png" in document, "the document shell has no favicon"
 
 
 class TestCli:
@@ -201,3 +205,89 @@ class TestCli:
         # Every declared size must be written.
         for size in ICON_SIZES:
             assert (tmp_path / "icons" / f"icon-{size}.png").is_file()
+
+
+class TestSvgMark:
+    """The plain HTML shells inline the mark as SVG rather than a raster."""
+
+    def test_is_well_formed_xml(self):
+        # A malformed inline SVG silently renders as nothing in a browser.
+        root = ElementTree.fromstring(make_svg(64))
+        assert root.tag.endswith("svg")
+
+    def test_scales_without_touching_the_viewbox(self):
+        """Geometry lives in the viewBox, so only width/height change."""
+        small = ElementTree.fromstring(make_svg(18))
+        large = ElementTree.fromstring(make_svg(256))
+        assert small.get("viewBox") == large.get("viewBox") == "0 0 100 100"
+        assert small.get("width") == "18"
+        assert large.get("width") == "256"
+
+    def test_uses_the_brand_cyan(self):
+        assert "#{:02X}{:02X}{:02X}".format(*ACCENT) in make_svg(64)
+
+    def test_drops_the_arcs_when_asked(self):
+        """Small avatars omit the arcs, exactly as the raster icons do."""
+        assert make_svg(64, arcs=True).count("<path") > make_svg(64, arcs=False).count("<path")
+
+    def test_has_an_accessible_label(self):
+        assert ElementTree.fromstring(make_svg(64)).get("aria-label") == "AERA"
+
+    def test_keeps_the_eye_and_pupil_at_every_size(self):
+        """Below the arc threshold the mark must still read as an eye."""
+        stripped = ElementTree.fromstring(make_svg(16, arcs=False))
+        circles = [c for c in stripped if c.tag.endswith("circle")]
+        # ring, iris, pupil
+        assert len(circles) == 3
+        assert any(c.get("fill") == "#FFFFFF" for c in circles), "pupil missing"
+
+
+class TestReactInterface:
+    """React is the only UI; the vanilla HTML/CSS/JS shells were removed.
+
+    They duplicated the interface and drifted from it -- the palette and the
+    logo each had to be changed in three places, and one copy was always
+    stale. These guard the properties those shells used to be checked for.
+    """
+
+    def test_the_vanilla_shells_are_gone(self):
+        for relative in ("aera/desktop/ui", "aera/web"):
+            assert not (REPO / relative).exists(), f"{relative} is back; React is the only UI"
+
+    def test_generated_files_are_not_tracked_as_source(self):
+        """index.html and globals.css are build artifacts now."""
+        ignore = (REPO / ".gitignore").read_text()
+        assert "interface/index.html" in ignore
+        assert "interface/src/styles/globals.css" in ignore
+
+    def test_accent_matches_the_mark(self):
+        colours = (REPO / "interface" / "src" / "design-system" / "colors.ts").read_text()
+        assert "#40E8F0" in colours, "accent drifted from the logo cyan"
+        assert "#4DA6FF" not in colours, "old blue accent still present"
+
+    def test_no_white_text_on_an_accent_fill(self):
+        """White on brand cyan is 1.5:1, so accent fills need the ink token."""
+        for relative in (
+            "interface/src/components/buttons/Button.tsx",
+            "interface/src/components/voice/ChatMessage.tsx",
+        ):
+            source = (REPO / relative).read_text()
+            for line in source.splitlines():
+                if "accent-primary" in line and "gradient" in line:
+                    assert "text-white" not in line, f"white on an accent fill in {relative}"
+
+    def test_the_mark_is_a_react_component(self):
+        """The logo was an inline SVG string duplicated across three shells."""
+        mark = REPO / "interface" / "src" / "components" / "brand" / "Mark.tsx"
+        assert mark.is_file(), "the mark component is missing"
+        source = mark.read_text()
+        assert "<svg" in source and "aria-label" in source
+
+    def test_the_mark_matches_the_generated_geometry(self):
+        """The component and the PNG generator must not drift apart."""
+        mark = (REPO / "interface" / "src" / "components" / "brand" / "Mark.tsx").read_text()
+        svg = make_svg(64)
+        # The eye vesica is the most distinctive path; if the geometry
+        # constants change on one side only, this catches it.
+        eye = svg[svg.index('<path d="M32.31 50') + len('<path d="') :].split('"')[0]
+        assert eye in mark, "the component's eye path differs from the generator"

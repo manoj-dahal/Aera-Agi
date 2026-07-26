@@ -12,7 +12,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .generate import generate_all
+from .generate import generate_all, make_svg
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,7 +26,20 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="copy icon.ico and icon.icns into installer/ for the packaged build",
     )
+    parser.add_argument(
+        "--emit-svg",
+        nargs="?",
+        type=int,
+        const=64,
+        metavar="PX",
+        help="print the mark as inline SVG (for the plain HTML shells) and exit",
+    )
     args = parser.parse_args(argv)
+
+    if args.emit_svg is not None:
+        # Arcs are illegible much below 48px, matching make_icon()'s ladder.
+        print(make_svg(args.emit_svg, arcs=args.emit_svg >= 48))
+        return 0
 
     out = Path(args.out)
     written = generate_all(out)

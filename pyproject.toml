@@ -50,8 +50,9 @@ aera-desktop = "aera.desktop:run_desktop"
 include = ["aera*"]
 
 [tool.setuptools.package-data]
-"aera.desktop" = ["ui/*.html", "ui/*.css", "ui/*.js"]
-"aera.web" = ["*.html", "*.css", "*.js"]
+# The interface is built by Vite into aera/desktop/ui-react and is not
+# tracked in git, so it is included only when present at build time.
+"aera.desktop" = ["ui-react/index.html", "ui-react/*.png", "ui-react/assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

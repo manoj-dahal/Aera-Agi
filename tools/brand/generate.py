@@ -367,6 +367,59 @@ def draw_mark(
     return canvas.resize((size, size), Image.Resampling.LANCZOS)
 
 
+def make_svg(size: int = 64, *, arcs: bool = True) -> str:
+    """The mark as a standalone SVG, for the plain HTML shells.
+
+    Those pages are served without a bundler, so an inline vector avoids both
+    a network round-trip and a raster that blurs on a HiDPI screen. It shares
+    the geometry constants above, so it cannot drift from the PNGs.
+    """
+    accent = "#{:02X}{:02X}{:02X}".format(*ACCENT)
+    # viewBox is a unit circle scaled to 100, so the constants read directly.
+    r = 100 * RING_R
+    stroke = r * STROKE
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" '
+        f'width="{size}" height="{size}" fill="none" '
+        f'stroke="{accent}" stroke-width="{stroke:.2f}" stroke-linecap="round" '
+        f'role="img" aria-label="AERA">',
+        f'<circle cx="50" cy="50" r="{r:.2f}" stroke-width="{r * RING_WIDTH:.2f}"/>',
+    ]
+
+    if arcs:
+        for factor, sweep in VERTICAL_ARCS:
+            for base in (270.0, 90.0):
+                parts.append(_svg_arc(r * factor, base - sweep, base + sweep))
+        for factor, sweep in HORIZONTAL_ARCS:
+            for base in (180.0, 360.0):
+                parts.append(_svg_arc(r * factor, base - sweep, base + sweep))
+
+    # Eye: two symmetric circular arcs meeting at the corners, matching the
+    # vesica the raster path builds.
+    half_w = r * EYE_HALF_W
+    half_h = r * EYE_HALF_H
+    radius = (half_w * half_w + half_h * half_h) / (2 * half_h)
+    parts.append(
+        f'<path d="M{50 - half_w:.2f} 50'
+        f'A{radius:.2f} {radius:.2f} 0 0 1 {50 + half_w:.2f} 50'
+        f'A{radius:.2f} {radius:.2f} 0 0 1 {50 - half_w:.2f} 50Z"/>'
+    )
+    parts.append(f'<circle cx="50" cy="50" r="{r * IRIS_R:.2f}"/>')
+    parts.append(f'<circle cx="50" cy="50" r="{r * PUPIL_R:.2f}" fill="#FFFFFF" stroke="none"/>')
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _svg_arc(radius: float, start: float, end: float) -> str:
+    """One arc of the signal pattern, as an SVG path."""
+    x1 = 50 + radius * math.cos(math.radians(start))
+    y1 = 50 + radius * math.sin(math.radians(start))
+    x2 = 50 + radius * math.cos(math.radians(end))
+    y2 = 50 + radius * math.sin(math.radians(end))
+    large = 1 if (end - start) % 360 > 180 else 0
+    return f'<path d="M{x1:.2f} {y1:.2f}A{radius:.2f} {radius:.2f} 0 {large} 1 {x2:.2f} {y2:.2f}"/>'
+
+
 def _font(size: int, *, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     """Best available sans-serif, falling back to Pillow's bitmap font."""
     candidates = [

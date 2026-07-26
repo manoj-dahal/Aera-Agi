@@ -38,7 +38,10 @@ from .routers import (
 
 logger = get_logger("api.app")
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+#: The built React interface, shared with the desktop shell. `aera serve`
+#: hands out the same bundle rather than a separate hand-written dashboard.
+WEB_DIR = Path(__file__).resolve().parent.parent / "desktop" / "ui-react"
+UI_BUILD_HINT = "cd interface && npm install && npm run build"
 
 DESCRIPTION = """
 **AERA** - Artificial Enhanced Reasoning Assistant.
@@ -138,16 +141,37 @@ def create_app(config: AeraConfig | None = None, *, kernel: Kernel | None = None
     app.include_router(system.router, prefix=prefix)
     app.include_router(websocket.router)
 
-    # -- dashboard ----------------------------------------------------------
+    # -- interface ----------------------------------------------------------
+    # The React build emits relative asset URLs ("./assets/..."), so serving
+    # index.html at / requires those resolving at /assets/... .
+    index = WEB_DIR / "index.html"
+    if (WEB_DIR / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=WEB_DIR / "assets"), name="assets")
+
     if WEB_DIR.is_dir():
+        # Favicons and any other root-level files the document references.
         app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
-        @app.get("/", include_in_schema=False)
-        async def dashboard():
-            index = WEB_DIR / "index.html"
-            if index.is_file():
-                return FileResponse(index)
-            return JSONResponse({"success": True, "message": "AERA API", "version": __version__})
+    @app.get("/", include_in_schema=False)
+    async def dashboard():
+        if index.is_file():
+            return FileResponse(index)
+        # A source checkout has no build yet; say so instead of 404ing.
+        return JSONResponse(
+            {
+                "success": True,
+                "message": "AERA API",
+                "version": __version__,
+                "interface": f"not built - run: {UI_BUILD_HINT}",
+            }
+        )
+
+    @app.get("/favicon.png", include_in_schema=False)
+    async def favicon():
+        icon = WEB_DIR / "favicon.png"
+        if icon.is_file():
+            return FileResponse(icon)
+        return JSONResponse({"success": False, "error": "not found"}, status_code=404)
 
     logger.debug("application created with prefix %s", prefix)
     return app

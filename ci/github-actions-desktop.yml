@@ -34,6 +34,22 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      # The interface is the only UI, so it must be built before PyInstaller
+      # runs: installer/aera.spec fails fast if the bundle is missing.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: interface/package-lock.json
+
+      - name: Build interface
+        run: |
+          cd interface
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
       # pywebview needs the platform webview runtime. Windows ships WebView2
       # and macOS ships WebKit; Linux needs GTK + WebKit2GTK installed.
       - name: Install Linux GUI dependencies
@@ -83,7 +99,8 @@ jobs:
             Windows) ROOT="dist/AERA/_internal" ;;
             *)       ROOT="dist/AERA/_internal" ;;
           esac
-          test -f "$ROOT/aera/desktop/ui/index.html" || (echo "UI assets missing from the bundle" && exit 1)
+          test -f "$ROOT/aera/desktop/ui-react/index.html" || (echo "interface missing from the bundle" && exit 1)
+          test -d "$ROOT/aera/desktop/ui-react/assets" || (echo "interface assets missing from the bundle" && exit 1)
           test -d "$ROOT/config" || (echo "config missing from the bundle" && exit 1)
           echo "bundle contents verified"
 

@@ -266,8 +266,15 @@ plugin management lives in Apps. Where a capability genuinely does not exist
 (Docker's API client, media download, device pairing) the page says so at the
 point of use rather than offering a control that fails silently.
 
-If Node is never installed, the app falls back to a dependency-free UI in
-`aera/desktop/ui/` — so `aera` always launches.
+React is the only UI. There was once a dependency-free HTML/CSS/JS fallback
+in `aera/desktop/ui/` and a second hand-written dashboard in `aera/web/`, but
+three copies of the same screens drifted apart — a palette or logo change had
+to be made in three places and one was always stale. Both are gone; `aera` and
+`aera serve` load the same built bundle, so the interface must be built first:
+
+```bash
+cd interface && npm install && npm run build
+```
 
 ---
 
@@ -413,15 +420,16 @@ aera/
 ├── hologram/     avatar state machine
 ├── security/     vault, permissions, audit
 ├── api/          FastAPI app, routers, middleware
-├── desktop/      native window, JS bridge, preferences, fallback UI
-└── web/          browser dashboard for `aera serve`
+└── desktop/      native window, JS bridge, preferences, built UI
 
-interface/        React + TypeScript front end
+interface/        React + TypeScript front end — the only UI
+├── src/document.ts   the HTML shell; index.html is generated from it
 ├── src/pages/        one directory per feature area
 ├── src/components/   shared UI primitives
-├── src/design-system/ colours, typography, spacing, themes
+├── src/design-system/ colours, typography, spacing, themes, global CSS
 ├── src/store/        Zustand state
-└── src/services/     typed client and host-agnostic transport
+├── src/services/     typed client and host-agnostic transport
+└── vite-plugins/     generates index.html and globals.css at build time
 
 assets/brand/     generated banner, icons and social card
 installer/        PyInstaller spec and frozen entrypoint

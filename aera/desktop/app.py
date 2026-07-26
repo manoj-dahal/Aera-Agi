@@ -23,18 +23,28 @@ from .settings import DesktopSettings, app_data_dir
 
 logger = get_logger("desktop.app")
 
-#: Fallback UI: dependency-free HTML/CSS/JS, always present.
-UI_DIR = Path(__file__).resolve().parent / "ui"
-#: Built React interface (`cd interface && npm run build`), preferred when present.
+#: Built React interface. The only UI: there is no hand-written fallback.
 UI_REACT_DIR = Path(__file__).resolve().parent / "ui-react"
 
+#: Shown when the interface has not been built yet.
+BUILD_HINT = "cd interface && npm install && npm run build"
 
-def resolve_ui() -> tuple[Path, str]:
-    """Return the UI entry point to load and a label for logging."""
-    react_index = UI_REACT_DIR / "index.html"
-    if react_index.is_file():
-        return react_index, "react"
-    return UI_DIR / "index.html", "builtin"
+
+def resolve_ui() -> Path:
+    """Return the UI entry point.
+
+    The interface is a build artifact, so a source checkout has none until it
+    is built. Raising here with the exact command beats loading a blank
+    window and leaving the user to guess.
+    """
+    index = UI_REACT_DIR / "index.html"
+    if not index.is_file():
+        raise FileNotFoundError(
+            f"the AERA interface has not been built yet.\n"
+            f"  expected: {index}\n"
+            f"  build it: {BUILD_HINT}"
+        )
+    return index
 
 
 class DesktopApp:
@@ -222,12 +232,13 @@ class DesktopApp:
             file=self.config.logging.file,
         )
 
-        index, ui_kind = resolve_ui()
-        if not index.is_file():
-            print(f"error: desktop UI assets are missing at {index}", file=sys.stderr)
+        try:
+            index = resolve_ui()
+        except FileNotFoundError as exc:
+            print(f"error: {exc}", file=sys.stderr)
             return 1
 
-        logger.info("starting the AERA desktop application (%s UI)", ui_kind)
+        logger.info("starting the AERA desktop application")
         self.start_kernel()
 
         self.window = webview.create_window(

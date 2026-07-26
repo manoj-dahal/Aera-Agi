@@ -1,63 +1,60 @@
-@import 'tailwindcss';
-
 /**
- * AERA global styles.
+ * Global stylesheet, authored in TypeScript.
  *
- * Theme colours are CSS custom properties written by design-system/themes.ts,
- * so switching themes at runtime needs no re-render.
+ * This used to be a hand-maintained `styles/globals.css` whose `:root` block
+ * restated every theme colour, so a token could drift from `themes.ts`
+ * without anything failing. Here the custom properties are derived from the
+ * theme objects themselves, which makes that class of drift impossible.
+ *
+ * `vite-plugins/aera-document.ts` writes the result to `src/styles/globals.css`
+ * before Tailwind scans it; the emitted file is a build artifact, not source.
  */
 
-@theme {
-  --color-bg-base: #07090f;
-  --color-bg-raised: #0b0f17;
-  --color-bg-surface: #111725;
-  --color-bg-overlay: #1a2233;
-  --color-bg-hover: #202a3e;
+import { darkTheme, cssVarName } from './themes';
+import { palette } from './colors';
 
-  --color-line-subtle: #1a2233;
-  --color-line-default: #202a3e;
-  --color-line-strong: #2c3a56;
-
-  --color-text-primary: #e9eef8;
-  --color-text-secondary: #b4c0d6;
-  --color-text-muted: #8494b2;
-  --color-text-disabled: #5a6884;
-
-  --color-accent: #40e8f0;
-  --color-accent-2: #1e9bd4;
-
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
-
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+/** Tailwind v4 reads its design tokens from an `@theme` block. */
+function themeBlock(): string {
+  const entries: [string, string][] = [
+    ['--color-bg-base', palette.bg.base],
+    ['--color-bg-raised', palette.bg.raised],
+    ['--color-bg-surface', palette.bg.surface],
+    ['--color-bg-overlay', palette.bg.overlay],
+    ['--color-bg-hover', palette.bg.hover],
+    ['--color-line-subtle', palette.line.subtle],
+    ['--color-line-default', palette.line.default],
+    ['--color-line-strong', palette.line.strong],
+    ['--color-text-primary', palette.text.primary],
+    ['--color-text-secondary', palette.text.secondary],
+    ['--color-text-muted', palette.text.muted],
+    ['--color-text-disabled', palette.text.disabled],
+    ['--color-accent', palette.accent.primary],
+    ['--color-accent-2', palette.accent.secondary],
+    ['--color-success', palette.status.success],
+    ['--color-warning', palette.status.warning],
+    ['--color-danger', palette.status.danger],
+    ['--font-sans', "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif"],
+    ['--font-mono', "ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace"],
+  ];
+  return `@theme {\n${entries.map(([k, v]) => `  ${k}: ${v};`).join('\n')}\n}`;
 }
 
-:root {
-  /* Defaults; applyTheme() overwrites these at runtime. */
-  --aera-bg-base: #07090f;
-  --aera-bg-raised: #0b0f17;
-  --aera-bg-surface: #111725;
-  --aera-bg-overlay: #1a2233;
-  --aera-bg-hover: #202a3e;
-  --aera-line-subtle: #1a2233;
-  --aera-line-default: #202a3e;
-  --aera-line-strong: #2c3a56;
-  --aera-text-primary: #e9eef8;
-  --aera-text-secondary: #b4c0d6;
-  --aera-text-muted: #8494b2;
-  --aera-text-disabled: #5a6884;
-  --aera-accent-primary: #40e8f0;
-  --aera-accent-secondary: #1e9bd4;
-  /* Ink for text sitting on an accent fill. Brand cyan is light:
-     white on it is 1.5:1, dark ink is 13.3:1. */
-  --aera-accent-ink: #04121a;
-  --aera-success: #34d399;
-  --aera-warning: #fbbf24;
-  --aera-danger: #f87171;
+/**
+ * Boot defaults for the runtime custom properties.
+ *
+ * `applyTheme()` overwrites these on mount, but they must exist beforehand or
+ * the first paint is unstyled. Generated from the dark theme so the two can
+ * never disagree.
+ */
+function rootBlock(): string {
+  const lines = Object.entries(darkTheme.colors).map(
+    ([key, value]) => `  ${cssVarName(key)}: ${value};`,
+  );
+  return `:root {\n  /* Written from darkTheme; applyTheme() overwrites at runtime. */\n${lines.join('\n')}\n}`;
 }
 
+/** Element resets, host-conditional affordances, scrollbars and animation. */
+const BASE = `
 * {
   box-sizing: border-box;
   margin: 0;
@@ -190,11 +187,12 @@ select {
     box-shadow: 0 0 26px color-mix(in srgb, var(--aera-accent-primary) 55%, transparent);
   }
 }
-
 @keyframes aera-breathe {
   to {
     transform: scale(1.22);
-    box-shadow: 0 0 38px rgba(124, 92, 255, 0.8);
+    /* Follows the accent rather than a hard-coded colour, which is how this
+       kept its old violet glow after the palette moved to cyan. */
+    box-shadow: 0 0 38px color-mix(in srgb, var(--aera-accent-primary) 80%, transparent);
   }
 }
 
@@ -238,4 +236,20 @@ select {
 .surface {
   background: var(--aera-bg-surface);
   border: 1px solid var(--aera-line-default);
+}
+`;
+
+/** The complete stylesheet, ready to be written next to the entry module. */
+export function renderGlobalStyles(): string {
+  return [
+    '/* Generated by vite-plugins/aera-document.ts from',
+    ' * src/design-system/globalStyles.ts. Do not edit: your changes will be',
+    ' * overwritten on the next build. */',
+    "@import 'tailwindcss';",
+    '',
+    themeBlock(),
+    '',
+    rootBlock(),
+    BASE,
+  ].join('\n');
 }

@@ -7,6 +7,7 @@ import {
   Phone,
   Settings,
 } from 'lucide-react';
+import { Mark } from '@components/brand/Mark';
 import { cn } from '@utils/cn';
 
 /**
@@ -81,9 +82,12 @@ export function TopNav() {
     <header className="flex shrink-0 items-center gap-4 px-4 py-2.5">
       <NavLink
         to="/dashboard"
-        className="rounded-[9px] border border-[var(--aera-line-strong)] bg-[var(--aera-bg-surface)] px-3.5 py-[7px] text-[13px] font-semibold tracking-[0.06em]"
+        className="flex items-center gap-2 rounded-[9px] border border-[var(--aera-line-strong)] bg-[var(--aera-bg-surface)] px-3 py-[6px] text-[13px] font-semibold tracking-[0.06em]"
       >
-        <span className="text-gradient">AERA</span> Agent
+        <Mark size={18} glow />
+        <span>
+          <span className="text-gradient">AERA</span> Agent
+        </span>
       </NavLink>
 
       <div className="flex flex-1 items-center justify-center gap-8">

@@ -15,6 +15,21 @@ COPY requirements.txt .
 RUN pip wheel --wheel-dir /wheels -r requirements.txt
 
 # --------------------------------------------------------------------------- #
+# The React interface is the only UI, and it is not tracked in git, so the
+# image has to build it rather than copy it.
+FROM node:22-slim AS interface
+
+# Mirror the repository layout: vite.config.ts writes the bundle to
+# ../aera/desktop/ui-react, which only lands correctly if interface/ sits
+# one level below the project root.
+WORKDIR /src/interface
+COPY interface/package.json interface/package-lock.json ./
+RUN npm ci
+
+COPY interface/ ./
+RUN npm run build
+
+# --------------------------------------------------------------------------- #
 FROM python:3.11-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
@@ -41,6 +56,8 @@ RUN pip install --no-index --find-links=/wheels -r requirements.txt && rm -rf /w
 COPY aera/ ./aera/
 COPY config/ ./config/
 COPY pyproject.toml README.md ./
+# vite build writes to ../aera/desktop/ui-react, so take it from that stage.
+COPY --from=interface /src/aera/desktop/ui-react/ ./aera/desktop/ui-react/
 RUN pip install --no-deps -e .
 
 # Runtime state lives on a volume, owned by the unprivileged user.

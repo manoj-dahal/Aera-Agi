@@ -112,7 +112,7 @@ export const themes = {
 export type ThemeName = keyof typeof themes;
 
 /** camelCase token -> CSS custom property name. */
-function cssVarName(key: string): string {
+export function cssVarName(key: string): string {
   return `--aera-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
 }
 

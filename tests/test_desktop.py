@@ -282,25 +282,40 @@ class TestBridgeResilience:
         assert bridge.chat("hello")["success"] is False
 
 
-class TestUIAssets:
-    """The packaged app loads these from disk; a missing file is a broken build."""
+class TestUIResolution:
+    """The interface is a build artifact, so a source checkout may not have it.
 
-    @pytest.mark.parametrize("name", ["index.html", "style.css", "app.js"])
-    def test_asset_present(self, name):
-        from aera.desktop.app import UI_DIR
+    These cover the contract around that: resolve_ui() must point at the
+    built bundle when it exists and fail with the build command when it does
+    not, rather than opening a blank window.
+    """
 
-        assert (UI_DIR / name).is_file(), f"missing desktop asset: {name}"
+    def test_resolves_the_built_interface(self, tmp_path, monkeypatch):
+        from aera.desktop import app as desktop_app
 
-    def test_html_references_local_assets_only(self):
-        from aera.desktop.app import UI_DIR
+        ui = tmp_path / "ui-react"
+        ui.mkdir()
+        (ui / "index.html").write_text("<!DOCTYPE html>")
+        monkeypatch.setattr(desktop_app, "UI_REACT_DIR", ui)
 
-        html = (UI_DIR / "index.html").read_text()
-        # A desktop app must not depend on a network round trip to render.
-        assert "http://" not in html and "https://" not in html
+        assert desktop_app.resolve_ui() == ui / "index.html"
 
-    def test_js_uses_the_native_bridge(self):
-        from aera.desktop.app import UI_DIR
+    def test_raises_with_the_build_command_when_missing(self, tmp_path, monkeypatch):
+        from aera.desktop import app as desktop_app
 
-        js = (UI_DIR / "app.js").read_text()
-        assert "pywebview.api" in js
-        assert "fetch(" not in js, "desktop UI must not use HTTP"
+        monkeypatch.setattr(desktop_app, "UI_REACT_DIR", tmp_path / "absent")
+
+        with pytest.raises(FileNotFoundError) as excinfo:
+            desktop_app.resolve_ui()
+        # The message has to be actionable, not just "missing".
+        assert "npm run build" in str(excinfo.value)
+
+    def test_there_is_no_hand_written_fallback_ui(self):
+        """The vanilla HTML/CSS/JS shells were removed in favour of React.
+
+        They duplicated the interface and drifted from it: the palette and
+        the logo had to be updated in three places.
+        """
+        root = Path(__file__).resolve().parent.parent
+        assert not (root / "aera" / "desktop" / "ui").exists(), "the fallback shell is back"
+        assert not (root / "aera" / "web").exists(), "the vanilla web shell is back"

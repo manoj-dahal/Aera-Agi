@@ -2,7 +2,7 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { AppRoutes } from '@/routes/AppRoutes';
-import { AvatarOrb } from '@components/hologram/AvatarOrb';
+import { Mark } from '@components/brand/Mark';
 import { applyTheme } from '@design/themes';
 import { system } from '@services/api';
 import { whenReady } from '@services/transport';
@@ -55,7 +55,7 @@ function Boot() {
   if (!ready) {
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4 bg-[radial-gradient(circle_at_50%_45%,#101827,var(--aera-bg-base)_70%)]">
-        <AvatarOrb size={58} speaking />
+        <Mark size={72} glow className="animate-pulse-slow" />
         <h1 className="text-[20px] font-semibold tracking-[0.3em]">AERA</h1>
         <p className="text-[12.5px] text-[var(--aera-text-muted)]">{message}</p>
       </div>

@@ -15,9 +15,17 @@ ROOT = Path(SPECPATH).resolve().parent
 IS_WINDOWS = sys.platform == "win32"
 IS_MACOS = sys.platform == "darwin"
 
-# The UI is loaded from disk at runtime, so the assets must ship with the app.
+# The UI is loaded from disk at runtime, so the built interface must ship
+# with the app. Build it first: cd interface && npm install && npm run build
+UI_DIR = ROOT / "aera" / "desktop" / "ui-react"
+if not (UI_DIR / "index.html").is_file():
+    raise SystemExit(
+        f"the interface has not been built: {UI_DIR / 'index.html'} is missing.\n"
+        "run: cd interface && npm install && npm run build"
+    )
+
 datas = [
-    (str(ROOT / "aera" / "desktop" / "ui"), "aera/desktop/ui"),
+    (str(UI_DIR), "aera/desktop/ui-react"),
     (str(ROOT / "config"), "config"),
 ]
 
