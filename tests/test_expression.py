@@ -417,3 +417,165 @@ class TestPunctuationAndEmoji:
 
     def test_a_real_question_mark_still_reads_as_curious(self):
         assert ExpressionAnalyser().analyse("what now?").emotion is Emotion.CURIOUS
+
+
+class TestEmotionTimeline:
+    """Emotion over time, not one label for a whole line.
+
+    ``analyse`` collapses an utterance to its winner. That is right for a
+    single statement and wrong for anything that turns partway through:
+    "It failed. But I fixed it!" is sad and then happy, and the avatar was
+    handed only "happy" -- so the failure never showed on its face.
+    """
+
+    TURNING = "It failed completely. But I fixed it and everything works now!"
+
+    def test_a_turning_line_produces_two_spans(self):
+        timeline = ExpressionAnalyser().timeline(self.TURNING)
+
+        assert len(timeline.spans) == 2
+        assert timeline.spans[0].emotion is Emotion.SAD
+        assert timeline.spans[1].emotion is Emotion.HAPPY
+
+    def test_a_single_statement_stays_one_span(self):
+        """No pointless expression changes on a line that does not turn."""
+        timeline = ExpressionAnalyser().timeline("The deployment failed.")
+
+        assert len(timeline.spans) == 1
+        assert timeline.changes == 0
+
+    def test_spans_are_contiguous(self):
+        """A gap would leave the face with no instruction for that moment."""
+        spans = ExpressionAnalyser().timeline(self.TURNING).spans
+
+        for earlier, later in zip(spans, spans[1:], strict=False):
+            assert earlier.end_ms == pytest.approx(later.start_ms, abs=0.2)
+
+    def test_the_first_span_starts_at_zero(self):
+        assert ExpressionAnalyser().timeline(self.TURNING).spans[0].start_ms == 0.0
+
+    def test_a_change_carries_a_blend(self):
+        """Faces do not snap between expressions; roughly 200 ms is a real
+        voluntary transition."""
+        spans = ExpressionAnalyser().timeline(self.TURNING).spans
+
+        assert spans[0].blend_ms == 0.0, "the first span eases in from rest"
+        assert spans[1].blend_ms > 0
+
+    def test_a_blend_never_outlasts_its_span(self):
+        """Otherwise the ease-in is still running when the expression ends."""
+        for span in ExpressionAnalyser().timeline("Yes! No. Maybe? Fine.").spans:
+            assert span.blend_ms <= span.duration_ms
+
+    def test_the_turn_is_found_inside_a_sentence(self):
+        """The emotional change usually sits at "but", not at a full stop."""
+        timeline = ExpressionAnalyser().timeline(
+            "Great news! Although there is a critical security problem."
+        )
+
+        assert timeline.changes == 1
+        assert timeline.spans[-1].emotion is Emotion.SERIOUS
+
+    def test_adjacent_matching_spans_are_merged(self):
+        """Four neutral clauses are one expression, not four identical spans
+        and three pointless blend events."""
+        timeline = ExpressionAnalyser().timeline(
+            "The file is here; the folder is there; the path is set."
+        )
+
+        emotions = [s.emotion for s in timeline.spans]
+        assert emotions == list(dict.fromkeys(emotions)), "adjacent duplicates remain"
+
+    def test_dominant_is_weighted_by_time(self):
+        """A long sad clause should not be outvoted by short neutral ones."""
+        timeline = ExpressionAnalyser().timeline(self.TURNING)
+        longest = max(timeline.spans, key=lambda s: s.duration_ms)
+
+        assert timeline.dominant is longest.emotion
+
+    def test_at_finds_the_span_covering_a_moment(self):
+        """This is what a frame-by-frame renderer calls."""
+        timeline = ExpressionAnalyser().timeline(self.TURNING)
+        first, second = timeline.spans
+
+        assert timeline.at(first.start_ms + 1).emotion is first.emotion
+        assert timeline.at(second.start_ms + 1).emotion is second.emotion
+
+    def test_at_past_the_end_holds_the_last_expression(self):
+        """Better than dropping to neutral the instant audio stops."""
+        timeline = ExpressionAnalyser().timeline(self.TURNING)
+
+        assert timeline.at(timeline.duration_ms + 5000) is timeline.spans[-1]
+
+    def test_it_scales_onto_the_real_audio_length(self):
+        """The splitter drops connectives, so summed clause prosody lands
+        short of the whole line -- 5,013 ms against 4,750 ms on one measured
+        example. Unscaled, the face drifts against the mouth."""
+        timeline = ExpressionAnalyser().timeline(self.TURNING, total_ms=3000.0)
+
+        assert timeline.duration_ms == pytest.approx(3000.0, abs=1.0)
+        assert timeline.spans[-1].end_ms == pytest.approx(3000.0, abs=1.0)
+
+    def test_empty_input(self):
+        assert ExpressionAnalyser().timeline("").spans == []
+        assert ExpressionAnalyser().timeline("   ").duration_ms == 0.0
+
+    def test_a_tiny_clause_does_not_flicker(self):
+        """"Yes, but no" must not become a three-frame expression stutter."""
+        assert len(ExpressionAnalyser().timeline("Yes, but no.").spans) <= 2
+
+    def test_the_mood_moves_once_for_the_whole_line(self):
+        """Six clauses must not shift the standing baseline six times as far
+        as one clause saying the same thing."""
+        long_line = ExpressionAnalyser()
+        short_line = ExpressionAnalyser()
+
+        long_line.timeline("It failed; it failed; it failed; it failed.")
+        short_line.timeline("It failed.")
+
+        assert long_line.mood.valence == pytest.approx(short_line.mood.valence, abs=0.05)
+
+    def test_negation_survives_the_clause_split(self):
+        """Splitting exposed that "safe" was never a cue word, so "not safe"
+        had nothing to negate and scored neutral. It only ever read as
+        concerned because "warning" sat in the same sentence."""
+        assert ExpressionAnalyser().analyse("it is not safe").emotion is Emotion.CONCERNED
+        assert ExpressionAnalyser().analyse("safe").emotion is Emotion.CALM
+
+
+class TestTimelineApi:
+    @pytest.fixture
+    def client(self, config):
+        from fastapi.testclient import TestClient
+
+        from aera.api.app import create_app
+
+        with TestClient(create_app(config)) as c:
+            yield c
+
+    def test_the_endpoint_returns_spans(self, client):
+        data = client.post(
+            "/api/v1/voice/timeline",
+            json={"text": "It failed. But I fixed it and everything works now!"},
+        ).json()["data"]
+
+        assert len(data["spans"]) == 2
+        assert data["changes"] == 1
+
+    def test_speaking_includes_the_timeline(self, client):
+        data = client.post(
+            "/api/v1/voice/speak",
+            json={"text": "It failed. But I fixed it and everything works now!"},
+        ).json()["data"]
+
+        assert [s["emotion"] for s in data["emotion_timeline"]] == ["sad", "happy"]
+
+    def test_the_timeline_matches_the_audio_length(self, client):
+        """If these disagree the face and the mouth drift apart."""
+        data = client.post(
+            "/api/v1/voice/speak", json={"text": "It failed. But I fixed it!"}
+        ).json()["data"]
+
+        assert data["emotion_timeline"][-1]["end_ms"] == pytest.approx(
+            data["duration_ms"], abs=1.0
+        )

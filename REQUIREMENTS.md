@@ -136,6 +136,7 @@ The three that ship off do so because each can act outside the process:
 | Speech-to-text | 🟡 | Pipeline complete; the bundled backend accepts pre-transcribed text. No Whisper adapter yet |
 | Text-to-speech | 🟡 | Piper and system TTS supported. Without a model, a formant vocoder that does not articulate words |
 | Emotional expression | ✅ | 9 emotions, mood that persists and decays, per-emotion acoustics |
+| Emotion over time | ✅ | Per-clause spans with millisecond bounds and blend durations, scaled onto the audio length. A line that turns partway through no longer gets one flat expression |
 | Multi-language | ✅ | 35 language packs |
 | Lip-sync visemes | ✅ | 9 writing systems articulated, 7 timing-only |
 | Singing | ✅ | Note plan from lyrics; not audio |
@@ -152,8 +153,8 @@ The three that ship off do so because each can act outside the process:
 
 | Requirement | Value |
 |---|---|
-| REST operations | **132** |
-| Voice endpoints | **18** |
+| REST operations | **133** |
+| Voice endpoints | **19** |
 | Transport | HTTP plus a WebSocket gateway |
 | Response envelope | Consistent `{success, data, message}` |
 
@@ -258,7 +259,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **2,071 passing, 2 skipped** |
+| Python tests pass | all | **2,090 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |

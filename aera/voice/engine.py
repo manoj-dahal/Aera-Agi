@@ -78,6 +78,10 @@ class SpeechResult(BaseModel):
     intensity: float = 0.5
     #: The speaker's emotional baseline when this was said.
     mood: dict[str, Any] = Field(default_factory=dict)
+    #: Emotion over time, one span per clause with millisecond bounds. The
+    #: single ``emotion`` field above is the dominant one; a line that turns
+    #: partway through ("It failed. But I fixed it!") needs both.
+    emotion_timeline: list[dict[str, Any]] = Field(default_factory=list)
     audio_path: str | None = None
     engine: str = "builtin"
 
@@ -365,6 +369,15 @@ class VoiceEngine:
         result.intensity = round(intensity, 3)
         result.mood = self.expression.mood.to_dict()
 
+        # Emotion over time, so the avatar can change expression mid-line
+        # instead of holding the winner for the whole utterance.
+        # Scaled onto the real audio length so the expression track and the
+        # mouth stay in step.
+        timeline = self.expression.timeline(
+            text, language=language, total_ms=result.duration_ms
+        )
+        result.emotion_timeline = [span.to_dict() for span in timeline.spans]
+
         self.history.append({"role": "assistant", "text": text, "at": time.time()})
         self.state = VoiceState.IDLE
 
@@ -387,6 +400,9 @@ class VoiceEngine:
                         "intensity": round(intensity, 2),
                         "confidence": round(confidence, 2),
                         "mood": self.expression.mood.to_dict(),
+                        # The avatar drives its face from this, not from the
+                        # single label above.
+                        "emotion_timeline": result.emotion_timeline,
                         "visemes": result.visemes[:120],
                         "prosody": result.prosody[:120],
                         "duration_ms": result.duration_ms,

@@ -65,7 +65,14 @@ ENGLISH = LanguagePack(
             "guaranteed", "of course", "no problem",
         ),
         Emotion.CURIOUS: ("interesting", "wonder", "curious", "how come", "what if"),
-        Emotion.CALM: ("steady", "stable", "fine", "alright", "no rush", "all good", "take your time"),
+        # "safe" belongs here so that "not safe" has something to negate.
+        # Without it the phrase scored neutral, and "Warning: it is not safe"
+        # only read as concerned because "warning" happened to sit in the
+        # same sentence -- split the clause apart and the meaning vanished.
+        Emotion.CALM: (
+            "steady", "stable", "fine", "alright", "no rush", "all good",
+            "take your time", "safe", "secure", "healthy",
+        ),
         Emotion.CONCERNED: (
             "warning", "careful", "risk", "danger", "caution", "unstable",
             "deprecated", "breaking", "watch out", "might fail",

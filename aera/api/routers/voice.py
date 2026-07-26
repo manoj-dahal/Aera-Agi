@@ -425,3 +425,22 @@ async def sing_lyrics(payload: SingRequest, voice=Depends(get_voice)):
         },
         f"{sum(len(p.notes) for p in phrases)} notes over {len(phrases)} phrases",
     )
+
+
+@voice_router.post("/timeline")
+async def emotion_timeline(payload: SpeakRequest, voice=Depends(get_voice)):
+    """Emotion over the course of a line, with millisecond bounds.
+
+    ``/voice/analyse`` returns one label for the whole utterance. That is
+    right for a single statement and wrong for anything that turns partway
+    through: "It failed. But I fixed it!" is sad and then happy, and an
+    avatar handed only the winner performs neither.
+
+    Each span carries a ``blend_ms`` -- how long to ease in from the previous
+    expression. Faces do not snap.
+    """
+    timeline = voice.expression.timeline(payload.text)
+    return ok(
+        timeline.to_dict(),
+        f"{len(timeline.spans)} span(s), {timeline.changes} change(s)",
+    )

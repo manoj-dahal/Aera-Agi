@@ -205,6 +205,105 @@ class Mood:
         self.updated_at = time.time()
 
 
+#: How long a face takes to move from one expression to another. Real facial
+#: transitions are not instant -- roughly 150-250 ms for a voluntary change --
+#: and snapping between two emotions on a frame boundary is the single most
+#: obvious tell that an avatar is driven by a state machine.
+TRANSITION_MS = 200.0
+
+
+@dataclass
+class EmotionSpan:
+    """One stretch of an utterance with its own emotion.
+
+    ``analyse`` returns a single label for a whole line, which is right for
+    "the deployment failed" and wrong for "It failed. But I fixed it!" --
+    that is sad and then happy, and a face that holds one expression across
+    both is not performing the sentence, it is captioning it.
+
+    A span carries millisecond bounds so the avatar can be driven directly:
+    hold this expression from here to here, and start blending toward the
+    next one ``blend_ms`` before it arrives.
+    """
+
+    emotion: Emotion
+    start_ms: float
+    duration_ms: float
+    #: 0..1, how forcefully to perform this stretch.
+    intensity: float
+    confidence: float
+    #: The text this span covers, for display and debugging.
+    text: str = ""
+    #: Cues that produced this emotion.
+    reasons: list[str] = field(default_factory=list)
+    #: How long to spend easing in from the previous span. Zero for the
+    #: first, which starts from rest.
+    blend_ms: float = 0.0
+
+    @property
+    def end_ms(self) -> float:
+        return self.start_ms + self.duration_ms
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "emotion": self.emotion.value,
+            "start_ms": round(self.start_ms, 1),
+            "duration_ms": round(self.duration_ms, 1),
+            "end_ms": round(self.end_ms, 1),
+            "intensity": round(self.intensity, 3),
+            "confidence": round(self.confidence, 3),
+            "blend_ms": round(self.blend_ms, 1),
+            "text": self.text,
+            "reasons": self.reasons,
+        }
+
+
+@dataclass
+class EmotionTimeline:
+    """Emotion over the course of one utterance."""
+
+    spans: list[EmotionSpan] = field(default_factory=list)
+    duration_ms: float = 0.0
+
+    @property
+    def dominant(self) -> Emotion:
+        """The emotion holding the most time, which is not always the last.
+
+        Weighted by duration rather than counted, so a long sad clause is
+        not outvoted by three short neutral ones.
+        """
+        if not self.spans:
+            return Emotion.NEUTRAL
+        totals: dict[Emotion, float] = {}
+        for span in self.spans:
+            totals[span.emotion] = totals.get(span.emotion, 0.0) + span.duration_ms
+        return max(totals, key=lambda key: totals[key])
+
+    @property
+    def changes(self) -> int:
+        """How many times the expression actually moves."""
+        return sum(
+            1
+            for earlier, later in zip(self.spans, self.spans[1:], strict=False)
+            if earlier.emotion is not later.emotion
+        )
+
+    def at(self, position_ms: float) -> EmotionSpan | None:
+        """The span covering a moment, for driving a frame-by-frame renderer."""
+        for span in self.spans:
+            if span.start_ms <= position_ms < span.end_ms:
+                return span
+        return self.spans[-1] if self.spans and position_ms >= self.duration_ms else None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "spans": [s.to_dict() for s in self.spans],
+            "duration_ms": round(self.duration_ms, 1),
+            "dominant": self.dominant.value,
+            "changes": self.changes,
+        }
+
+
 class ExpressionAnalyser:
     """Detects emotion with the nuance a flat keyword match misses.
 
@@ -353,6 +452,162 @@ class ExpressionAnalyser:
             reasons=reasons[:6],
             negated=negated_any,
         )
+
+
+    def timeline(
+        self,
+        text: str,
+        *,
+        language: str | None = None,
+        words_per_minute: float = 165.0,
+        transition_ms: float = TRANSITION_MS,
+        total_ms: float | None = None,
+    ) -> EmotionTimeline:
+        """Emotion over time, one span per clause, with millisecond bounds.
+
+        ``analyse`` collapses a whole utterance to one label. That is correct
+        for a single statement and wrong for anything that turns partway
+        through: "It failed. But I fixed it!" is sad and then happy, and the
+        avatar was being handed only the winner.
+
+        Splitting is by clause rather than by sentence, because the turn
+        usually happens at "but" -- inside one sentence, not between two.
+
+        Timing comes from the same prosody model the mouth uses. Pass
+        ``total_ms`` to scale the spans onto the real audio length: the
+        clause splitter drops connectives and the punctuation it consumes, so
+        summing per-clause prosody lands short of the whole line -- 5,013 ms
+        against 4,750 ms of speech on one measured example. Left unscaled the
+        expression track drifts against the mouth, and the drift grows with
+        every clause.
+        """
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return EmotionTimeline()
+
+        pieces = _split_clauses(cleaned)
+        if not pieces:
+            return EmotionTimeline()
+
+        # Analyse each clause without letting the mood drift mid-sentence:
+        # mood is a between-turn baseline, and folding six clauses into it
+        # would make a long line move the baseline six times as far as a
+        # short one saying the same thing.
+        frozen = Mood(
+            valence=self.mood.valence,
+            half_life=self.mood.half_life,
+            updated_at=self.mood.updated_at,
+        )
+        scratch = ExpressionAnalyser(frozen, language=language or self.language)
+
+        spans: list[EmotionSpan] = []
+        cursor = 0.0
+        for piece in pieces:
+            reading = scratch.analyse(piece, language=language)
+            words = prosody_for(
+                piece,
+                emotion=reading.emotion,
+                intensity=reading.intensity,
+                words_per_minute=words_per_minute,
+            )
+            duration = sum(w.duration_ms + w.pause_after_ms for w in words)
+            if duration <= 0:
+                continue
+
+            previous = spans[-1] if spans else None
+            blend = 0.0
+            if previous is not None and previous.emotion is not reading.emotion:
+                # Never blend for longer than the shorter of the two spans,
+                # or the ease-in outlasts the expression it is easing into.
+                blend = min(transition_ms, previous.duration_ms, duration)
+
+            spans.append(
+                EmotionSpan(
+                    emotion=reading.emotion,
+                    start_ms=cursor,
+                    duration_ms=duration,
+                    intensity=reading.intensity,
+                    confidence=reading.confidence,
+                    text=piece,
+                    reasons=reading.reasons[:3],
+                    blend_ms=blend,
+                )
+            )
+            cursor += duration
+
+        merged = _merge_adjacent(spans)
+
+        if total_ms and cursor > 0 and abs(total_ms - cursor) > 1.0:
+            scale = total_ms / cursor
+            position = 0.0
+            for span in merged:
+                span.start_ms = position
+                span.duration_ms *= scale
+                span.blend_ms = min(span.blend_ms, span.duration_ms)
+                position += span.duration_ms
+            cursor = position
+
+        timeline = EmotionTimeline(spans=merged, duration_ms=cursor)
+
+        # The utterance as a whole still moves the standing mood, once.
+        if merged:
+            dominant = timeline.dominant
+            strength = max(s.intensity for s in merged if s.emotion is dominant)
+            self.mood.observe(dominant, strength)
+        return timeline
+
+
+#: Where one clause ends and the next begins. The emotional turn in a
+#: sentence almost always sits at one of these, and "but" carries most of
+#: them: "It failed but I fixed it" is one sentence and two feelings.
+_CLAUSE_SPLIT = re.compile(
+    r"(?<=[.!?])\s+"
+    r"|\s*(?:,\s*)?\b(?:but|however|although|though|yet|whereas|otherwise)\b\s*"
+    r"|\s*[;:]\s*",
+    re.IGNORECASE,
+)
+
+
+def _split_clauses(text: str) -> list[str]:
+    """Break an utterance where its feeling can change.
+
+    A clause shorter than a few characters is folded into its neighbour: "Yes,
+    but no" should not produce a three-frame expression flicker.
+    """
+    parts = [p.strip() for p in _CLAUSE_SPLIT.split(text) if p and p.strip()]
+    if not parts:
+        return []
+
+    out: list[str] = []
+    for part in parts:
+        if out and len(part) < 4:
+            out[-1] = f"{out[-1]} {part}"
+        else:
+            out.append(part)
+    return out
+
+
+def _merge_adjacent(spans: list[EmotionSpan]) -> list[EmotionSpan]:
+    """Join neighbouring spans that share an emotion.
+
+    Two consecutive clauses that read the same way are one expression, not
+    two. Without this a four-clause neutral sentence produced four identical
+    spans and three pointless blend events.
+    """
+    if not spans:
+        return []
+
+    merged = [spans[0]]
+    for span in spans[1:]:
+        last = merged[-1]
+        if span.emotion is last.emotion:
+            last.duration_ms += span.duration_ms
+            last.text = f"{last.text} {span.text}".strip()
+            last.intensity = max(last.intensity, span.intensity)
+            last.confidence = max(last.confidence, span.confidence)
+        else:
+            merged.append(span)
+    return merged
 
 
 # --------------------------------------------------------------------------- #

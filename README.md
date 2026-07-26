@@ -10,7 +10,7 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-2071%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-2090%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -288,7 +288,7 @@ cd interface && npm install && npm run build
 
 ## API
 
-132 REST operations plus a WebSocket gateway. Every response uses a consistent
+133 REST operations plus a WebSocket gateway. Every response uses a consistent
 envelope.
 
 ```http
@@ -300,6 +300,7 @@ POST /api/v1/agents/task          dispatch to a specific agent
 POST /api/v1/workspace/open       open and index a project
 POST /api/v1/automation/run       execute a workflow
 POST /api/v1/voice/speak          TTS with emotion + viseme timing
+POST /api/v1/voice/timeline       emotion over time, per clause, in ms
 POST /api/v1/voice/sing           lyrics -> note plan (pitch, beat, bar)
 POST /api/v1/voice/music/analyse  metre, rhyme, structure, syllables
 GET  /api/v1/system/status        full system snapshot
@@ -393,7 +394,7 @@ values only.
 ## Testing
 
 ```bash
-./scripts/test.sh                    # 2,071 Python tests, then ruff
+./scripts/test.sh                    # 2,090 Python tests, then ruff
 cd interface && npm test             # 25 TypeScript tests
 pytest tests/test_memory.py -v       # one module
 ```
@@ -457,7 +458,7 @@ docs/             the original design specification (108 documents)
 scripts/          install, run, test, build, build-desktop, clean
 tools/brand/      regenerates the brand assets from code
 tools/meshgen/    placeholder hologram meshes
-tests/            2,071 Python tests
+tests/            2,090 Python tests
 ```
 
 ---
@@ -471,7 +472,7 @@ Built and tested against the specification in `docs/`:
 | Memory graph, hybrid recall, consolidation | ✅ complete |
 | Agent framework + 15 specialists | ✅ complete |
 | Model router, 7 providers, failover | ✅ complete |
-| REST API (132 operations) + WebSocket | ✅ complete |
+| REST API (133 operations) + WebSocket | ✅ complete |
 | Workspace indexer, symbol extraction | ✅ complete |
 | Automation engine, triggers, workflows | ✅ complete |
 | Security: vault, permissions, audit | ✅ complete |
