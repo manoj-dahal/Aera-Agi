@@ -18,6 +18,7 @@ from aera.hologram.loader import (
     AvatarKind,
     AvatarLibrary,
     AvatarVariant,
+    extract_archive,
     match_visemes,
     parse_gltf,
     parse_obj,
@@ -590,3 +591,133 @@ class TestModelLipSyncReporting:
         assert payload["can_lip_sync"] is True
         assert payload["morph_targets"] == ["viseme_aa", "viseme_pp"]
         assert payload["viseme_bindings"]["closed"] == "viseme_pp"
+
+
+# --------------------------------------------------------------------------- #
+# archive import
+# --------------------------------------------------------------------------- #
+def sketchfab_zip(path, *, inner="scene.gltf", document=None, extra=()):
+    """A zip laid out the way marketplace downloads actually arrive."""
+    import zipfile
+
+    document = document if document is not None else GLTF_DOC
+    with zipfile.ZipFile(path, "w") as bundle:
+        bundle.writestr(inner, json.dumps(document))
+        bundle.writestr("scene.bin", b"\0" * 64)
+        bundle.writestr("textures/body.png", b"\x89PNG\r\n\x1a\n" + b"\0" * 32)
+        for name, payload in extra:
+            bundle.writestr(name, payload)
+    return path
+
+
+class TestArchiveExtraction:
+    """Sketchfab and friends hand out zips, not bare models."""
+
+    def test_extracts_the_model_and_its_companions(self, tmp_path):
+        archive = sketchfab_zip(tmp_path / "anime-g.zip")
+
+        models = extract_archive(archive, tmp_path / "out")
+
+        assert [m.name for m in models] == ["scene.gltf"]
+        # The .bin and textures must travel with it or the glTF cannot resolve.
+        assert (tmp_path / "out" / "scene.bin").is_file()
+        assert (tmp_path / "out" / "textures" / "body.png").is_file()
+
+    def test_drops_files_the_loader_cannot_use(self, tmp_path):
+        archive = sketchfab_zip(
+            tmp_path / "m.zip",
+            extra=[("license.txt", "CC-BY"), ("__MACOSX/._scene.gltf", b"junk")],
+        )
+
+        extract_archive(archive, tmp_path / "out")
+
+        written = {p.name for p in (tmp_path / "out").rglob("*") if p.is_file()}
+        assert "license.txt" not in written
+        assert "._scene.gltf" not in written
+
+    def test_rejects_an_archive_with_no_model(self, tmp_path):
+        import zipfile
+
+        archive = tmp_path / "empty.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("readme.txt", "nothing here")
+
+        with pytest.raises(ValidationError, match="no model file"):
+            extract_archive(archive, tmp_path / "out")
+
+    def test_rejects_a_non_archive(self, tmp_path):
+        path = tmp_path / "not.zip"
+        path.write_bytes(b"definitely not a zip")
+
+        with pytest.raises(ValidationError, match="not a valid zip"):
+            extract_archive(path, tmp_path / "out")
+
+    def test_refuses_path_traversal(self, tmp_path):
+        """Zip-slip: an entry must not be able to write outside the target."""
+        import zipfile
+
+        archive = tmp_path / "evil.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr("../../escaped.gltf", "{}")
+
+        with pytest.raises(ValidationError, match="escapes"):
+            extract_archive(archive, tmp_path / "out")
+
+        assert not (tmp_path.parent / "escaped.gltf").exists()
+
+    def test_caps_the_uncompressed_size(self, tmp_path, monkeypatch):
+        """A zip bomb must not be allowed to fill the disk."""
+        import zipfile
+
+        from aera.hologram import loader as loader_module
+
+        archive = tmp_path / "bomb.zip"
+        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr("scene.gltf", "{}" + " " * 100_000)
+        monkeypatch.setattr(loader_module, "MAX_MODEL_BYTES", 1000)
+
+        with pytest.raises(ValidationError, match="expands to more than"):
+            extract_archive(archive, tmp_path / "out")
+
+
+class TestArchiveScanning:
+    def test_a_dropped_zip_is_unpacked_on_scan(self, library):
+        library.root.mkdir(parents=True, exist_ok=True)
+        sketchfab_zip(library.root / "anime-g.zip")
+
+        models = library.scan()
+
+        assert len(models) == 1
+        # The archive is consumed once unpacked.
+        assert not (library.root / "anime-g.zip").exists()
+
+    def test_the_folder_names_the_model_when_the_file_is_generic(self, library):
+        """Sketchfab bundles are always scene.gltf; the zip carries the name."""
+        library.root.mkdir(parents=True, exist_ok=True)
+        sketchfab_zip(library.root / "anime-g.zip")
+
+        [model] = library.scan()
+
+        assert model.variant is AvatarVariant.FEMININE
+        assert model.kind is AvatarKind.CHARACTER
+        assert model.name == "anime g"
+
+    def test_a_specific_filename_still_wins(self, library):
+        """Only generic exporter names defer to the folder."""
+        library.root.mkdir(parents=True, exist_ok=True)
+        sketchfab_zip(library.root / "bundle.zip", inner="nanally-b.gltf")
+
+        [model] = library.scan()
+
+        assert model.variant is AvatarVariant.MASCULINE
+
+    def test_a_corrupt_zip_does_not_stop_the_scan(self, library):
+        library.root.mkdir(parents=True, exist_ok=True)
+        (library.root / "broken.zip").write_bytes(b"not a zip")
+        sketchfab_zip(library.root / "anime-g.zip")
+
+        models = library.scan()
+
+        assert len(models) == 1
+        # A zip that could not be read is left in place rather than deleted.
+        assert (library.root / "broken.zip").exists()

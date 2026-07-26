@@ -19,7 +19,9 @@ that are merely stylistic.
 from __future__ import annotations
 
 import json
+import shutil
 import struct
+import zipfile
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
@@ -470,9 +472,23 @@ class AvatarLibrary:
     # discovery
     # ------------------------------------------------------------------ #
     def scan(self) -> list[AvatarModel]:
-        """Find every recognised model under the avatars directory."""
+        """Find every recognised model under the avatars directory.
+
+        Zips dropped in by hand are unpacked first: a marketplace download is
+        an archive, and requiring the user to unzip it themselves is friction
+        for no reason.
+        """
         self.root.mkdir(parents=True, exist_ok=True)
         self._models.clear()
+
+        for archive in sorted(self.root.glob("*.zip")):
+            try:
+                extract_archive(archive, self.root / archive.stem)
+            except Exception as exc:  # noqa: BLE001 - a bad zip must not stop the scan
+                logger.warning("could not unpack %s: %s", archive.name, exc)
+                continue
+            logger.info("unpacked %s", archive.name)
+            archive.unlink(missing_ok=True)
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file():
@@ -503,7 +519,7 @@ class AvatarLibrary:
 
         model = AvatarModel(
             id=_model_id(path, self.root),
-            name=path.stem.replace("_", " ").replace("-", " ").strip(),
+            name=_naming_stem(path).replace("_", " ").replace("-", " ").strip(),
             path=path,
             format=suffix.lstrip("."),
             kind=_infer_kind(path),
@@ -638,6 +654,71 @@ class AvatarLibrary:
         }
 
 
+def extract_archive(archive: Path, destination: Path) -> list[Path]:
+    """Unpack a model archive, returning the model files it contained.
+
+    Marketplaces hand out zips rather than bare models -- Sketchfab's layout
+    is ``scene.gltf`` plus ``scene.bin`` and a ``textures/`` folder, all of
+    which must stay together for the glTF to resolve its references.
+
+    Extraction is deliberately defensive:
+
+    * entries escaping the destination (``../``, absolute paths, symlinks)
+      are refused outright rather than skipped quietly
+    * the uncompressed total is capped, so a zip bomb cannot fill the disk
+    * junk the loader cannot use (``__MACOSX``, ``.DS_Store``) is dropped
+    """
+    if not zipfile.is_zipfile(archive):
+        raise ValidationError(f"{archive.name} is not a valid zip archive")
+
+    keep = RECOGNISED | TEXTURE_EXTENSIONS | {".mtl", ".bin"}
+    destination.mkdir(parents=True, exist_ok=True)
+    resolved_root = destination.resolve()
+
+    extracted: list[Path] = []
+    total = 0
+
+    with zipfile.ZipFile(archive) as bundle:
+        for info in bundle.infolist():
+            if info.is_dir():
+                continue
+
+            name = info.filename
+            if name.startswith("__MACOSX/") or Path(name).name.startswith("._"):
+                continue
+            if Path(name).name == ".DS_Store":
+                continue
+            if Path(name).suffix.lower() not in keep:
+                continue
+
+            # Zip-slip: reject absolute paths and anything climbing out.
+            target = (destination / name).resolve()
+            if not target.is_relative_to(resolved_root):
+                raise ValidationError(
+                    f"archive entry escapes the destination: {name}"
+                )
+
+            total += info.file_size
+            if total > MAX_MODEL_BYTES:
+                raise ValidationError(
+                    f"archive expands to more than "
+                    f"{MAX_MODEL_BYTES // 1_048_576} MB"
+                )
+
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.open(info) as source, target.open("wb") as sink:
+                shutil.copyfileobj(source, sink)
+            extracted.append(target)
+
+    models = [p for p in extracted if p.suffix.lower() in RECOGNISED]
+    if not models:
+        raise ValidationError(
+            f"{archive.name} contains no model file "
+            f"({', '.join(sorted(f.lstrip('.') for f in RECOGNISED))})"
+        )
+    return models
+
+
 def _model_id(path: Path, root: Path) -> str:
     """Stable id from the path relative to the library root."""
     try:
@@ -647,6 +728,22 @@ def _model_id(path: Path, root: Path) -> str:
     return str(relative.with_suffix("")).replace("/", ".").replace("\\", ".")
 
 
+#: Filenames exporters emit that say nothing about the model. When a file is
+#: called one of these, the containing folder carries the real name --
+#: Sketchfab bundles are always "scene.gltf" inside a named directory.
+_GENERIC_STEMS = frozenset(
+    {"scene", "model", "untitled", "export", "mesh", "character", "avatar"}
+)
+
+
+def _naming_stem(path: Path) -> str:
+    """The part of the path that actually names the model."""
+    stem = path.stem.lower()
+    if stem in _GENERIC_STEMS and path.parent.name:
+        return path.parent.name.lower()
+    return stem
+
+
 def _infer_variant(path: Path) -> AvatarVariant:
     """Infer the figure from a filename suffix.
 
@@ -654,10 +751,13 @@ def _infer_variant(path: Path) -> AvatarVariant:
     ``anime-g`` and ``anime_girl`` both resolve to feminine. Only the last
     token is consulted - a project called "boyd-model" must not be read as
     masculine.
+
+    Falls back to the parent directory when the file has a generic exporter
+    name, so ``anime-g/scene.gltf`` is still feminine.
     """
     import re
 
-    tokens = [t for t in re.split(r"[-_. ]+", path.stem.lower()) if t]
+    tokens = [t for t in re.split(r"[-_. ]+", _naming_stem(path)) if t]
     if not tokens:
         return AvatarVariant.UNSPECIFIED
     return _VARIANT_TOKENS.get(tokens[-1], AvatarVariant.UNSPECIFIED)
@@ -665,7 +765,7 @@ def _infer_variant(path: Path) -> AvatarVariant:
 
 def _infer_kind(path: Path) -> AvatarKind:
     """Guess what a model represents from its filename."""
-    name = path.stem.lower()
+    name = _naming_stem(path)
     if any(token in name for token in ("orb", "sphere", "core", "ball")):
         return AvatarKind.ORB
     if any(

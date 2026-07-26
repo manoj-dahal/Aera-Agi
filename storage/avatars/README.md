@@ -7,6 +7,24 @@ Drop your 3D models in this folder:
 /home/user/Aera-Agi/storage/avatars/anime-b.glb    # masculine
 ```
 
+**Zips work too.** Marketplace downloads arrive as archives, so you can drop
+the `.zip` in as-is and AERA unpacks it on the next scan. Name the archive
+after the figure you want it to be:
+
+```
+storage/avatars/anime-g.zip     ->  storage/avatars/anime-g/scene.gltf
+```
+
+Sketchfab always names the file inside the archive `scene.gltf`, which says
+nothing about the model, so the **folder name is used instead**. That is why
+naming the zip matters. The archive is deleted once unpacked; anything the
+loader cannot use (licences, `__MACOSX`) is discarded.
+
+> **Downloading from Sketchfab:** pick the **glTF** download, not FBX or
+> USDZ — FBX cannot be parsed, and glTF keeps the shape keys that drive
+> lip-sync. Check the licence before redistributing: CC-BY models must credit
+> the author wherever the app ships.
+
 Then pick them up:
 
 ```bash
@@ -37,6 +55,7 @@ Nothing in this folder is committed to git except this README.
 | `.obj` | yes | Keep the `.mtl` and textures in the same folder. |
 | `.fbx` | catalogued only | Proprietary binary; no open Python parser. Export to GLB. |
 | `.vrm` | catalogued only | VRM is glTF-based — export GLB from your tool. |
+| `.zip` | unpacked | Marketplace bundle. Extracted on scan, then removed. |
 
 ## Seeing it render
 

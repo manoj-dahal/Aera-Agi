@@ -11,7 +11,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from ...core.errors import ValidationError
-from ...hologram.loader import RECOGNISED, AvatarKind, AvatarVariant
+from ...hologram.loader import (
+    RECOGNISED,
+    AvatarKind,
+    AvatarVariant,
+    extract_archive,
+)
 from ..deps import get_kernel_dep
 from ..schemas import ok
 
@@ -21,6 +26,9 @@ router = APIRouter(prefix="/avatars", tags=["hologram"])
 MAX_UPLOAD_BYTES = 512 * 1024 * 1024
 #: Read uploads in chunks so a large model never lands in memory whole.
 CHUNK = 1024 * 1024
+#: Companion files a model needs alongside it, plus archives to unpack.
+COMPANIONS = (".mtl", ".bin", ".png", ".jpg", ".jpeg", ".webp", ".tga", ".bmp")
+ARCHIVE = ".zip"
 
 
 def _library(kernel):
@@ -101,10 +109,13 @@ async def upload_avatar(
 
     name = Path(file.filename or "model").name
     suffix = Path(name).suffix.lower()
-    if suffix not in RECOGNISED and suffix not in (".mtl", ".bin", ".png", ".jpg", ".jpeg"):
+    if suffix not in RECOGNISED and suffix not in COMPANIONS and suffix != ARCHIVE:
         raise ValidationError(
             f"unsupported file type '{suffix}'",
-            details={"accepted": sorted(f.lstrip('.') for f in RECOGNISED)},
+            details={
+                "accepted": sorted(f.lstrip(".") for f in RECOGNISED),
+                "archives": [ARCHIVE.lstrip(".")],
+            },
         )
 
     target = library.root / name
@@ -127,6 +138,28 @@ async def upload_avatar(
     except OSError as exc:
         target.unlink(missing_ok=True)
         raise ValidationError(f"could not write {name}: {exc}") from exc
+
+    # Marketplace downloads arrive zipped -- Sketchfab ships scene.gltf with
+    # its .bin and textures/ alongside -- so unpack rather than making the
+    # user do it by hand. The archive itself is not kept.
+    if suffix == ARCHIVE:
+        try:
+            models = extract_archive(target, library.root / Path(name).stem)
+        finally:
+            target.unlink(missing_ok=True)
+
+        library.scan()
+        found = [m for m in library.all() if m.path in set(models)]
+        return ok(
+            {
+                "file": name,
+                "size_mb": round(written / 1_048_576, 2),
+                "extracted": [str(m.relative_to(library.root)) for m in models],
+                "models": [m.to_dict() for m in found],
+                "model": found[0].to_dict() if found else None,
+            },
+            f"Extracted {len(models)} model(s) from {name}",
+        )
 
     library.scan()
 
