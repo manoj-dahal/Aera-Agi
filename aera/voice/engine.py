@@ -117,9 +117,12 @@ class NullTTS(TTSBackend):
     name = "null"
 
     async def synthesize(self, request: SpeechRequest) -> SpeechResult:
-        words = request.text.split()
-        # ~165 wpm baseline, scaled by the requested speed
-        duration = (len(words) / 165.0) * 60_000 / max(0.25, request.speed)
+        # Syllable-timed, not word-timed: text.split() returns one token
+        # for a whole Chinese or Japanese line and timed it at a fraction
+        # of what it takes to say.
+        from .personas import speech_duration_ms
+
+        duration = speech_duration_ms(request.text, rate=request.speed)
         return SpeechResult(
             text=request.text,
             emotion=request.emotion,
@@ -166,12 +169,25 @@ def generate_visemes(text: str, duration_ms: float, *, fps: int = 24) -> list[di
     if not shapes or duration_ms <= 0:
         return []
 
+    # Collapse runs of the same shape. A mouth that is already open does not
+    # re-open, and the formant synthesiser renders one segment per keyframe
+    # with an attack and decay at each edge: leaving the repeats in chopped a
+    # sustained vowel into 120 ramped segments, which amplitude-modulated the
+    # tone at ~13 Hz and smeared the fundamental badly enough that anime-g's
+    # 255 Hz measured weaker than a persona that was not speaking.
+    # ``word_to_visemes`` had always collapsed; this one did not.
+    collapsed: list[tuple[int, str]] = []
+    for index, shape in enumerate(shapes):
+        if not collapsed or collapsed[-1][1] != shape:
+            collapsed.append((index, shape))
+
     # One keyframe per shape, thinned to what the frame rate can display.
     budget = max(1, int(duration_ms / 1000 * fps))
-    step = max(1, len(shapes) // budget)
+    step = max(1, len(collapsed) // budget)
     out: list[dict[str, Any]] = []
-    for i in range(0, len(shapes), step):
-        out.append({"t": round(i / len(shapes) * duration_ms, 1), "shape": shapes[i]})
+    for position in range(0, len(collapsed), step):
+        index, shape = collapsed[position]
+        out.append({"t": round(index / len(shapes) * duration_ms, 1), "shape": shape})
     return out[:600]
 
 

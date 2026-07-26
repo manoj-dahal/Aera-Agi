@@ -294,3 +294,84 @@ class TestBackendApi:
         for backend in data["backends"]:
             if not backend["available"]:
                 assert backend["remedy"], f"{backend['name']} says no with no way forward"
+
+
+class TestSystemEngineSelection:
+    """spd-say was listed as a usable engine and cannot write a file.
+
+    Its "-w" means *wait for completion*, not *write to file*; it speaks to
+    the sound card with no way to capture the audio. The command built for it
+    ignored the output path entirely, so the backend reported success and
+    left nothing behind.
+    """
+
+    def test_spd_say_is_not_offered(self):
+        from aera.voice.backends import SystemTTS
+
+        assert "spd-say" not in SystemTTS.ENGINES
+
+    def test_every_offered_engine_writes_to_the_target(self, tmp_path):
+        from aera.voice.backends import SystemTTS
+        from aera.voice.engine import SpeechRequest
+
+        target = tmp_path / "out.wav"
+        for binary in SystemTTS.ENGINES:
+            command = SystemTTS(binary=binary)._command(
+                SpeechRequest(text="hello"), target
+            )
+            assert str(target) in command, f"{binary} ignores the output path"
+
+    def test_an_engine_that_cannot_write_is_refused_not_ignored(self, tmp_path):
+        from aera.core.errors import ValidationError
+        from aera.voice.backends import SystemTTS
+        from aera.voice.engine import SpeechRequest
+
+        with pytest.raises(ValidationError, match="cannot write audio"):
+            SystemTTS(binary="spd-say")._command(
+                SpeechRequest(text="hello"), tmp_path / "out.wav"
+            )
+
+
+class TestSystemLanguage:
+    """The engine has to be told which language it is reading.
+
+    Thirty-five language packs, and espeak was never passed one: it read
+    every line with English letter-to-sound rules, so Spanish and German came
+    out as an English speaker sounding the words out.
+    """
+
+    @pytest.mark.parametrize(("language", "code"), [("es", "es"), ("de", "de"), ("ja", "ja")])
+    def test_espeak_is_told_the_language(self, language, code, tmp_path):
+        from aera.voice.backends import SystemTTS
+        from aera.voice.engine import SpeechRequest
+
+        command = SystemTTS(binary="espeak-ng")._command(
+            SpeechRequest(text="hola", language=language), tmp_path / "o.wav"
+        )
+
+        assert "-v" in command
+        assert command[command.index("-v") + 1] == code
+
+    def test_a_region_subtag_reduces_to_the_base(self):
+        from aera.voice.backends import espeak_voice
+
+        assert espeak_voice("es-MX") == "es"
+        assert espeak_voice("pt_BR") == "pt"
+
+    def test_macos_say_uses_a_named_voice(self, tmp_path):
+        from aera.voice.backends import SystemTTS
+        from aera.voice.engine import SpeechRequest
+
+        command = SystemTTS(binary="say")._command(
+            SpeechRequest(text="hola", language="es"), tmp_path / "o.wav"
+        )
+
+        assert command[command.index("-v") + 1] == "Monica"
+
+    def test_an_unknown_language_leaves_the_default_voice(self):
+        """Naming a voice that may not be installed is worse than not naming
+        one at all."""
+        from aera.voice.backends import say_voice
+
+        assert say_voice("klingon") is None
+        assert say_voice(None) is None

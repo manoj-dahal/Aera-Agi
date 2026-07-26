@@ -28,7 +28,7 @@ from typing import Any
 from ..core.errors import ValidationError
 from ..core.logging import get_logger
 from .engine import Emotion, SpeechRequest, SpeechResult, TTSBackend, generate_visemes
-from .personas import NEUTRAL, VoicePersona, acoustics_for
+from .personas import NEUTRAL, VoicePersona, acoustics_for, audio_filename
 
 logger = get_logger("voice.backends")
 
@@ -180,8 +180,9 @@ class PiperTTS(TTSBackend):
         target = None
         if self.output_dir is not None:
             self.output_dir.mkdir(parents=True, exist_ok=True)
-            stamp = abs(hash((request.text, self.persona.id, request.emotion.value)))
-            target = self.output_dir / f"{self.persona.id}-{stamp:x}.wav"
+            target = self.output_dir / audio_filename(
+                request.text, self.persona.id, request.emotion
+            )
 
         # Piper is synchronous and CPU-bound; keep it off the event loop.
         duration_ms = await asyncio.to_thread(self._render, request, target)
@@ -218,6 +219,38 @@ class PiperTTS(TTSBackend):
         return frames / 2 / rate * 1000.0
 
 
+#: macOS `say` voices by language. Only the ones shipped by default are
+#: named; anything else falls back to the system voice, which is better than
+#: naming a voice that may not be installed.
+_SAY_VOICES: dict[str, str] = {
+    "en": "Samantha", "es": "Monica", "fr": "Thomas", "de": "Anna",
+    "it": "Alice", "pt": "Luciana", "nl": "Xander", "sv": "Alva",
+    "pl": "Zosia", "ru": "Milena", "el": "Melina", "tr": "Yelda",
+    "hi": "Lekha", "ar": "Maged", "he": "Carmit", "th": "Kanya",
+    "ja": "Kyoko", "zh": "Ting-Ting", "ko": "Yuna", "id": "Damayanti",
+}
+
+
+def espeak_voice(language: str | None) -> str | None:
+    """The espeak voice code for a language tag, or None to leave the default.
+
+    espeak uses plain ISO 639-1 codes, so the base subtag is the voice name
+    for almost every language the packs cover.
+    """
+    if not language:
+        return None
+    base = language.strip().lower().split("-")[0].split("_")[0]
+    return base or None
+
+
+def say_voice(language: str | None) -> str | None:
+    """The macOS `say` voice for a language, or None for the system default."""
+    if not language:
+        return None
+    base = language.strip().lower().split("-")[0].split("_")[0]
+    return _SAY_VOICES.get(base)
+
+
 class SystemTTS(TTSBackend):
     """Speech via a system binary: espeak-ng, say (macOS) or spd-say.
 
@@ -229,8 +262,12 @@ class SystemTTS(TTSBackend):
 
     name = "system"
 
-    #: Binary -> how to build its argument list. Ordered by preference.
-    ENGINES = ("espeak-ng", "espeak", "say", "spd-say")
+    #: Binaries that can write a WAV, in order of preference. spd-say is
+    #: excluded: its "-w" means *wait for completion*, not *write to file*,
+    #: and it speaks to the sound card with no way to capture the audio. It
+    #: was in this list and produced a command that ignored the output path
+    #: entirely, so the backend reported success and left no file.
+    ENGINES = ("espeak-ng", "espeak", "say")
 
     def __init__(
         self,
@@ -275,22 +312,35 @@ class SystemTTS(TTSBackend):
         if self.binary in ("espeak-ng", "espeak"):
             # espeak's pitch is a 0-99 scale centred near 50 at ~110 Hz.
             pitch = max(0, min(99, int((pitch_hz / 110.0) * 50)))
-            return [
+            command = [
                 self.binary,
                 "-p", str(pitch),
                 "-s", str(int(175 * speed)),
                 "-w", str(target),
-                request.text,
             ]
+            # Thirty-five language packs, and the engine was never told which
+            # one: espeak read every line with English letter-to-sound rules,
+            # so Spanish and German came out as an English speaker sounding
+            # them out.
+            voice = espeak_voice(request.language)
+            if voice:
+                command += ["-v", voice]
+            return [*command, request.text]
         if self.binary == "say":
-            return [
+            command = [
                 self.binary,
                 "-r", str(int(175 * speed)),
                 "-o", str(target),
                 "--data-format=LEI16@22050",
-                request.text,
             ]
-        return [self.binary, "-w", request.text]
+            voice = say_voice(request.language)
+            if voice:
+                command += ["-v", voice]
+            return [*command, request.text]
+        raise ValidationError(
+            f"{self.binary} cannot write audio to a file",
+            details={"backend": self.name, "binary": self.binary},
+        )
 
     async def synthesize(self, request: SpeechRequest) -> SpeechResult:
         if not self.binary:
@@ -301,8 +351,9 @@ class SystemTTS(TTSBackend):
 
         directory = self.output_dir or Path("/tmp")
         directory.mkdir(parents=True, exist_ok=True)
-        stamp = abs(hash((request.text, self.persona.id, request.emotion.value)))
-        target = directory / f"{self.persona.id}-{stamp:x}.wav"
+        target = directory / audio_filename(
+            request.text, self.persona.id, request.emotion
+        )
 
         try:
             await asyncio.to_thread(

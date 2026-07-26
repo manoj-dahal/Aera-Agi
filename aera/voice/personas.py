@@ -321,6 +321,31 @@ def _envelope(position: float, total: float, *, attack: float = 1.0) -> float:
     return 1.0
 
 
+#: Speaking rate as syllables per minute. English averages about 165 words a
+#: minute at roughly 1.4 syllables a word. Counting syllables rather than
+#: words is what makes this work outside Latin script: Chinese, Japanese,
+#: Korean and Thai are written without spaces, so ``text.split()`` returned 1
+#: for a whole line and a seven-syllable Japanese sentence was timed at
+#: 364 ms -- about a third of what it takes to say.
+SYLLABLES_PER_MINUTE = 240.0
+
+
+def speech_duration_ms(text: str, *, rate: float = 1.0) -> float:
+    """How long a line takes to say, in any script.
+
+    Falls back to a word estimate only when the syllable counter returns
+    nothing, which happens for text that is all digits or punctuation.
+    """
+    from .music import syllables_in
+
+    syllables = syllables_in(text)
+    if not syllables:
+        # No countable syllables: approximate from words so a line of
+        # numerals still gets a plausible duration rather than zero.
+        syllables = max(1, len(text.split())) * 2
+    return (syllables / SYLLABLES_PER_MINUTE) * 60_000 / max(0.3, rate)
+
+
 def synthesize_wav(
     text: str,
     persona: VoicePersona,
@@ -335,9 +360,8 @@ def synthesize_wav(
     engine -- see ``FORMANT_NOTE``. It exists so persona differences and
     lip-sync timing are audible and testable without a downloadable model.
     """
-    words = max(1, len(text.split()))
     rate = max(0.3, persona.speed_for(emotion) * speed)
-    duration_ms = (words / 165.0) * 60_000 / rate
+    duration_ms = speech_duration_ms(text, rate=rate)
     visemes = generate_visemes(text, duration_ms)
 
     if path is None:
@@ -413,6 +437,23 @@ def synthesize_wav(
     return path, round(duration_ms, 2), visemes
 
 
+def audio_filename(text: str, persona_id: str, emotion: Emotion | str) -> str:
+    """A stable filename for one rendered line.
+
+    Content-addressed with blake2b, so the same request always maps to the
+    same file and a cached render is actually reused. Three backends each
+    built this name with ``hash()``, which Python randomises per process --
+    the cache missed on every restart and the directory filled with
+    duplicates of identical audio. ``synthesize_wav`` had already been fixed
+    for exactly this; the filenames beside it had not.
+    """
+    value = emotion.value if isinstance(emotion, Emotion) else str(emotion)
+    digest = hashlib.blake2b(
+        f"{text}|{persona_id}|{value}".encode(), digest_size=8
+    ).hexdigest()
+    return f"{persona_id}-{digest}.wav"
+
+
 class PersonaTTS(TTSBackend):
     """TTS backend that speaks with a persona.
 
@@ -439,8 +480,9 @@ class PersonaTTS(TTSBackend):
     async def synthesize(self, request: SpeechRequest) -> SpeechResult:
         target = None
         if self.output_dir is not None:
-            stamp = abs(hash((request.text, self.persona.id, request.emotion.value)))
-            target = self.output_dir / f"{self.persona.id}-{stamp:x}.wav"
+            target = self.output_dir / audio_filename(
+                request.text, self.persona.id, request.emotion
+            )
 
         path, duration_ms, visemes = synthesize_wav(
             request.text,

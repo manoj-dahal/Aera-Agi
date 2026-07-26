@@ -53,6 +53,104 @@ def energy_at(path, freq: float) -> float:
     return math.sqrt(max(0.0, s1 * s1 + s2 * s2 - coeff * s1 * s2))
 
 
+class TestDuration:
+    """How long a line takes to say, in any script.
+
+    Duration came from ``len(text.split())``. Chinese, Japanese, Korean and
+    Thai are written without spaces, so a whole sentence counted as one word
+    and a seven-syllable Japanese line was timed at 364 ms -- roughly a
+    third of what it takes to say, with the lip-sync track compressed to
+    match.
+    """
+
+    @pytest.mark.parametrize(
+        ("text", "floor_ms"),
+        [
+            ("Fire in the morning light", 1400),
+            ("朝の光の中の炎", 1400),
+            ("晨光中的火焰", 1200),
+            ("안녕하세요", 1000),
+            ("नमस्ते संसार", 1200),
+        ],
+    )
+    def test_a_line_is_timed_by_its_syllables(self, text, floor_ms):
+        from aera.voice.personas import speech_duration_ms
+
+        assert speech_duration_ms(text) >= floor_ms
+
+    def test_scripts_without_spaces_are_not_timed_as_one_word(self):
+        """The regression: these two lines have the same syllable count."""
+        from aera.voice.personas import speech_duration_ms
+
+        english = speech_duration_ms("Fire in the morning light")   # 7 syllables
+        japanese = speech_duration_ms("朝の光の中の炎")                # 7 syllables
+
+        assert japanese == pytest.approx(english, rel=0.15)
+
+    def test_text_with_no_syllables_still_gets_a_duration(self):
+        from aera.voice.personas import speech_duration_ms
+
+        assert speech_duration_ms("12345") > 0
+
+    def test_speed_scales_it(self):
+        from aera.voice.personas import speech_duration_ms
+
+        assert speech_duration_ms("Hello there", rate=2.0) < speech_duration_ms("Hello there")
+
+
+class TestAudioFilenames:
+    """Rendered audio is content-addressed so a cache actually hits.
+
+    Three backends built this name with ``hash()``, which Python randomises
+    per process: the same line got a different filename on every restart,
+    the cache never hit, and the directory filled with duplicate renders of
+    identical audio. ``synthesize_wav`` had already been fixed for exactly
+    this and the filenames beside it had not.
+    """
+
+    def test_the_same_request_gives_the_same_name(self):
+        from aera.voice.personas import audio_filename
+
+        first = audio_filename("hello", "anime-g", Emotion.HAPPY)
+        second = audio_filename("hello", "anime-g", Emotion.HAPPY)
+
+        assert first == second
+
+    @pytest.mark.parametrize(
+        ("text", "persona", "emotion"),
+        [
+            ("goodbye", "anime-g", Emotion.HAPPY),
+            ("hello", "anime-b", Emotion.HAPPY),
+            ("hello", "anime-g", Emotion.SAD),
+        ],
+    )
+    def test_a_different_request_gives_a_different_name(self, text, persona, emotion):
+        from aera.voice.personas import audio_filename
+
+        assert audio_filename(text, persona, emotion) != audio_filename(
+            "hello", "anime-g", Emotion.HAPPY
+        )
+
+    def test_the_name_is_stable_across_processes(self):
+        """The whole point: hash() is stable within a run and not between."""
+        import subprocess
+        import sys
+
+        code = (
+            "from aera.voice.personas import audio_filename;"
+            "from aera.voice.engine import Emotion;"
+            "print(audio_filename('hello', 'anime-g', Emotion.HAPPY))"
+        )
+        runs = {
+            subprocess.run(
+                [sys.executable, "-c", code], capture_output=True, text=True, check=True
+            ).stdout.strip()
+            for _ in range(2)
+        }
+
+        assert len(runs) == 1
+
+
 class TestPersonaDefinitions:
     def test_the_two_avatar_voices_exist(self):
         assert "anime-g" in PERSONAS
@@ -162,6 +260,25 @@ class TestSynthesis:
         }
 
         assert max(energies, key=energies.get) == persona.base_pitch_hz
+
+    def test_a_sustained_vowel_is_one_segment_not_many(self, tmp_path):
+        """Repeated shapes collapse before they reach the synthesiser.
+
+        Each keyframe is rendered with an attack and a decay, so leaving the
+        repeats in chopped a held vowel into 120 ramped segments. That
+        amplitude-modulated the tone at ~13 Hz and smeared the fundamental
+        badly enough that anime-g's 255 Hz measured weaker than a persona
+        that was not even speaking.
+        """
+        _, _, visemes = synthesize_wav("aaa " * 40, ANIME_GIRL, path=tmp_path / "o.wav")
+
+        assert len(visemes) == 1
+
+    def test_real_speech_still_animates(self, tmp_path):
+        """Collapsing repeats must not flatten a line that does change shape."""
+        _, _, visemes = synthesize_wav("hello world", ANIME_GIRL, path=tmp_path / "o.wav")
+
+        assert len({frame["shape"] for frame in visemes}) > 1
 
     def test_two_personas_produce_different_audio(self, tmp_path):
         girl, _, _ = synthesize_wav("Same words", ANIME_GIRL, path=tmp_path / "g.wav")
@@ -405,12 +522,36 @@ class TestAcousticsInTheAudio:
         return residual / max(1e-9, level)
 
     def _envelope_swing(self, path):
-        rate, seg = self._samples(path)
+        """How much the loudness wobbles during the steady part of a note.
+
+        Measured as spread about the mean, and with the onset and release
+        discarded. A max-minus-min over the whole clip reads the attack and
+        decay ramps instead: those run from silence to full amplitude, which
+        swamps a 5% tremor, and the metric stayed positive even for a
+        profile whose tremor is exactly zero.
+        """
+        import array
+        import statistics
+        import wave
+
+        # Read the whole file, not the 8192-frame slice the other metrics
+        # use: tremor is a ~4 Hz wobble, so a 0.37 s window holds barely one
+        # cycle and there is nothing left to measure once the ramps at each
+        # end are discarded.
+        with wave.open(str(path)) as handle:
+            rate = handle.getframerate()
+            data = array.array("h")
+            data.frombytes(handle.readframes(handle.getnframes()))
+
         window = rate // 20
-        peaks = [max(abs(v) for v in seg[i : i + window]) for i in range(0, len(seg) - window, window)]
-        if not peaks:
+        peaks = [
+            max(abs(v) for v in data[i : i + window])
+            for i in range(0, len(data) - window, window)
+        ]
+        core = [p for p in peaks[2:-2] if p > 0]
+        if len(core) < 3:
             return 0.0
-        return (max(peaks) - min(peaks)) / max(1e-9, sum(peaks) / len(peaks))
+        return statistics.pstdev(core) / max(1e-9, statistics.mean(core))
 
     def test_breathiness_is_audible(self, tmp_path):
         sad, _, _ = synthesize_wav("aaa " * 30, ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "s.wav")

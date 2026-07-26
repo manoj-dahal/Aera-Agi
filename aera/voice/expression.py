@@ -400,7 +400,19 @@ def prosody_for(
     if not tokens:
         return []
 
-    per_word_ms = 60_000.0 / max(40.0, words_per_minute)
+    # Time is allotted per syllable, then shared out by each token's own
+    # syllable count. Chinese, Japanese, Korean and Thai are written without
+    # spaces, so a whole sentence arrived as a single token and was given one
+    # word's worth of time -- 418 ms for seven syllables, with the mouth
+    # making one movement across all of them. Weighting alone did not fix
+    # that: with one token it is its own average, so the total has to come
+    # from the syllables too.
+    from .music import syllables_in
+
+    weights = [max(1, syllables_in(t)) for t in tokens]
+    # The English default of 165 words a minute at ~1.4 syllables a word.
+    syllables_per_minute = words_per_minute * 1.4
+    per_syllable_ms = 60_000.0 / max(40.0, syllables_per_minute)
     start, end = _CONTOUR.get(emotion, (1.0, 0.96))
     # Intensity exaggerates the contour: a strong feeling has more range.
     span = (end - start) * (0.6 + 0.8 * intensity)
@@ -422,8 +434,9 @@ def prosody_for(
             emphasis += 0.2
         emphasis = min(1.0, emphasis * (0.85 + 0.3 * intensity))
 
-        # Stressed syllables are longer, function words are clipped.
-        duration = per_word_ms * (1.15 if stressed else 0.8)
+        # Stressed syllables are longer, function words are clipped, and a
+        # long word takes longer than a short one.
+        duration = per_syllable_ms * weights[index] * (1.15 if stressed else 0.8)
         if shouted:
             duration *= 1.1
 
