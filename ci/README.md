@@ -1,5 +1,80 @@
 # Continuous integration
 
+## Current state on GitHub — Node.js CI is red
+
+Two workflows are live on `main`, both added from GitHub's default templates:
+
+| Workflow | Status |
+|---|---|
+| **Docker** | passing on pull requests; the `main` push runs failed |
+| **Node.js CI** | **failing on every run**, since it was added |
+
+### Why Node.js CI fails
+
+Not `npm ci` erroring — it never reaches that step. Every run dies at step 3
+of 6, `Use Node.js`, with the other two matrix legs cancelling each other:
+
+```
+1. Set up job                    success
+2. actions/checkout@v4           success
+3. Use Node.js 22.x              failure     <-- here
+4. npm ci                        skipped
+5. npm run build --if-present    skipped
+6. npm test                      skipped
+```
+
+`actions/setup-node` with `cache: 'npm'` searches for a lockfile starting at
+the repository root. **There is no `package.json` or lockfile at the root of
+this project** — the Node application is the React interface, and its manifest
+is at `interface/package.json`. The cache step finds nothing and fails during
+setup.
+
+The template is correct for a repository whose Node project is at the top
+level. This one is a Python package with a front end inside it.
+
+### The fix
+
+`github-actions-node.yml` in this directory. Two changes:
+
+- `cache-dependency-path: interface/package-lock.json`
+- `defaults.run.working-directory: interface`
+
+Plus three corrections found while checking it:
+
+- The matrix tested Node 18, 20 and 22. Vite 7 declares
+  `engines: ^20.19.0 || >=22.12.0`, so 18 is unsupported outright and a bare
+  `20.x` can resolve below 20.19. Testing a version the project cannot run on
+  is not coverage, it is a red cross nobody can act on. Pinned to `20.19` and
+  `22.x`.
+- `npm run build --if-present` silently passes when there is no build script.
+  The build is not optional here, so it runs unconditionally.
+- `npm run typecheck` was not run at all, and the build output was never
+  checked. The build writes into `aera/desktop/ui-react`, which the
+  PyInstaller spec refuses to package without, so CI now verifies it exists.
+
+Every command in the replacement was run locally first: `npm ci`,
+`npm run typecheck`, `npm test` and `npm run build` all pass.
+
+### To apply it
+
+I cannot. Pushing anything under `.github/workflows/` is rejected:
+
+```
+! [remote rejected] refusing to allow a GitHub App to create or update
+  workflow `.github/workflows/node.js.yml` without `workflows` permission
+```
+
+That was tested against the live remote, not assumed. You need to replace the
+file yourself:
+
+```bash
+cp ci/github-actions-node.yml .github/workflows/node.js.yml
+git add .github/workflows/node.js.yml
+git commit -m "Fix Node CI: the interface is not at the repository root"
+git push
+```
+
+
 `github-actions-ci.yml` is a ready-to-use GitHub Actions workflow for this
 project. It was placed here rather than in `.github/workflows/` because the
 GitHub App used to push this branch does not hold the `workflows` permission.

@@ -1011,3 +1011,87 @@ class TestLanguageSamples:
 
         for code in sorted(set(PACKS) - recorded):
             assert f"`{code}`" in readme, f"{code} has no recording and is not listed"
+
+
+class TestNodeWorkflow:
+    """The Node CI workflow must match where the Node project actually is.
+
+    GitHub's default template assumes package.json sits at the repository
+    root. Here the Node application is the React interface under
+    `interface/`, and there is no root manifest at all -- so every run died
+    at `Use Node.js`, before npm ci was ever reached, because
+    `actions/setup-node` with `cache: npm` could not find a lockfile.
+    """
+
+    @pytest.fixture(scope="class")
+    def workflow(self) -> dict:
+        import yaml
+
+        return yaml.safe_load(
+            (ROOT / "ci" / "github-actions-node.yml").read_text(encoding="utf-8")
+        )
+
+    @pytest.fixture(scope="class")
+    def job(self, workflow) -> dict:
+        return workflow["jobs"]["interface"]
+
+    def test_there_is_no_root_package_json(self):
+        """The premise. If this ever changes the workflow can be simplified,
+        and this test is where that will be noticed."""
+        assert not (ROOT / "package.json").exists()
+
+    def test_the_cache_points_at_the_real_lockfile(self, job):
+        setup = next(s for s in job["steps"] if "setup-node" in s.get("uses", ""))
+        path = setup["with"]["cache-dependency-path"]
+
+        assert (ROOT / path).is_file(), f"{path} does not exist"
+
+    def test_npm_runs_in_the_interface_directory(self, job):
+        assert job["defaults"]["run"]["working-directory"] == "interface"
+
+    def test_every_npm_script_it_calls_exists(self, job):
+        """A workflow calling a script that is not defined fails at the point
+        of use, which is a slow way to learn about a typo."""
+        import json
+
+        scripts = json.loads(
+            (ROOT / "interface" / "package.json").read_text(encoding="utf-8")
+        )["scripts"]
+        called = {
+            line.strip().removeprefix("npm run ").strip()
+            for step in job["steps"]
+            for line in step.get("run", "").splitlines()
+            if line.strip().startswith("npm run ")
+        }
+
+        assert called, "the workflow runs no npm scripts"
+        for script in called:
+            assert script in scripts, f"npm run {script} is not defined"
+
+    def test_the_build_is_not_optional(self, job):
+        """--if-present passes silently when there is no build script. The
+        build is required here: PyInstaller refuses to package without it."""
+        runs = " ".join(step.get("run", "") for step in job["steps"])
+
+        assert "--if-present" not in runs
+
+    def test_it_type_checks(self, job):
+        runs = " ".join(step.get("run", "") for step in job["steps"])
+
+        assert "typecheck" in runs
+
+    def test_the_node_matrix_matches_what_vite_supports(self, job):
+        """Vite 7 declares engines ^20.19.0 || >=22.12.0. Testing Node 18
+        produces a failure the project cannot fix."""
+        versions = job["strategy"]["matrix"]["node-version"]
+
+        assert "18.x" not in versions
+        assert all(not str(v).startswith("1") for v in versions)
+
+    def test_it_verifies_the_build_output(self, job):
+        """The build writes into aera/desktop/ui-react and the spec refuses
+        to package without it, so a broken build should fail CI and not
+        release."""
+        runs = " ".join(step.get("run", "") for step in job["steps"])
+
+        assert "aera/desktop/ui-react/index.html" in runs

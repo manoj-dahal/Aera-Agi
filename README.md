@@ -10,7 +10,7 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-2128%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-2136%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -396,7 +396,7 @@ values only.
 ## Testing
 
 ```bash
-./scripts/test.sh                    # 2,128 Python tests, then ruff
+./scripts/test.sh                    # 2,136 Python tests, then ruff
 cd interface && npm test             # 25 TypeScript tests
 pytest tests/test_memory.py -v       # one module
 ```
@@ -460,7 +460,7 @@ docs/             the original design specification (108 documents)
 scripts/          install, run, test, build, build-desktop, clean
 tools/brand/      regenerates the brand assets from code
 tools/meshgen/    placeholder hologram meshes
-tests/            2,128 Python tests
+tests/            2,136 Python tests
 ```
 
 ---
