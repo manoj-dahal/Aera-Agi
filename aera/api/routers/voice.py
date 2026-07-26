@@ -248,3 +248,26 @@ async def analyse_expression(text: str, voice=Depends(get_voice)):
             "ssml": to_ssml(spoken, reading, persona_pitch_hz=pitch),
         }
     )
+
+
+@voice_router.get("/backends")
+async def list_backends(kernel=Depends(get_kernel_dep)):
+    """Which speech engines can run here, and what each one needs.
+
+    The active engine is reported alongside, so a caller can tell whether it
+    is getting real speech or the bundled synthesiser without inspecting a
+    result.
+    """
+    from ...voice.backends import probe_all
+
+    backend = getattr(kernel.voice, "tts", None)
+    statuses = probe_all(kernel.config.voice.piper_model)
+    return ok(
+        {
+            "backends": [s.to_dict() for s in statuses],
+            "active": getattr(backend, "name", type(backend).__name__),
+            # True only when the active engine articulates words.
+            "synthesises_speech": getattr(backend, "name", "") in ("piper", "system"),
+            "configured_model": kernel.config.voice.piper_model,
+        }
+    )

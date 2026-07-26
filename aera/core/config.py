@@ -166,6 +166,12 @@ class VoiceSection(BaseModel):
     #: Write WAV files for synthesised speech. Off by default: the bundled
     #: synthesiser is a vocoder, not a speech engine.
     write_audio: bool = False
+    #: TTS backend: "auto" picks the best that can actually run, or name one
+    #: of piper / system / persona explicitly.
+    tts_backend: str = "auto"
+    #: Path to a Piper .onnx voice model. Needed for real speech; without it
+    #: AERA falls back and says so.
+    piper_model: str | None = None
 
 
 class WorkspaceSection(BaseModel):

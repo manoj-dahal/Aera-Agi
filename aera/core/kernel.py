@@ -160,16 +160,27 @@ class Kernel:
         )
 
         # -- voice + hologram ---------------------------------------------
+        from ..voice.backends import PiperTTS, SystemTTS, best_available
         from ..voice.personas import PersonaTTS, get_persona
 
-        self.voice = VoiceEngine(
-            cfg.voice,
-            bus=self.bus,
-            tts=PersonaTTS(
-                get_persona(cfg.voice.persona),
-                output_dir=(cfg.storage_dir / "speech") if cfg.voice.write_audio else None,
-            ),
-        )
+        persona = get_persona(cfg.voice.persona)
+        speech_dir = (cfg.storage_dir / "speech") if cfg.voice.write_audio else None
+        choice = (cfg.voice.tts_backend or "auto").strip().lower()
+
+        if choice == "piper":
+            tts = PiperTTS(cfg.voice.piper_model or "", persona=persona, output_dir=speech_dir)
+        elif choice == "system":
+            tts = SystemTTS(persona=persona, output_dir=speech_dir)
+        elif choice == "persona":
+            tts = PersonaTTS(persona, output_dir=speech_dir)
+        else:
+            # "auto": prefer real speech, fall back to the vocoder.
+            tts = best_available(
+                persona, piper_model=cfg.voice.piper_model, output_dir=speech_dir
+            )
+
+        self.voice = VoiceEngine(cfg.voice, bus=self.bus, tts=tts)
+        logger.info("voice backend: %s", getattr(tts, "name", type(tts).__name__))
 
         # User-supplied avatar models. AERA ships none of its own; drop a GLB
         # or OBJ into this directory and it is discovered on scan.

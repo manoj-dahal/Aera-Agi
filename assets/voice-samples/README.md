@@ -46,7 +46,47 @@ Both voices are defined in `aera/voice/personas.py`:
 Both sit above the natural adult averages (roughly 200 Hz female, 120 Hz male)
 because anime delivery is performed higher than ordinary speech.
 
-## Wiring in a real engine
+## Getting real speech
+
+Two commands and one download:
+
+```bash
+pip install "aera[voice]"                    # installs piper-tts
+
+# Download a voice model plus its config, side by side:
+#   https://huggingface.co/rhasspy/piper-voices
+#   en/en_US/amy/medium/en_US-amy-medium.onnx
+#   en/en_US/amy/medium/en_US-amy-medium.onnx.json
+```
+
+Then point AERA at it in `config/voice.yaml`:
+
+```yaml
+voice:
+  tts_backend: auto          # or piper / system / persona
+  piper_model: ~/voices/en_US-amy-medium.onnx
+```
+
+`auto` prefers real speech and falls back to the bundled synthesiser, saying
+which it chose. Check at any time:
+
+```bash
+curl localhost:8080/api/v1/voice/backends
+```
+
+```json
+{"active": "piper", "synthesises_speech": true,
+ "backends": [{"name": "piper", "available": true, "detail": "ready with en_US-amy-medium.onnx"}]}
+```
+
+Every unavailable backend reports what would fix it, rather than only that it
+is missing.
+
+The personas drive whichever engine is active: pitch and pace become Piper's
+length scale, jitter and breathiness become its noise scale, and on espeak the
+persona's fundamental is passed as an explicit pitch.
+
+## Wiring in a different engine
 
 Personas are engine-agnostic — each carries hints for the common backends:
 
