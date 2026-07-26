@@ -12,6 +12,15 @@ jobs:
   build:
     name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
+
+    # GitHub defaults Windows runners to PowerShell, where a multi-line run
+    # block keeps going after a failed command: npm ci could fail and
+    # npm run build would still execute, producing a green build with no
+    # interface in it. bash is available on all three runners and restores
+    # stop-on-error, so the platforms behave identically.
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +100,29 @@ jobs:
           pgrep -f dist/AERA/AERA >/dev/null && echo "app is running" || (echo "app exited early" && exit 1)
           pkill -f dist/AERA/AERA || true
 
+      # Windows had no smoke test: the executable was built, its contents
+      # listed, and then zipped without anyone ever starting it. A binary
+      # that cannot launch would have shipped as a green build.
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = "dist/AERA/AERA.exe"
+          if (-not (Test-Path $exe)) { throw "AERA.exe was not produced" }
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 30
+          if ($p.HasExited) { throw "AERA.exe exited early with code $($p.ExitCode)" }
+          Write-Host "app is running"
+          Stop-Process -Id $p.Id -Force
+
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          open -a dist/AERA.app
+          sleep 30
+          pgrep -f AERA.app >/dev/null && echo "app is running" || (echo "app exited early" && exit 1)
+          pkill -f AERA.app || true
+
       - name: Verify bundle contents
         shell: bash
         run: |
@@ -99,6 +131,9 @@ jobs:
             Windows) ROOT="dist/AERA/_internal" ;;
             *)       ROOT="dist/AERA/_internal" ;;
           esac
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            test -f dist/AERA/AERA.exe || (echo "AERA.exe missing" && exit 1)
+          fi
           test -f "$ROOT/aera/desktop/ui-react/index.html" || (echo "interface missing from the bundle" && exit 1)
           test -d "$ROOT/aera/desktop/ui-react/assets" || (echo "interface assets missing from the bundle" && exit 1)
           test -d "$ROOT/config" || (echo "config missing from the bundle" && exit 1)
@@ -113,6 +148,9 @@ jobs:
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
+        # Compress-Archive is a PowerShell cmdlet, so this step opts out of
+        # the bash default above.
+        shell: pwsh
         run: Compress-Archive -Path dist/AERA -DestinationPath "${{ matrix.artifact }}.zip"
 
       - uses: actions/upload-artifact@v4

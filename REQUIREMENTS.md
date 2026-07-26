@@ -243,7 +243,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **1,922 passing, 2 skipped** |
+| Python tests pass | all | **1,937 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |
@@ -268,7 +268,7 @@ plausible-looking fake.
 | **Sung audio** | Needs a real voice model | `POST /voice/sing` returns a note plan and a note saying it is not audio |
 | **Phone pairing** | No Device Agent | The phone page reports it |
 | **Vision / multimodal transport** | Not implemented | Media agents parse documents; image understanding is refused |
-| **Desktop binaries** | `libpython3.11.so.1.0` missing in this sandbox | Spec and workflow are complete. `ci/github-actions-desktop.yml` builds all three platforms |
+| **Desktop binaries** | Two independent blockers: this sandbox has no `libpython3.11.so.1.0`, so PyInstaller will not start; and pushing to `.github/workflows/` is rejected without the `workflows` permission, so the build has never run | The workflow is written and its Windows path is asserted by `tests/test_documentation.py::TestDesktopBuildWorkflow`. Move `ci/github-actions-desktop.yml` to `.github/workflows/` to enable it. **No Windows binary exists and none has been launched** |
 | **Visual UI verification** | Chromium and Playwright CDNs are blocked | jsdom renders the component tree, not pixels. No screenshot has been taken |
 
 ---

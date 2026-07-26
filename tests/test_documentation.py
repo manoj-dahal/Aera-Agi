@@ -383,3 +383,152 @@ class TestHonestyAboutGaps:
         at import -- this checks the document agrees."""
         assert Script.HAN in TIMING_ONLY
         assert Script.DEVANAGARI in ALPHABETIC
+
+
+class TestDesktopBuildWorkflow:
+    """The Windows desktop build, checked without a Windows runner.
+
+    None of this can be executed here -- there is no Windows machine, and
+    PyInstaller cannot even run on this sandbox because libpython3.11.so is
+    missing. What can be verified is that the workflow says what it means to
+    say, and every check below corresponds to something that was wrong.
+    """
+
+    @pytest.fixture(scope="class")
+    def workflow(self) -> dict:
+        import yaml
+
+        return yaml.safe_load(
+            (ROOT / "ci" / "github-actions-desktop.yml").read_text(encoding="utf-8")
+        )
+
+    @pytest.fixture(scope="class")
+    def build(self, workflow) -> dict:
+        return workflow["jobs"]["build"]
+
+    def test_windows_is_in_the_matrix(self, build):
+        targets = {entry["os"] for entry in build["strategy"]["matrix"]["include"]}
+
+        assert "windows-latest" in targets
+        assert {"ubuntu-latest", "macos-latest"} <= targets
+
+    def test_the_default_shell_is_bash(self, build):
+        """GitHub defaults Windows runners to PowerShell, where a multi-line
+        run block keeps going after a failed command. `npm ci` could fail and
+        `npm run build` would still run, producing a green build with no
+        interface in it.
+        """
+        assert build["defaults"]["run"]["shell"] == "bash"
+
+    def test_powershell_steps_opt_in_explicitly(self, build):
+        """Compress-Archive is a cmdlet and cannot run under bash."""
+        for step in build["steps"]:
+            run = step.get("run", "")
+            if "Compress-Archive" in run or "Start-Process" in run:
+                assert step.get("shell") == "pwsh", (
+                    f"{step.get('name')} uses PowerShell but does not ask for it"
+                )
+
+    @pytest.mark.parametrize("platform", ["Linux", "Windows", "macOS"])
+    def test_every_platform_starts_the_binary(self, platform, build):
+        """Windows built the executable, listed its contents and zipped it
+        without anyone ever launching it: a binary that cannot start would
+        have shipped as a green build."""
+        smoke = [
+            step
+            for step in build["steps"]
+            if step.get("name", "").startswith("Smoke test")
+            and platform in step.get("if", "")
+        ]
+
+        assert smoke, f"no smoke test for {platform}"
+
+    def test_the_windows_smoke_test_fails_when_the_app_exits(self, build):
+        step = next(
+            s for s in build["steps"] if s.get("name") == "Smoke test (Windows)"
+        )
+
+        assert "HasExited" in step["run"]
+        assert "throw" in step["run"], "a failure must fail the step"
+
+    def test_the_windows_executable_is_verified(self, build):
+        verify = next(
+            s for s in build["steps"] if s.get("name") == "Verify bundle contents"
+        )
+
+        assert "AERA.exe" in verify["run"]
+
+    def test_the_bundle_check_knows_the_windows_layout(self, build):
+        """PyInstaller 6 puts data under _internal, and the spec requires 6."""
+        verify = next(
+            s for s in build["steps"] if s.get("name") == "Verify bundle contents"
+        )
+
+        assert "_internal" in verify["run"]
+
+    def test_it_installs_the_extra_that_provides_pyinstaller(self, build):
+        import tomllib
+
+        step = next(s for s in build["steps"] if s.get("name") == "Install project")
+        extras = tomllib.loads(
+            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )["project"]["optional-dependencies"]
+
+        assert "package" in extras
+        assert any("pyinstaller" in dep for dep in extras["package"])
+        assert "[dev,package]" in step["run"]
+
+    def test_the_npm_scripts_it_calls_exist(self, build):
+        import json
+
+        step = next(s for s in build["steps"] if s.get("name") == "Build interface")
+        scripts = json.loads(
+            (ROOT / "interface" / "package.json").read_text(encoding="utf-8")
+        )["scripts"]
+
+        # Read the script names out of the step rather than hardcoding them,
+        # so adding a call to a script that does not exist is caught.
+        called = {
+            line.strip().removeprefix("npm run ").removeprefix("npm ").strip()
+            for line in step["run"].splitlines()
+            if line.strip().startswith("npm ") and "ci" not in line
+        }
+        assert called, "the interface step runs no npm scripts"
+        for script in called:
+            assert script in scripts, f"the workflow runs npm {script} and it is not defined"
+
+    def test_npm_ci_has_a_lockfile(self):
+        """npm ci fails outright without one."""
+        assert (ROOT / "interface" / "package-lock.json").is_file()
+
+    def test_the_windows_icon_is_a_real_ico(self):
+        """PyInstaller rejects a mislabelled icon on Windows only, so a
+        placeholder would pass on Linux and fail the Windows job."""
+        header = (ROOT / "installer" / "icon.ico").read_bytes()[:6]
+
+        assert header[:4] == b"\x00\x00\x01\x00", "installer/icon.ico is not an ICO file"
+        assert int.from_bytes(header[4:6], "little") > 0, "the ICO holds no images"
+
+
+class TestWindowsPortability:
+    def test_no_hardcoded_tmp_path_in_the_package(self):
+        """Path("/tmp") resolves to C:\\tmp on Windows, which does not exist.
+
+        SystemTTS defaulted its output directory to it and called mkdir, so
+        the first line AERA ever spoke created a stray directory at the root
+        of the system drive.
+        """
+        import re
+
+        offenders = []
+        for path in (ROOT / "aera").rglob("*.py"):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r'Path\(\s*["\']/tmp', line):
+                    offenders.append(f"{path.relative_to(ROOT)}:{number}")
+
+        assert not offenders, f"hardcoded /tmp is not portable: {offenders}"
+
+    def test_the_speech_backend_uses_the_system_temp_directory(self):
+        source = (ROOT / "aera" / "voice" / "backends.py").read_text(encoding="utf-8")
+
+        assert "tempfile.gettempdir()" in source

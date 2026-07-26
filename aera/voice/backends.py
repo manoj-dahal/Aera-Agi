@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import subprocess
+import tempfile
 import wave
 from dataclasses import dataclass
 from pathlib import Path
@@ -349,7 +350,10 @@ class SystemTTS(TTSBackend):
                 status.detail, details={"remedy": status.remedy, "backend": self.name}
             )
 
-        directory = self.output_dir or Path("/tmp")
+        # tempfile, not a hardcoded "/tmp": on Windows that string resolves
+        # to C:\tmp, which does not exist, so mkdir created a stray directory
+        # at the root of the system drive on the first line AERA ever spoke.
+        directory = self.output_dir or Path(tempfile.gettempdir()) / "aera-voice"
         directory.mkdir(parents=True, exist_ok=True)
         target = directory / audio_filename(
             request.text, self.persona.id, request.emotion
