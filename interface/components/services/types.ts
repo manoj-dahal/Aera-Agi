@@ -1,0 +1,600 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Voice Reasoning Assistant
+ */
+
+/**
+ * Types mirroring the AERA backend contracts.
+ *
+ * These match the Pydantic models in aera/api/schemas.py and the `to_public()`
+ * serialisers on the domain objects.
+ */
+
+/** The documented response envelope. */
+export interface Envelope<T> {
+  success: boolean;
+  message?: string;
+  data?: T;
+  error?: string;
+  code?: number;
+}
+
+// --------------------------------------------------------------------------
+// chat / agents
+// --------------------------------------------------------------------------
+export interface TaskResult {
+  task_id: string;
+  agent: string;
+  success: boolean;
+  output: string;
+  data: Record<string, unknown> & {
+    intent?: string;
+    confidence?: number;
+    routed_to?: string;
+    language?: string;
+  };
+  error: string | null;
+  duration_ms: number;
+  model: string | null;
+  provider: string | null;
+  conversation_id?: string;
+}
+
+export type AgentStatusValue =
+  | 'idle'
+  | 'starting'
+  | 'running'
+  | 'busy'
+  | 'stopped'
+  | 'error';
+
+export interface AgentInfo {
+  name: string;
+  description: string;
+  status: AgentStatusValue;
+  capabilities: string[];
+  priority: number;
+  tasks_completed: number;
+  tasks_failed: number;
+  avg_duration_ms: number;
+  last_error: string | null;
+  uptime_seconds: number;
+  routed_tasks?: number;
+}
+
+export interface AgentSummary {
+  total: number;
+  running: number;
+  tasks_completed: number;
+  tasks_failed: number;
+  capabilities: number;
+}
+
+export interface AgentsPayload {
+  agents: AgentInfo[];
+  summary: AgentSummary;
+  capabilities: Record<string, string[]>;
+}
+
+// --------------------------------------------------------------------------
+// memory
+// --------------------------------------------------------------------------
+export type MemoryTypeValue =
+  | 'short_term'
+  | 'long_term'
+  | 'working'
+  | 'semantic'
+  | 'episodic'
+  | 'procedural';
+
+export interface MemoryNode {
+  id: string;
+  title: string;
+  /** Optional: a node may be a bare title. */
+  content?: string;
+  description: string;
+  type: string;
+  memory_type: MemoryTypeValue;
+  tags: string[];
+  importance: number;
+  created_at: number;
+  updated_at: number;
+  accessed_at: number;
+  access_count: number;
+  creator: string;
+  source: string | null;
+  project_id: string | null;
+  conversation_id: string | null;
+  metadata: Record<string, unknown>;
+  has_embedding: boolean;
+}
+
+export interface MemoryEdge {
+  id: string;
+  source: string;
+  target: string;
+  relation: string;
+  weight: number;
+  created_at: number;
+  metadata: Record<string, unknown>;
+}
+
+export interface RecallResult {
+  node: MemoryNode;
+  score: number;
+  reason: string;
+  hops: number;
+}
+
+export interface MemoryStats {
+  nodes: number;
+  edges: number;
+  by_type: Record<string, number>;
+  by_memory_type: Record<string, number>;
+  tags: number;
+  projects: number;
+  embedding_dimensions: number;
+  short_term_buffer?: number;
+  working_keys?: number;
+  conversations?: number;
+  enabled?: boolean;
+}
+
+export interface GraphPayload {
+  nodes: MemoryNode[];
+  edges: MemoryEdge[];
+  stats: MemoryStats;
+}
+
+// --------------------------------------------------------------------------
+// workspace
+// --------------------------------------------------------------------------
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  root: string;
+  kinds: string[];
+  files: number;
+  skipped: number;
+  languages: Record<string, number>;
+  total_lines: number;
+  indexed_at: number | null;
+  symbols?: number;
+}
+
+export interface FileSymbol {
+  name: string;
+  kind: string;
+  line: number;
+}
+
+export interface FileMatch {
+  path: string;
+  language: string;
+  size: number;
+  lines: number;
+  symbols: FileSymbol[];
+  modified: number;
+  score?: number;
+}
+
+export interface FileContent {
+  path: string;
+  language: string;
+  size: number;
+  truncated: boolean;
+  content: string;
+}
+
+// --------------------------------------------------------------------------
+// models
+// --------------------------------------------------------------------------
+export interface ModelInfo {
+  id: string;
+  provider: string;
+  name: string;
+  context_length: number;
+  supports_streaming: boolean;
+  supports_vision: boolean;
+  local: boolean;
+  size: string | null;
+  quantization: string | null;
+  status: string;
+}
+
+export interface ProviderHealth {
+  name: string;
+  local: boolean;
+  enabled: boolean;
+  healthy: boolean;
+  stats: {
+    requests: number;
+    failures: number;
+    tokens_in: number;
+    tokens_out: number;
+    avg_latency_ms: number;
+  };
+}
+
+// --------------------------------------------------------------------------
+// system / voice / hologram / automation
+// --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// telemetry (aera/services/telemetry.py)
+// --------------------------------------------------------------------------
+/** Any field may be null: the host may not expose that metric. */
+export interface Telemetry {
+  timestamp: number;
+  host: string;
+  platform: string;
+  source: 'psutil' | 'procfs';
+  cpu: {
+    percent: number | null;
+    cores: number | null;
+    threads: number | null;
+    frequency_mhz: number | null;
+    load_average: number[] | null;
+    model: string | null;
+  };
+  memory: {
+    total_gb: number | null;
+    used_gb: number | null;
+    available_gb: number | null;
+    percent: number | null;
+    swap_total_gb?: number | null;
+    swap_used_gb?: number | null;
+  };
+  disk: {
+    total_gb: number | null;
+    used_gb: number | null;
+    free_gb: number | null;
+    percent: number | null;
+  };
+  network: {
+    bytes_sent: number | null;
+    bytes_received: number | null;
+    up_kbps: number | null;
+    down_kbps: number | null;
+  };
+  gpu: Array<{
+    name: string;
+    utilization: number | null;
+    vram_used_mb: number | null;
+    vram_total_mb: number | null;
+    temperature_c: number | null;
+  }>;
+  temperature: number | null;
+}
+
+// --------------------------------------------------------------------------
+// skills (aera/skills/)
+// --------------------------------------------------------------------------
+export type SkillAvailability = 'available' | 'needs_backend' | 'disabled' | 'planned';
+
+export interface SkillState {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  agent: string;
+  backend: string;
+  background: boolean;
+  availability: SkillAvailability;
+  /** Why it cannot run, in words the user can act on. */
+  reason: string | null;
+  invocations: number;
+  failures: number;
+  success_rate: number | null;
+  last_used: number | null;
+}
+
+export interface SkillSummary {
+  total: number;
+  available: number;
+  background: number;
+  categories: number;
+  by_availability: Record<string, number>;
+  by_category: Record<string, number>;
+  resolved_at: number;
+  backends: Record<string, { available: boolean; detail: string }>;
+}
+
+export interface SkillGap {
+  id: string;
+  name: string;
+  category: string;
+  backend: string;
+  availability: SkillAvailability;
+  reason: string | null;
+}
+
+/** Result of an upload. Archives report every model they contained. */
+export interface AvatarUploadResult {
+  file: string;
+  size_mb: number;
+  model: AvatarModelInfo | null;
+  /** Archive imports only: paths pulled out of the zip. */
+  extracted?: string[];
+  /** Archive imports only: one entry per model found inside. */
+  models?: AvatarModelInfo[];
+}
+
+export interface AvatarModelInfo {
+  id: string;
+  name: string;
+  path: string;
+  format: string;
+  kind: 'character' | 'orb' | 'prop' | 'unknown';
+  variant: 'feminine' | 'masculine' | 'neutral' | 'unspecified';
+  size_mb: number;
+  vertices: number | null;
+  triangles: number | null;
+  materials: string[];
+  textures: string[];
+  dimensions: number[] | null;
+  has_normals: boolean;
+  has_uvs: boolean;
+  has_skeleton: boolean;
+  /** Shape-key names, in glTF target order. */
+  morph_targets: string[];
+  has_morph_targets: boolean;
+  /** AERA viseme shape -> this model's morph target name. */
+  viseme_bindings: Record<string, string>;
+  /** Whether speech can actually move this model's mouth. */
+  can_lip_sync: boolean;
+  warnings: string[];
+  parsed: boolean;
+}
+
+export interface SystemStatus {
+  name: string;
+  version: string;
+  environment: string;
+  ready: boolean;
+  uptime_seconds: number;
+  agents: AgentSummary;
+  memory: MemoryStats;
+  providers: string[];
+  workspace: ProjectSummary | Record<string, never>;
+  voice: VoiceStatus;
+  hologram: AvatarState;
+  events_published: number;
+  telemetry?: Telemetry;
+  skills?: SkillSummary;
+}
+
+export interface VoiceLanguage {
+  code: string;
+  label: string;
+  /** The language's own name for itself, for the picker. */
+  endonym: string;
+  emotion_cues: number;
+  has_numbers: boolean;
+  /** False where numerals are kept: counter-dependent or irregular readings. */
+  spells_all_numbers: boolean;
+  script: string;
+  rtl: boolean;
+}
+
+export interface VoicePersona {
+  id: string;
+  label: string;
+  variant: string;
+  /** False for the two bundled voices: they do not articulate words. */
+  synthesises_speech: boolean;
+  custom: boolean;
+  /** Custom voices only: whether the model file is still on disk. */
+  available?: boolean;
+  language?: string;
+  sample_rate?: number;
+}
+
+export interface VoicePersonas {
+  personas: VoicePersona[];
+  builtin: string[];
+  custom: string[];
+  active: string | null;
+  engine: string;
+  synthesises_speech: boolean;
+  note: string;
+  add_your_own: string;
+}
+
+export interface VoiceLanguages {
+  languages: VoiceLanguage[];
+  count: number;
+  active: string;
+  supported: boolean;
+  spell_numbers: string[];
+  rtl: string[];
+  active_pack: VoiceLanguage;
+  fallback: string;
+}
+
+export interface VoiceStatus {
+  enabled: boolean;
+  state: 'idle' | 'listening' | 'processing' | 'speaking';
+  session: string | null;
+  wake_word: string;
+  language: string;
+  emotion_enabled: boolean;
+  hologram_sync: boolean;
+  stt_backend: string;
+  tts_backend: string;
+  turns: number;
+}
+
+export interface AvatarState {
+  enabled?: boolean;
+  visible: boolean;
+  emotion: string;
+  intensity: number;
+  gesture: string;
+  speaking: boolean;
+  gaze: { x: number; y: number };
+  blendshapes: Record<string, number>;
+  updated_at: number;
+}
+
+export interface WorkflowInfo {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  actions: number;
+  triggers: string[];
+}
+
+export interface WorkflowRun {
+  id: string;
+  workflow_id: string;
+  workflow_name: string;
+  status: 'pending' | 'running' | 'success' | 'failed' | 'cancelled';
+  started_at: number;
+  finished_at: number | null;
+  duration_ms: number;
+  steps: Array<{
+    action_id: string;
+    type: string;
+    success: boolean;
+    output: unknown;
+    error: string | null;
+    duration_ms: number;
+  }>;
+  error: string | null;
+  variables: Record<string, unknown>;
+}
+
+export interface SystemEvent {
+  id: string;
+  topic: string;
+  payload: Record<string, unknown>;
+  timestamp: number;
+  source: string | null;
+}
+
+export interface AuditEntry {
+  timestamp: number;
+  action: string;
+  principal: string;
+  outcome: string;
+  details: Record<string, unknown>;
+}
+
+// --------------------------------------------------------------------------
+// UI-local models
+// --------------------------------------------------------------------------
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  agent?: string;
+  provider?: string;
+  streaming?: boolean;
+  error?: boolean;
+  timestamp: number;
+}
+
+// --------------------------------------------------------------------------- //
+// docker
+// --------------------------------------------------------------------------- //
+export interface DockerStatus {
+  available: boolean;
+  socket: string | null;
+  /** Why Docker cannot be used, phrased for the user. Null when it can. */
+  reason: string | null;
+  control_enabled: boolean;
+  api_version: string;
+}
+
+export interface DockerPort {
+  private: number | null;
+  public: number | null;
+  type: string | null;
+}
+
+export interface DockerContainer {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+  created: number;
+  ports: DockerPort[];
+}
+
+export interface DockerImage {
+  id: string;
+  tags: string[];
+  size: number | null;
+  created: number | null;
+}
+
+export interface DockerVolume {
+  name: string;
+  driver: string;
+  mountpoint: string;
+  created: string | null;
+}
+
+export interface DockerNetwork {
+  id: string;
+  name: string;
+  driver: string;
+  scope: string;
+}
+
+export interface DockerInfo {
+  version: {
+    version: string | null;
+    api_version: string | null;
+    os: string | null;
+    arch: string | null;
+    kernel: string | null;
+  };
+  info: {
+    name: string | null;
+    containers: number | null;
+    containers_running: number | null;
+    containers_stopped: number | null;
+    images: number | null;
+    server_version: string | null;
+    driver: string | null;
+    memory_total: number | null;
+    cpus: number | null;
+  };
+}
+
+export interface DockerStats {
+  cpu_percent: number | null;
+  memory_usage: number | null;
+  memory_limit: number | null;
+  memory_percent: number | null;
+}
+
+// --------------------------------------------------------------------------- //
+// uploads
+// --------------------------------------------------------------------------- //
+/** A file the user handed to AERA. */
+export interface UploadInfo {
+  id: string;
+  name: string;
+  path: string;
+  size_bytes: number;
+  size_mb: number;
+  /** image | video | audio | document | text | code | archive | model | unknown */
+  kind: string;
+  sha256: string;
+  uploaded_at: number;
+  /** Which agent the backend will route this to by default. */
+  suggested_agent: string;
+}
+
+export interface UploadStats {
+  count: number;
+  total_bytes: number;
+  by_kind: Record<string, number>;
+  max_upload_mb: number;
+}
