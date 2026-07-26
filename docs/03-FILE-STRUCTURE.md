@@ -249,19 +249,24 @@ workspace/
 
 # voice/
 
-Voice engine.
+Voice engine. A flat set of modules rather than nested directories: the
+layout below is what exists. This section previously described stt/, tts/,
+emotion/, conversation/, recognition/, synthesis/, wakeword/ and utils/
+directories, none of which has ever been created.
 
 ```text
 voice/
 │
-├── stt/
-├── tts/
-├── emotion/
-├── conversation/
-├── recognition/
-├── synthesis/
-├── wakeword/
-└── utils/
+├── engine.py        session state, wake word, the speak pipeline
+├── expression.py    mood, negation-aware emotion, per-word prosody
+├── personas.py      anime-g and anime-b, per-emotion acoustics, formant synth
+├── backends.py      Piper and system TTS, probing and fallback
+├── languages.py     35 language packs, per-language number reading
+├── packs_western.py Europe and the Americas
+├── packs_asia.py    South Asia, East Asia, Middle East, Africa
+├── scripts.py       writing systems and the mouth shapes each implies
+├── phonetics.py     spoken-form normalisation, viseme tracks
+└── music.py         syllables, metre, rhyme, tempo, scales, singing
 ```
 
 ---

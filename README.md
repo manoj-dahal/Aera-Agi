@@ -10,8 +10,8 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-658%20passing-brightgreen)]()
-[![python](https://img.shields.io/badge/python-3.10%2B-blue)]()
+[![tests](https://img.shields.io/badge/tests-1845%20passing-brightgreen)]()
+[![python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
 
@@ -22,6 +22,11 @@ every other agent can read.
 
 Everything runs on your machine. The kernel executes in-process inside the
 application — no web server, no bound port, no browser.
+
+**[REQUIREMENTS.md](REQUIREMENTS.md)** records what is built, what is built with
+a stated limit, and what is not built at all. Nothing in this repository fakes a
+capability it does not have; where something is missing, the call that would use
+it says so.
 
 ---
 
@@ -404,6 +409,7 @@ pytest tests/test_memory.py -v       # one module
 | `test_languages.py` | 252 | 35 language packs, per-language numbers, cue sweep |
 | `test_scripts.py` | 187 | visemes across 9 writing systems, script detection |
 | `test_music.py` | 124 | syllables, metre, rhyme, tempo, scales, note plans |
+| `test_documentation.py` | 60 | every documented count asserted against the code |
 | `test_phonetics.py` | 47 | spoken-form normalisation, grapheme visemes |
 | `test_expression.py` | 49 | mood decay, negation scope, prosody, SSML |
 | `test_voice_personas.py` | 56 | anime-g / anime-b acoustics, per-emotion timbre |
