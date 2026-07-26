@@ -504,3 +504,8 @@ Planned
 # Summary
 
 The Ethical Hacking Agent is AERA's defensive security assessment engine. It helps users evaluate the security of systems they own or are authorized to test through vulnerability assessments, secure code reviews, configuration analysis, compliance validation, and risk reporting. By integrating with the Security Agent and other core services, it strengthens the overall security posture of the AERA ecosystem while operating within clearly defined authorization and ethical boundaries.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

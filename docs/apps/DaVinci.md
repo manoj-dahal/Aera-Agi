@@ -27,3 +27,8 @@ DaVinci Resolve integration for professional video editing.
 - Smart Cuts
 - Color Matching
 - Audio Enhancement
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

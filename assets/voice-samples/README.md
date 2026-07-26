@@ -119,3 +119,8 @@ for p in (ANIME_GIRL, ANIME_BOY):
                        path=Path(f'assets/voice-samples/formant/{p.id}-{e.value}.wav'))
 "
 ```
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

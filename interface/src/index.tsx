@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';

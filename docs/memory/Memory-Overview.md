@@ -198,3 +198,8 @@ Memory can use
 # Summary
 
 The Memory System gives AERA persistent intelligence by organizing information into multiple specialized memory types connected through a neural knowledge graph.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

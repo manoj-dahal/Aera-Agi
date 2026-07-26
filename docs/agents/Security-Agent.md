@@ -499,3 +499,8 @@ Planned
 # Summary
 
 The Security Agent is AERA's defensive cybersecurity and privacy engine. It continuously protects users, devices, applications, AI agents, and workspaces through identity management, permission enforcement, threat monitoring, encryption, and policy validation. Working closely with the Ethical Hacking Agent and other core agents, it helps maintain a secure, privacy-focused, and trustworthy AI ecosystem while keeping users in control of sensitive operations.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Generate the AERA brand assets.
 
     python -m tools.brand                     # writes to assets/brand

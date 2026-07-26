@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { describe, expect, it } from 'vitest';
 import { agentStatusColors, chartColors, emotionColors, memoryTypeColors, palette } from '@design/colors';
 import { darkTheme, lightTheme, themes } from '@design/themes';

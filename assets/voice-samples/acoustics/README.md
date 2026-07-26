@@ -57,3 +57,8 @@ level, gives the correct answer: 0.677 for sad against 0.607 for confident.
 These WAVs come from AERA's bundled formant synthesiser. It carries pitch,
 timing, breath and tremor faithfully but does not articulate words — the
 acoustic profile is real, the speech is not. See `../README.md`.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 # Model routing (docs/config/Models.md, docs/18-LOCAL-LLM.md)
 #
 # routing_mode: automatic | local_first | cloud_first | manual |

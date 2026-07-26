@@ -120,3 +120,8 @@ tts:
 # Summary
 
 Text-to-Speech gives AERA a natural, expressive speaking voice.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

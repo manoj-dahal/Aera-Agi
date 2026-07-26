@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """System telemetry for the PC Information panel (docs/04-DASHBOARD.md).
 
 Reports CPU, GPU, RAM, VRAM, disk, network and temperature. Uses ``psutil``

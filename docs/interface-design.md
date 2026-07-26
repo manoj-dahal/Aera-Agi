@@ -1160,3 +1160,8 @@ Planned additions:
 The AERA design system is built to present complex AI capabilities in a clean, calm, and highly structured interface.
 
 Every page, button, component, and panel follows the same visual language so the product feels consistent, intelligent, and easy to use. The UI should make powerful systems feel simple, while the background AI handles everything complicated behind the scenes.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -67,3 +67,8 @@ These MP3s were rendered by a neural TTS engine. AERA's bundled synthesiser
 carries pitch, timing and lip-sync but does not articulate words. Install a
 Piper voice for the target language and the same expression analysis drives it
 — see `../README.md`.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

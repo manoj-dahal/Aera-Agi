@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Memory node / edge domain models (``docs/06-MEMORY-GRAPH.md``)."""
 
 from __future__ import annotations

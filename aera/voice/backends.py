@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Real TTS backends.
 
 Until now the answer to "how do I get actual speech?" was "implement

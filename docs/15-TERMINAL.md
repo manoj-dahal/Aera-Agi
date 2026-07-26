@@ -344,3 +344,8 @@ Planned improvements
 # Summary
 
 The Terminal module combines a professional command-line environment with AERA's AI intelligence. By integrating project awareness, shared memory, intelligent command assistance, and automation, it enables users to work more efficiently while maintaining the flexibility and power of a traditional terminal.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

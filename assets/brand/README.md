@@ -54,3 +54,8 @@ across the midline to hold that ladder in place.
 Change the palette in the design system, rerun the generator, and every asset
 follows. If you edit `installer/icon.ico` or `icon.icns` by hand they will be
 overwritten on the next `--install-icons`.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

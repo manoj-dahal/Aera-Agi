@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TransportError, detectHost, nativeBridge, unwrap } from '@services/transport';
 

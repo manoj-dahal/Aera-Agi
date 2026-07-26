@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Tests for the skill catalogue, manager and background engines.
 
 The contract under test is self-knowledge: AERA must report what it cannot do

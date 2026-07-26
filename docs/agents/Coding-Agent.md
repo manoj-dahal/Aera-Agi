@@ -481,3 +481,8 @@ Planned
 # Summary
 
 The Coding Agent is AERA's software engineering specialist. It assists throughout the complete development lifecycle by understanding project context, generating high-quality code, debugging issues, improving architecture, creating documentation, and collaborating with other agents to deliver efficient, secure, and maintainable software.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

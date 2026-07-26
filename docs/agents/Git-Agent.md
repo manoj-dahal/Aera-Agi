@@ -387,3 +387,8 @@ Planned
 # Summary
 
 The Git Agent is AERA's intelligent version control assistant. It automates repository management, commit creation, branch workflows, release management, and collaboration while integrating with the Coding Agent, Workspace Agent, Memory Agent, and Terminal Agent to provide a seamless AI-powered Git experience.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { useCallback, useEffect, useState } from 'react';
 import { Boxes, Container, HardDrive, Network, RotateCw, Square, Play } from 'lucide-react';
 import {

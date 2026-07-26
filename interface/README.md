@@ -138,3 +138,8 @@ The directory scaffold also reserves space for `auth/` and `onboarding/`
 flows. Local desktop installs are single-user and unauthenticated by default
 (`api.auth_enabled: false`), so those screens are only needed for shared-server
 deployments; `AuthLayout` is in place for when they are built.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

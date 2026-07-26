@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';

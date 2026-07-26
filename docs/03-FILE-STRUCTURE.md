@@ -579,3 +579,8 @@ tests/
 # Summary
 
 The AERA project structure separates the user interface, AI core, agents, memory system, background services, application integrations, and deployment infrastructure into clearly defined modules. This organization supports maintainability, scalability, testing, and future feature expansion while keeping responsibilities isolated.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

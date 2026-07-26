@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """AERA core: configuration, events, logging, errors and the kernel.
 
 ``Kernel`` is exported lazily: it imports the agent, memory and AI subsystems,

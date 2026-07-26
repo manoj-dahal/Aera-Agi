@@ -403,3 +403,8 @@ Planned features:
 # Summary
 
 The Hologram System transforms AERA from a text-based assistant into a visually expressive AI companion. By synchronizing voice, emotions, facial expressions, gestures, and animations, it creates a natural and immersive interaction while maintaining high performance and a customizable appearance.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

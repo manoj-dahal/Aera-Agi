@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Multi-agent memory sharing and the neural-memory pipeline.
 
 docs/memory/Neural-Network-Memory-Database.md promises one memory that every

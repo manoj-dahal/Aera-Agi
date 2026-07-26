@@ -478,3 +478,8 @@ Future improvements include
 # Summary
 
 The Memory Graph is the central intelligence structure of AERA. It transforms conversations, files, projects, tasks, and user interactions into a connected knowledge network that every AI agent can understand and use. This shared graph enables persistent context, intelligent recall, and long-term learning while keeping the user interface clean and focused.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

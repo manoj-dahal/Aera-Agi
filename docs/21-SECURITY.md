@@ -402,3 +402,8 @@ Planned improvements
 # Summary
 
 The Security System provides comprehensive protection for AERA by combining Zero Trust principles, encryption, permission management, plugin sandboxing, AI safeguards, and continuous background monitoring. Its architecture is designed to protect user data, AI workflows, connected devices, and applications while maintaining privacy, performance, and ease of use.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

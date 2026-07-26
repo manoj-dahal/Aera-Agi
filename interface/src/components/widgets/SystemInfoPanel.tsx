@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { Cpu, Gauge, HardDrive, MemoryStick, Network, Thermometer, Zap } from 'lucide-react';
 import type { SystemStatus, Telemetry } from '@services/types';
 import { cn } from '@utils/cn';

@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Spoken-form normalisation and phoneme-aligned visemes.
 
 Three defects prompted this. A TTS engine reads what it is given, so "87%"

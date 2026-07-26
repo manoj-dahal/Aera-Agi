@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Tests for the requirements captured in docs/ui-page/conversation.txt.
 
 Each test names the instruction it protects, so a regression is traceable back

@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Workspace scanner and project indexer (``docs/14-WORKSPACE.md``).
 
 Walks a project folder, classifies files, extracts lightweight code symbols and

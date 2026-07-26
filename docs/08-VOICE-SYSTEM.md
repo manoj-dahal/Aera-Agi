@@ -405,3 +405,8 @@ Planned improvements
 # Summary
 
 The Voice System provides a natural, context-aware communication layer for AERA. By combining speech recognition, memory, AI reasoning, expressive speech synthesis, and synchronized hologram animation, it creates an intuitive and immersive conversational experience while maintaining user privacy and responsive performance.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

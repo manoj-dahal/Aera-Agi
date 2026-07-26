@@ -403,3 +403,8 @@ Future releases will introduce:
 AERA is designed to become an intelligent AI operating environment rather than a traditional assistant.
 
 By combining memory, reasoning, automation, local AI, cloud AI, voice interaction, and application integration into one cohesive system, AERA provides a foundation for next-generation human-computer collaboration.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

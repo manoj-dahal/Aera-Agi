@@ -104,3 +104,8 @@ the machinery around it is language-independent.
 # Summary
 
 The Emotion Engine makes AERA sound natural and emotionally appropriate.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

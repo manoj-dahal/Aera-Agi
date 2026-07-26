@@ -42,3 +42,8 @@ words — no pretrained voice model can be downloaded in this environment
 The persona definitions in `aera/voice/personas.py` are engine-agnostic and
 already carry hints for Piper, Coqui and ElevenLabs, so whichever voice you
 pick can be reproduced by a real backend once one is installed.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

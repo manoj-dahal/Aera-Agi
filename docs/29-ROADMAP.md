@@ -565,3 +565,8 @@ Areas under investigation
 AERA is designed to evolve beyond a traditional AI assistant into a complete AI Operating Environment.
 
 By integrating intelligent agents, persistent memory, voice interaction, holographic avatars, automation, local and cloud AI, secure APIs, and an extensible plugin ecosystem, AERA aims to become a unified platform where users can create, collaborate, automate, and manage digital workflows through natural interaction while maintaining strong privacy, security, and user control.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

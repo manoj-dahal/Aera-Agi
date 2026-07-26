@@ -467,3 +467,8 @@ Planned
 # Summary
 
 The Terminal Agent is AERA's command-line automation specialist. It provides intelligent terminal interaction, secure command execution, script generation, environment management, and system administration while integrating closely with the Core Agent, Coding Agent, Workspace Agent, Git Agent, and Memory Agent to deliver a powerful AI-assisted development experience.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

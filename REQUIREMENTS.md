@@ -243,7 +243,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **1,937 passing, 2 skipped** |
+| Python tests pass | all | **1,948 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |
@@ -289,3 +289,8 @@ cd interface && npm run typecheck && npx vitest run && npm run build
 The counts in this file are asserted by `tests/test_documentation.py`. If a
 language is added, an endpoint changes, or a script gains a reader, that suite
 fails until this file is updated — which is the point.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

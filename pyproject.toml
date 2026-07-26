@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
@@ -9,7 +14,7 @@ description = "AERA - Artificial Enhanced Reasoning Assistant / AI Operating Sys
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "AERA Project" }]
+authors = [{ name = "Manoj Dahal", email = "info@manoj-dahal.com.np" }]
 keywords = ["ai", "agents", "memory-graph", "llm", "assistant", "operating-system"]
 
 dependencies = [

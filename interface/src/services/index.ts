@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 /** AERA service layer: typed client, transport and shared contracts. */
 
 export { api, default as client, agents, avatars, automation, chat, hologram, memory, models, onStreamToken, skills, streamOverHttp, system, voice, workspace } from './api';

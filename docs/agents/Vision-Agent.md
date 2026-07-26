@@ -415,3 +415,8 @@ Planned
 # Summary
 
 The Vision Agent is AERA's visual intelligence engine. It transforms images, documents, screenshots, videos, and live camera input into structured knowledge through OCR, object recognition, document understanding, and semantic analysis. By integrating with the Memory Graph and collaborating with other agents, it enables AERA to understand and reason about visual information as naturally as text.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

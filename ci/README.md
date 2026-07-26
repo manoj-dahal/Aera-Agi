@@ -69,3 +69,8 @@ git mv ci/github-actions-desktop.yml .github/workflows/desktop.yml
 git commit -m "Enable desktop build workflow"
 git push --tags
 ```
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

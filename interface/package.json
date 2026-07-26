@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "author": {
+    "name": "Manoj Dahal",
+    "email": "info@manoj-dahal.com.np"
+  },
+  "license": "MIT",
   "description": "AERA interface - React + TypeScript front end for the AERA AI Operating System",
   "scripts": {
     "dev": "vite",

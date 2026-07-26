@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { useEffect, useState } from 'react';
 import { Card, LoadingState, StatCard, StatRow } from '@components/index';
 import { MemoryGraphCanvas } from '@components/charts/MemoryGraphCanvas';

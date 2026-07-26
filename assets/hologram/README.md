@@ -28,3 +28,8 @@ fingers, rig or blendshapes. They exist to exercise the loader. A model you
 author will be better.
 
 Generated files are gitignored; they rebuild deterministically from a seed.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

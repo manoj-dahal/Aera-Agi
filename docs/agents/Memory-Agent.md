@@ -499,3 +499,8 @@ Planned
 # Summary
 
 The Memory Agent is AERA's long-term intelligence system. It continuously organizes information into a semantic Memory Graph, enabling fast retrieval, contextual reasoning, personalized interactions, and knowledge persistence across conversations, projects, and workflows while maintaining strong privacy, security, and user control.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

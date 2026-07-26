@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Paperclip } from 'lucide-react';
 import { AmbientPanel } from '@components/widgets/AmbientPanel';

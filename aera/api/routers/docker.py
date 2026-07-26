@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Docker Engine endpoints (docs/27-DOCKER.md).
 
 Reads are open; state changes are refused unless Docker control is enabled in

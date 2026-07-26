@@ -465,3 +465,8 @@ Planned
 # Summary
 
 The Workspace Agent is AERA's intelligent workspace management engine. It continuously analyzes projects, indexes files, monitors changes, builds semantic context, and synchronizes workspace knowledge with the Memory Graph. By providing complete project awareness to every AI agent, it enables AERA to deliver accurate, context-rich assistance across software development, research, documentation, and creative workflows.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

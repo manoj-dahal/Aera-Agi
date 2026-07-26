@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 # AERA - production image (docs/27-DOCKER.md)
 # Multi-stage: build wheels once, ship a slim non-root runtime.
 

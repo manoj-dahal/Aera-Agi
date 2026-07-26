@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Docker Engine API client (docs/27-DOCKER.md).
 
 Talks to the Engine directly over its Unix socket rather than shelling out to

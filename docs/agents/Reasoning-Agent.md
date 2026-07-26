@@ -427,3 +427,8 @@ Planned
 # Summary
 
 The Reasoning Agent is AERA's analytical intelligence engine. It transforms information from memory, specialized agents, and user context into logical conclusions, strategic recommendations, and explainable decisions. By combining structured reasoning with evidence evaluation and multi-agent collaboration, it enables AERA to solve complex problems with transparency, consistency, and reliability.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

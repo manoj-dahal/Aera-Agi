@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Singing: lyrics, rhythm, metre and melody.
 
 Speech prosody cannot be relabelled as song. Sung pitch is quantised to a

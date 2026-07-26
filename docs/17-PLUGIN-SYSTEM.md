@@ -449,3 +449,8 @@ Planned improvements
 
 The Plugin System enables AERA to grow without changing its core architecture. Through secure sandboxing, modular APIs, shared memory integration, and a flexible extension framework, plugins can add new AI capabilities, integrations, user interface components, and automation workflows while maintaining system stability, security, and performance.
 ````
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

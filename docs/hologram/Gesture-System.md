@@ -51,3 +51,8 @@ Gestures improve communication by reinforcing spoken responses.
 - Automatic Gesture Selection
 - Emotion-Based Gestures
 - Context Awareness
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

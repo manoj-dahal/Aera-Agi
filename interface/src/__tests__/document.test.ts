@@ -1,3 +1,10 @@
+/*
+ * MADE By Manoj Dahal
+ * Copyright (c) 2026 Manoj Dahal. All rights reserved.
+ * Contact: info@manoj-dahal.com.np
+ * AERA — Artificial Enhanced Reasoning Assistant
+ */
+
 /**
  * The document shell and global stylesheet are generated from TypeScript by
  * vite-plugins/aera-document.ts. These cover the properties the build relies

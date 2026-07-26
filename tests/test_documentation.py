@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """The documentation has to stay true.
 
 Every number in REQUIREMENTS.md and the voice documents is measured from the
@@ -532,3 +537,168 @@ class TestWindowsPortability:
         source = (ROOT / "aera" / "voice" / "backends.py").read_text(encoding="utf-8")
 
         assert "tempfile.gettempdir()" in source
+
+
+class TestAttribution:
+    """Every source file carries authorship and contact details.
+
+    Applied by ``tools/attribution.py``, which is idempotent and can be
+    re-run. These tests exist because a bulk header injection is easy to get
+    subtly wrong: a string above a Python module docstring silently stops it
+    being ``__doc__``, a comment in JSON makes the file unparseable, and a
+    stamp on a generated file is undone by the next build.
+    """
+
+    AUTHOR = "Manoj Dahal"
+    EMAIL = "info@manoj-dahal.com.np"
+    MARKER = f"MADE By {AUTHOR}"
+
+    @pytest.fixture(scope="class")
+    def source_files(self) -> list[Path]:
+        import subprocess
+
+        names = subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.split()
+        interesting = {".py", ".ts", ".tsx", ".md", ".yaml", ".yml", ".toml", ".spec"}
+        return [
+            ROOT / n
+            for n in names
+            if (ROOT / n).is_file()
+            and Path(n).suffix in interesting
+            and "node_modules" not in n
+            and n not in {"interface/index.html", "interface/src/styles/globals.css"}
+        ]
+
+    def test_every_source_file_is_attributed(self, source_files):
+        missing = [
+            str(p.relative_to(ROOT))
+            for p in source_files
+            if self.MARKER not in p.read_bytes().decode("utf-8", "replace")
+        ]
+
+        assert not missing, f"{len(missing)} files lack attribution: {missing[:10]}"
+
+    def test_the_contact_address_is_present(self, source_files):
+        missing = [
+            str(p.relative_to(ROOT))
+            for p in source_files
+            if self.EMAIL not in p.read_bytes().decode("utf-8", "replace")
+        ]
+
+        assert not missing, f"{len(missing)} files lack the contact address"
+
+    def test_no_file_is_stamped_twice(self, source_files):
+        """The stamper is keyed by its marker so a re-run replaces rather
+        than stacks. Without that, every run adds another header."""
+        doubled = [
+            str(p.relative_to(ROOT))
+            for p in source_files
+            if p.read_bytes().decode("utf-8", "replace").count(self.MARKER) > 1
+        ]
+
+        assert not doubled, f"stacked headers in: {doubled[:10]}"
+
+    def test_python_docstrings_survived(self, source_files):
+        """A comment above a module docstring is fine; a string is not.
+
+        Had the header been inserted as a string literal, every module
+        docstring in the package would have become a discarded expression
+        and ``__doc__`` would be None.
+        """
+        import ast
+
+        lost = []
+        for path in source_files:
+            if path.suffix != ".py":
+                continue
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            body = tree.body
+            # Only check files that still look like they meant to have one.
+            if body and isinstance(body[0], ast.Expr) and isinstance(
+                getattr(body[0], "value", None), ast.Constant
+            ):
+                if not ast.get_docstring(tree):
+                    lost.append(str(path.relative_to(ROOT)))
+
+        assert not lost, f"module docstring broken in: {lost}"
+
+    def test_every_python_file_still_parses(self, source_files):
+        import ast
+
+        broken = []
+        for path in source_files:
+            if path.suffix != ".py":
+                continue
+            try:
+                ast.parse(path.read_text(encoding="utf-8"))
+            except SyntaxError as error:
+                broken.append(f"{path.relative_to(ROOT)}: {error}")
+
+        assert not broken, broken
+
+    def test_json_manifests_were_not_commented(self):
+        """JSON has no comment syntax: a header would make npm refuse to run."""
+        import json
+
+        for name in ("interface/package.json", "interface/tsconfig.json"):
+            path = ROOT / name
+            if path.is_file():
+                json.loads(path.read_text(encoding="utf-8"))
+
+    def test_the_manifests_name_the_author(self):
+        import json
+
+        import tomllib
+
+        package = json.loads(
+            (ROOT / "interface" / "package.json").read_text(encoding="utf-8")
+        )
+        pyproject = tomllib.loads(
+            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )
+
+        assert package["author"] == {"name": self.AUTHOR, "email": self.EMAIL}
+        assert pyproject["project"]["authors"] == [
+            {"name": self.AUTHOR, "email": self.EMAIL}
+        ]
+
+    def test_the_licence_exists_and_names_the_holder(self):
+        """Both manifests claimed MIT and no LICENSE file existed."""
+        licence = (ROOT / "LICENSE").read_text(encoding="utf-8")
+
+        assert "MIT License" in licence
+        assert self.AUTHOR in licence
+        assert self.EMAIL in licence
+
+    def test_generated_files_are_not_stamped(self):
+        """They are rewritten on every build, so a stamp is lost anyway and
+        shows up as spurious churn in the diff."""
+        for name in ("interface/index.html", "interface/src/styles/globals.css"):
+            path = ROOT / name
+            if path.is_file():
+                assert self.MARKER not in path.read_text(encoding="utf-8"), (
+                    f"{name} is generated and should not be stamped"
+                )
+
+    def test_markdown_attribution_is_visible(self):
+        """An HTML comment renders as nothing, which is the wrong choice for
+        a document a person opens."""
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        assert f"**{self.MARKER}**" in readme
+        assert f"mailto:{self.EMAIL}" in readme
+
+    def test_the_stamper_reports_clean(self):
+        """tools/attribution.py --check is the same guard, runnable by hand."""
+        import subprocess
+        import sys
+
+        result = subprocess.run(
+            [sys.executable, "tools/attribution.py", "--check"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stdout

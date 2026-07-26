@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Plugin runtime: manifests, permissions and the approval lifecycle.
 
 docs/17-PLUGIN-SYSTEM.md specified a full plugin system and none of it

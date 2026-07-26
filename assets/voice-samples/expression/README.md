@@ -84,3 +84,8 @@ synthesiser applies the same pitch, timing and pause data but does not
 articulate words — see `../README.md`. The analysis layer is real and runs in
 the kernel; the *voice* rendering it is not yet bundled, because no pretrained
 model can be downloaded in this environment.
+
+---
+
+**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
+Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)
