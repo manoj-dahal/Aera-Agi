@@ -113,6 +113,21 @@ _CUES: list[tuple[Emotion, tuple[str, ...], float]] = [
     ), 0.9),
 ]
 
+#: How much each emotion's cues count. Distress outweighs delight, because a
+#: warning missed matters more than a compliment missed.
+_CUE_WEIGHT: dict[Emotion, float] = {
+    Emotion.EXCITED: 1.0,
+    Emotion.SERIOUS: 0.95,
+    Emotion.SAD: 0.9,
+    Emotion.CONCERNED: 0.85,
+    Emotion.HAPPY: 0.8,
+    Emotion.CONFIDENT: 0.7,
+    Emotion.CURIOUS: 0.6,
+    Emotion.CALM: 0.5,
+    Emotion.NEUTRAL: 0.4,
+}
+
+
 #: Where negation sends each emotion. Negating "great" is not neutrality --
 #: "not great" is mildly negative, which is why this is a map rather than a
 #: simple sign flip.
@@ -210,17 +225,32 @@ class Mood:
 
 
 class ExpressionAnalyser:
-    """Detects emotion with the nuance a flat keyword match misses."""
+    """Detects emotion with the nuance a flat keyword match misses.
 
-    def __init__(self, mood: Mood | None = None) -> None:
+    The vocabulary comes from a language pack; the machinery around it --
+    clause-scoped negation, intensifier boosting, recency weighting -- is
+    language-independent.
+    """
+
+    def __init__(self, mood: Mood | None = None, *, language: str = "en") -> None:
         self.mood = mood or Mood()
+        self.language = language
 
-    def analyse(self, text: str, *, now: float | None = None) -> EmotionReading:
+    def analyse(
+        self, text: str, *, now: float | None = None, language: str | None = None
+    ) -> EmotionReading:
         """Classify one utterance.
 
         Splits into sentences and weights the last one highest: "It failed.
         But I fixed it." should not read as sad.
+
+        ``language`` overrides the analyser's default for one call, which is
+        what a mixed-language conversation needs.
         """
+        from .languages import compiled, get_pack
+
+        pack = get_pack(language or self.language)
+        rules = compiled(pack)
         cleaned = (text or "").strip()
         if not cleaned:
             return EmotionReading(Emotion.NEUTRAL, 0.0, 0.0, ["empty"])
@@ -234,28 +264,32 @@ class ExpressionAnalyser:
             # The closing sentence carries the most weight; earlier ones set up.
             recency = 0.5 + 0.5 * ((index + 1) / len(sentences))
             lowered = sentence.lower()
-            boost = 1.0 + 0.35 * len(_INTENSIFIERS.findall(lowered))
-            hedged = bool(_HEDGES.search(lowered))
+            boost = 1.0 + 0.35 * len(
+                rules["intensifiers"].findall(lowered) if rules["intensifiers"] else []
+            )
+            hedged = bool(rules["hedges"] and rules["hedges"].search(lowered))
             # Where each negation sits, so it only flips cues that follow it.
             # Applying it sentence-wide made "Warning: it is not safe" read as
             # calm, because the "not" flipped "warning" as well as "safe".
-            negation_at = [m.end() for m in _NEGATIONS.finditer(lowered)]
+            negation_at = (
+                [m.end() for m in rules["negations"].finditer(lowered)]
+                if rules["negations"]
+                else []
+            )
 
-            for emotion, patterns, weight in _CUES:
-                positions = [
-                    m.start()
-                    for pattern in patterns
-                    for m in re.finditer(pattern, lowered)
-                ]
+            for emotion, pattern in rules["cues"].items():
+                positions = [m.start() for m in pattern.finditer(lowered)]
                 hits = len(positions)
+                weight = _CUE_WEIGHT.get(emotion, 0.8)
                 if not hits:
                     continue
                 # A cue is negated only when a negation precedes it in the
                 # same clause. Scope ends at "but" or a comma, so "not X, but
                 # Y" leaves Y positive.
                 effective = emotion
+                breaks = rules["clause_breaks"]
                 if any(
-                    stop <= pos and not _CLAUSE_BREAK.search(lowered, stop, pos)
+                    stop <= pos and not (breaks and breaks.search(lowered, stop, pos))
                     for pos in positions
                     for stop in negation_at
                 ):

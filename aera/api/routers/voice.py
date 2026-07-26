@@ -271,3 +271,40 @@ async def list_backends(kernel=Depends(get_kernel_dep)):
             "configured_model": kernel.config.voice.piper_model,
         }
     )
+
+
+@voice_router.get("/languages")
+async def list_languages(voice=Depends(get_voice)):
+    """Languages with a real expression pack, and the active one.
+
+    Anything not listed still works, but falls back to English cue matching,
+    which will misread sentiment. ``supported`` says which case you are in.
+    """
+    from ...voice.languages import is_supported, supported
+
+    return ok(
+        {
+            "languages": supported(),
+            "active": voice.config.language,
+            "supported": is_supported(voice.config.language),
+            "fallback": "en",
+        }
+    )
+
+
+@voice_router.post("/languages/{code}")
+async def set_language(code: str, voice=Depends(get_voice)):
+    """Switch language for emotion detection and number reading."""
+    from ...voice.languages import get_pack, is_supported
+
+    pack = get_pack(code)
+    voice.config.language = code
+    voice.expression.language = code
+
+    supported = is_supported(code)
+    return ok(
+        {"language": code, "pack": pack.to_dict(), "supported": supported},
+        f"Language set to {pack.label}"
+        if supported
+        else f"No pack for '{code}'; falling back to English cues",
+    )

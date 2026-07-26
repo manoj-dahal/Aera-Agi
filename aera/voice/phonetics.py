@@ -101,15 +101,34 @@ _UNITS: dict[str, tuple[str, str]] = {
 _CURRENCY = {"$": "dollars", "£": "pounds", "€": "euros", "¥": "yen"}
 
 
-def normalise_for_speech(text: str) -> str:
+def normalise_for_speech(text: str, language: str = "en") -> str:
     """Rewrite text into the form it should be read aloud in.
 
     Runs before synthesis so the engine receives words, not symbols. Order
     matters: URLs first, because they contain dots and slashes that the
     later rules would otherwise mangle.
+
+    Numbers and units are spoken in ``language``. A pack without number words
+    leaves digits alone, which is deliberate -- an English "eighty seven"
+    inside a Japanese sentence is worse than the numeral.
     """
     if not text or not text.strip():
         return ""
+
+    from .languages import get_pack, say_number_in
+
+    pack = get_pack(language)
+
+    def _spell(value: int) -> str:
+        return say_number_in(value, pack)
+
+    def _decimal(raw: str) -> str:
+        whole, _, fraction = raw.partition(".")
+        spoken = _spell(int(whole or 0))
+        if fraction and pack.ones:
+            digits = " ".join(pack.ones[int(d)] for d in fraction if d.isdigit())
+            return f"{spoken} {pack.point} {digits}"
+        return spoken
 
     out = text
 
@@ -132,7 +151,7 @@ def normalise_for_speech(text: str) -> str:
     def _currency(match: re.Match[str]) -> str:
         amount = match.group(2).replace(",", "")
         word = _CURRENCY.get(match.group(1), "")
-        return f"{_say_decimal(amount)} {word}"
+        return f"{_decimal(amount)} {word}"
 
     out = re.sub(r"([$£€¥])\s?([\d,]+(?:\.\d+)?)", _currency, out)
 
@@ -140,20 +159,23 @@ def normalise_for_speech(text: str) -> str:
     def _time(match: re.Match[str]) -> str:
         hour, minute = int(match.group(1)), int(match.group(2))
         if minute == 0:
-            spoken = f"{say_number(hour)} o'clock"
+            spoken = f"{_spell(hour)} o'clock"
         elif minute < 10:
-            spoken = f"{say_number(hour)} oh {say_number(minute)}"
+            spoken = f"{_spell(hour)} oh {_spell(minute)}"
         else:
-            spoken = f"{say_number(hour)} {say_number(minute)}"
+            spoken = f"{_spell(hour)} {_spell(minute)}"
         suffix = match.group(3)
         return f"{spoken} {suffix.upper().replace('M', ' M')}" if suffix else spoken
 
-    out = re.sub(r"\b(\d{1,2}):(\d{2})\s?([ap]m)?\b", _time, out, flags=re.IGNORECASE)
+    # Times and abbreviations are English-specific; other languages keep the
+    # numeral, which a real engine reads correctly in its own convention.
+    if pack.code == "en":
+        out = re.sub(r"\b(\d{1,2}):(\d{2})\s?([ap]m)?\b", _time, out, flags=re.IGNORECASE)
 
     # Version strings stay as digits but gain spoken dots.
     out = re.sub(
         r"\bv?(\d+)\.(\d+)(?:\.(\d+))?\b",
-        lambda m: " point ".join(say_number(int(g)) for g in m.groups() if g),
+        lambda m: f" {pack.point} ".join(_spell(int(g)) for g in m.groups() if g),
         out,
     )
 
@@ -161,9 +183,13 @@ def normalise_for_speech(text: str) -> str:
     def _unit(match: re.Match[str]) -> str:
         amount = match.group(1).replace(",", "")
         unit = match.group(2).lower()
-        singular, plural = _UNITS[unit]
+        # Falling back to the English word would put "percent" inside a
+        # Japanese sentence; leave the symbol for the engine instead.
+        if unit not in pack.units and pack.code != "en":
+            return match.group(0)
+        singular, plural = pack.units.get(unit, _UNITS[unit])
         value = float(amount)
-        return f"{_say_decimal(amount)} {singular if value == 1 else plural}"
+        return f"{_decimal(amount)} {singular if value == 1 else plural}"
 
     # Two patterns: "%" is not a word character, so a trailing \b after it
     # can never assert and the alternation silently skipped every percentage.
@@ -179,17 +205,18 @@ def normalise_for_speech(text: str) -> str:
     def _abbrev(match: re.Match[str]) -> str:
         return ABBREVIATIONS[match.group(1).lower()]
 
-    out = re.sub(
-        r"\b(" + "|".join(re.escape(a) for a in ABBREVIATIONS) + r")\.",
-        _abbrev,
-        out,
-        flags=re.IGNORECASE,
-    )
+    if pack.code == "en":
+        out = re.sub(
+            r"\b(" + "|".join(re.escape(a) for a in ABBREVIATIONS) + r")\.",
+            _abbrev,
+            out,
+            flags=re.IGNORECASE,
+        )
 
     # Bare numbers left over.
     out = re.sub(
         r"(?<![\w.])(\d[\d,]*(?:\.\d+)?)(?![\w.])",
-        lambda m: _say_decimal(m.group(1).replace(",", "")),
+        lambda m: _decimal(m.group(1).replace(",", "")),
         out,
     )
 

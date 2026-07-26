@@ -184,6 +184,13 @@ def generate_visemes(text: str, duration_ms: float, *, fps: int = 24) -> list[di
     return out[:600]
 
 
+def _language_supported(language: str | None) -> bool:
+    """Whether a real language pack exists, rather than the English fallback."""
+    from .languages import is_supported
+
+    return is_supported(language)
+
+
 def _within_one_edit(target: str, candidate: str) -> bool:
     """True when one insertion, deletion or substitution bridges the two."""
     if abs(len(target) - len(candidate)) > 1:
@@ -230,7 +237,7 @@ class VoiceEngine:
         # than resetting on every utterance.
         from .expression import ExpressionAnalyser
 
-        self.expression = ExpressionAnalyser()
+        self.expression = ExpressionAnalyser(language=self.config.language)
         self.session_id: str | None = None
         self.history: list[dict[str, Any]] = []
 
@@ -299,13 +306,14 @@ class VoiceEngine:
         # What the engine should actually say: "87%" -> "eighty seven percent".
         # Emotion is read from the original, since normalisation only expands
         # symbols and would not change the sentiment.
-        spoken = normalise_for_speech(text) or text
+        language = self.config.language
+        spoken = normalise_for_speech(text, language) or text
 
         # Expression is always on. Analysis runs even when the caller names an
         # emotion, so the standing mood keeps moving and the delivery still
         # has intensity behind it -- a forced label used to come out flat,
         # hardcoded at 0.6 and ignoring the mood entirely.
-        reading = self.expression.analyse(text)
+        reading = self.expression.analyse(text, language=language)
 
         if emotion is not None:
             # The caller decides *what* is felt; the analyser still decides
@@ -326,7 +334,7 @@ class VoiceEngine:
                 speed=speed or self.config.speech_speed,
                 pitch=self.config.pitch,
                 volume=self.config.volume,
-                language=self.config.language,
+                language=language,
             )
         )
         # Word-level timing, pitch and emphasis: what makes the delivery read
@@ -382,6 +390,7 @@ class VoiceEngine:
             "session": self.session_id,
             "wake_word": self.config.wake_word,
             "language": self.config.language,
+            "language_supported": _language_supported(self.config.language),
             # Always on; the field remains for existing clients.
             "emotion_enabled": True,
             "hologram_sync": self.config.hologram_sync,
