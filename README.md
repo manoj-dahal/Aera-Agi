@@ -6,7 +6,7 @@
 
 # AERA
 
-**Artificial Enhanced Reasoning Assistant** — a native desktop AI Operating System
+**Artificial Voice Reasoning Assistant** — a native desktop AI Operating System
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
