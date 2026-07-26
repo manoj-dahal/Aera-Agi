@@ -85,280 +85,76 @@ Response
 
 ---
 
-# Core Agent
+# Agent Roster
 
-Purpose
+**34 agents are implemented. 31 are enabled by default.**
 
-The Core Agent is the master coordinator of AERA.
+This table is generated from the agent classes and asserted against them by
+`tests/test_documentation.py`. The per-agent sections that used to stand here
+described twenty agents, omitted fourteen that exist, and included a Gallery
+Agent that has never been written.
 
-Responsibilities
-
-- Route tasks
-- Manage workflow
-- Coordinate agents
-- Monitor execution
-- Handle failures
-- Maintain context
-
----
-
-# Memory Agent
-
-Responsibilities
-
-- Memory Storage
-- Memory Recall
-- Memory Cleanup
-- Memory Compression
-- Graph Updates
-- Context Synchronization
-
----
-
-# Coding Agent
-
-Responsibilities
-
-- Generate Code
-- Explain Code
-- Debug
-- Refactor
-- Documentation
-- Code Review
-- Test Generation
-
-Supported Languages
-
-- Python
-- Dart
-- JavaScript
-- TypeScript
-- C#
-- C++
-- Java
-- Go
-- Rust
-- PHP
-- Kotlin
-- Swift
+| Agent | Default | Purpose |
+|---|---|---|
+| `audio` | off | Transcribes and analyses audio recordings. |
+| `automation` | on | Designs automation workflows and runs them through the engine. |
+| `backup` | on | Creates and reports on memory graph backups. |
+| `code_review` | on | Reviews code for bugs, security issues, performance and style. |
+| `coding` | on | Writes, explains, refactors and tests code in Python, Dart, JavaScript, TypeScript, Go, Rust, Java, C#, C++, Swift, Kotlin, PHP, Ruby and SQL. |
+| `collaboration` | on | Coordinates shared context and multi-agent handoffs. |
+| `conversation` | on | Handles natural conversation with continuity across sessions. |
+| `core` | on | Master coordinator that detects intent, recalls memory, selects specialised agents and assembles the final response. |
+| `debug` | on | Analyses stack traces and failing behaviour, then proposes a fix. |
+| `device` | on | Reports host machine details and manages connected devices. |
+| `document` | on | Reads, summarises and answers questions about documents. |
+| `ethical_hacking` | on | Assists with authorised defensive security work: vulnerability review, hardening guidance and threat modelling. |
+| `git` | on | Analyses repositories, drafts commit messages and explains Git workflows. |
+| `learning` | on | Detects patterns and preferences across the memory graph. |
+| `memory` | on | Manages memory storage, recall, consolidation and graph maintenance. |
+| `monitoring` | on | Monitors subsystem health and reports anomalies. |
+| `network` | on | Runs local network diagnostics and connectivity checks. |
+| `notification` | on | Formats and dispatches notifications to the dashboard. |
+| `ocr` | on | Extracts text from images and scanned documents. |
+| `performance` | on | Monitors system performance and suggests optimisations. |
+| `personalization` | on | Tracks user preferences and adapts AERA's behaviour. |
+| `planning` | on | Decomposes goals into ordered steps with dependencies and estimates. |
+| `reasoning` | on | Performs step-by-step analysis, comparison and explanation. |
+| `research` | on | Gathers and organises technical knowledge, then summarises findings. |
+| `scheduler` | on | Manages scheduled jobs and reports on upcoming automation. |
+| `security` | on | Reviews security posture, permissions and vulnerabilities. |
+| `terminal` | off | Runs allowlisted shell commands and explains their output. |
+| `translation` | on | Translates text between languages and corrects grammar. |
+| `update` | on | Tracks component versions and reports available updates. |
+| `vision` | on | Analyses images and screenshots using a vision-capable model. |
+| `voice` | on | Controls speech synthesis, listening sessions and emotion. |
+| `web` | off | Fetches and summarises public web pages. |
+| `workspace` | on | Analyses project structure, indexes files and answers questions about them. |
+| `writing` | on | Produces documentation, reports, summaries and technical prose. |
 
 ---
 
-# Terminal Agent
+# Agents that are off by default
 
-Responsibilities
+Each of these can act outside the process, so switching it on is a decision
+rather than a default.
 
-- Execute Terminal Commands
-- Shell Assistance
-- Environment Detection
-- Package Management
-- Process Monitoring
-- Log Collection
-
----
-
-# Git Agent
-
-Responsibilities
-
-- Repository Analysis
-- Commit Assistance
-- Branch Management
-- Merge Support
-- Conflict Detection
-- Pull Request Assistance
-- Git History Analysis
+| Agent | Why | To enable |
+|---|---|---|
+| `terminal` | Executes shell commands | `agents.terminal`, `security.allow_terminal`, and an allowlist |
+| `web` | Makes outbound requests | `agents.web` and `security.allow_network` |
+| `audio` | Needs a speech-to-text engine that is not bundled | `agents.audio` |
 
 ---
 
-# Workspace Agent
+# Not implemented
 
-Responsibilities
+There is no Gallery Agent. `docs/agents/Gallery-Agent.md` describes one as a
+"Core System Agent"; no such class has ever existed. Media work is split
+between the `vision`, `ocr` and `document` agents.
 
-- Project Analysis
-- Folder Monitoring
-- File Organization
-- Workspace Context
-- Dependency Detection
+The `vision` agent is registered and enabled, but reports the missing model
+rather than describing an image it cannot see.
 
----
-
-# Voice Agent
-
-Responsibilities
-
-- Speech Recognition
-- Voice Commands
-- Text To Speech
-- Conversation Control
-- Voice Session Management
-
----
-
-# Vision Agent
-
-Responsibilities
-
-- Image Analysis
-- OCR
-- Object Detection
-- UI Understanding
-- Screenshot Analysis
-
----
-
-# Audio Agent
-
-Responsibilities
-
-- Audio Analysis
-- Speech Cleanup
-- Noise Detection
-- Voice Enhancement
-- Audio Transcription
-
----
-
-# Research Agent
-
-Responsibilities
-
-- Knowledge Collection
-- Documentation Research
-- Technical References
-- Fact Organization
-- Information Summaries
-
----
-
-# Writing Agent
-
-Responsibilities
-
-- Documentation
-- Technical Writing
-- Report Generation
-- Markdown
-- Summaries
-
----
-
-# Translation Agent
-
-Responsibilities
-
-- Language Translation
-- Localization
-- Grammar Correction
-- Multi-language Support
-
----
-
-# Planning Agent
-
-Responsibilities
-
-- Task Planning
-- Goal Breakdown
-- Timeline Creation
-- Workflow Planning
-- Dependency Management
-
----
-
-# Automation Agent
-
-Responsibilities
-
-- Workflow Automation
-- Task Scheduling
-- Repetitive Task Execution
-- Script Generation
-- Background Jobs
-
----
-
-# Gallery Agent
-
-Responsibilities
-
-- Image Library
-- Video Library
-- Media Organization
-- AI Media Analysis
-
----
-
-# Device Agent
-
-Responsibilities
-
-- Android Integration
-- iPhone Integration
-- Device Monitoring
-- Notification Sync
-
----
-
-# Network Agent
-
-Responsibilities
-
-- Network Monitoring
-- Connection Status
-- API Connectivity
-- Service Discovery
-
----
-
-# Security Agent
-
-Purpose
-
-Protect the AERA environment.
-
-Responsibilities
-
-- Vulnerability Assessment
-- Permission Analysis
-- Log Inspection
-- Threat Detection
-- Security Auditing
-- File Integrity Checking
-- Configuration Review
-
----
-
-# Learning Agent
-
-Responsibilities
-
-- Workflow Learning
-- Preference Learning
-- Usage Analysis
-- Recommendation Improvement
-
----
-
-# Update Agent
-
-Responsibilities
-
-- Application Updates
-- AI Model Updates
-- Plugin Updates
-- Background Updates
-
----
-
-# Notification Agent
-
-Responsibilities
-
-- System Notifications
-- Background Alerts
-- Task Completion
-- AI Events
 
 ---
 

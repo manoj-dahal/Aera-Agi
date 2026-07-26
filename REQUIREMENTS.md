@@ -98,10 +98,21 @@ cd interface && npm install && npm run build
 
 | Requirement | Status | Note |
 |---|---|---|
-| Agent roster with intent routing | ✅ | 34 registered, 31 enabled by default |
+| Agent roster with intent routing | ✅ | **34 implemented, 31 enabled by default** |
 | Risky agents off by default | ✅ | `terminal`, `web` and `audio` are opt-in |
 | Skills catalogue | ✅ | 139 skills, 101 available offline |
 | Ethical-hacking agent, defensive scope only | ✅ | Refuses unauthorised targets |
+| Every agent documented | ✅ | `docs/07-AGENTS.md` roster is generated from the classes and asserted |
+| Gallery agent | ⬜ | Never written. The design note is marked so, and media work is split between `vision`, `ocr` and `document` |
+| Vision understanding | 🟡 | Registered and enabled; reports the missing model rather than describing an image it cannot see |
+
+The three that ship off do so because each can act outside the process:
+
+| Agent | Why | To enable |
+|---|---|---|
+| `terminal` | Executes shell commands | `agents.terminal`, `security.allow_terminal`, plus an allowlist |
+| `web` | Makes outbound requests | `agents.web` and `security.allow_network` |
+| `audio` | Needs a speech-to-text engine that is not bundled | `agents.audio` |
 
 ### 4.3 Voice — see §5 and §6 for detail
 
@@ -232,7 +243,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **1,845 passing, 2 skipped** |
+| Python tests pass | all | **1,922 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |

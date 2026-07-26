@@ -16,7 +16,6 @@ agents:
   notification: true
   # Disabled by default: executes shell commands (see security.allow_terminal)
   terminal: false
-  vision: false
   voice: true
   max_concurrent_tasks: 8
   task_timeout_seconds: 120
@@ -32,7 +31,10 @@ agents:
   learning: true
   update: true
   monitoring: true
-  vision: true            # reports the gap until a vision model is connected
+  # Enabled: it reports the missing model rather than pretending to see. This
+  # key was previously set twice -- false here and true below -- and YAML kept
+  # the last one silently, so the file contradicted itself.
+  vision: true
   # Off by default - these reach outside the machine or need extra backends:
   audio: false            # needs a speech-to-text engine
   web: false              # also requires security.allow_network

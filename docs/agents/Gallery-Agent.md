@@ -2,7 +2,14 @@
 
 Version: 1.0.0
 
-Status: Core System Agent
+Status: **Not implemented.** No GalleryAgent class exists and none has ever
+been written. This document is a design proposal, kept because the ideas in
+it are still wanted, and marked so nobody builds against it expecting a
+running agent.
+
+Media work today is split between three agents that do exist: `vision`
+analyses images, `ocr` extracts text from them, and `document` reads and
+summarises files. See `docs/07-AGENTS.md` for the roster that is real.
 
 Priority: High
 

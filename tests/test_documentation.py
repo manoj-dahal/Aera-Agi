@@ -198,6 +198,133 @@ class TestDocsMatchTheCode:
         assert f"{len(TEMPO_MARKS)} tempo" in text
 
 
+def _agent_classes() -> dict[str, str]:
+    """Every agent class in the package, keyed by its registered name."""
+    import importlib
+
+    found: dict[str, str] = {}
+    for module in (
+        "coding_agent", "core_agent", "extended_agents",
+        "knowledge_agents", "media_agents", "system_agents",
+    ):
+        mod = importlib.import_module(f"aera.agents.{module}")
+        for attribute in dir(mod):
+            obj = getattr(mod, attribute)
+            if (
+                isinstance(obj, type)
+                and attribute.endswith("Agent")
+                and attribute != "Agent"
+                and getattr(obj, "name", None)
+            ):
+                found.setdefault(obj.name, (obj.description or "").strip())
+    return found
+
+
+def _default_flags() -> dict[str, bool]:
+    import yaml
+
+    return yaml.safe_load((ROOT / "config" / "agents.yaml").read_text())["agents"]
+
+
+class TestAgentRoster:
+    """docs/07-AGENTS.md described twenty agents.
+
+    Thirty-four exist. Fourteen were undocumented, and the list included a
+    Gallery Agent that has never been written -- marked "Core System Agent",
+    so a reader had no way to tell it was fiction.
+    """
+
+    @pytest.fixture(scope="class")
+    def roster(self) -> str:
+        return (DOCS / "07-AGENTS.md").read_text(encoding="utf-8")
+
+    def test_the_count_is_right(self, roster):
+        agents = _agent_classes()
+        disabled = sum(1 for v in _default_flags().values() if v is False)
+
+        assert f"**{len(agents)} agents are implemented." in roster
+        assert f"{len(agents) - disabled} are enabled by default.**" in roster
+
+    @pytest.mark.parametrize("name", sorted(_agent_classes()))
+    def test_every_agent_is_listed(self, name, roster):
+        assert f"| `{name}` |" in roster, f"{name} is not in the roster table"
+
+    @pytest.mark.parametrize("name", sorted(_agent_classes()))
+    def test_the_default_state_is_right(self, name, roster):
+        """An agent documented as on when it ships off is worse than silence."""
+        flags = _default_flags()
+        expected = "off" if flags.get(name) is False else "on"
+        row = next(line for line in roster.splitlines() if line.startswith(f"| `{name}` |"))
+
+        assert f"| {expected} |" in row, f"{name} is documented as the wrong default"
+
+    def test_the_disabled_agents_explain_themselves(self, roster):
+        for name in sorted(k for k, v in _default_flags().items() if v is False):
+            assert f"| `{name}` |" in roster
+
+    def test_no_agent_is_documented_that_does_not_exist(self, roster):
+        """Gallery was listed as a core agent and has no class."""
+        assert "Gallery Agent" not in roster.replace(
+            "There is no Gallery Agent.", ""
+        ).split("# Not implemented")[0]
+
+
+class TestAgentDocumentsAreHonest:
+    def test_gallery_is_marked_not_implemented(self):
+        text = (DOCS / "agents" / "Gallery-Agent.md").read_text(encoding="utf-8")
+
+        assert "Not implemented" in text
+        assert "Core System Agent" not in text.split("Status:")[1][:120]
+
+    @pytest.mark.parametrize("name", ["Audio", "Terminal"])
+    def test_agents_that_ship_disabled_say_so(self, name):
+        text = (DOCS / "agents" / f"{name}-Agent.md").read_text(encoding="utf-8")
+
+        assert "disabled by default" in text
+
+    def test_every_agent_document_names_a_real_agent_or_says_it_does_not(self):
+        """A document for a class that does not exist must be marked."""
+        agents = _agent_classes()
+        unmarked = []
+        for path in sorted((DOCS / "agents").glob("*-Agent.md")):
+            key = path.stem.replace("-Agent", "").replace("-", "_").lower()
+            if key in agents:
+                continue
+            text = path.read_text(encoding="utf-8")
+            if "Not implemented" not in text:
+                unmarked.append(path.name)
+
+        assert not unmarked, f"documents agents that do not exist: {unmarked}"
+
+
+class TestAgentConfigIsCoherent:
+    def test_no_key_is_declared_twice(self):
+        """vision was set false on one line and true twenty lines later.
+
+        YAML keeps the last value silently, so the file contradicted itself
+        and the first line was simply untrue.
+        """
+        import collections
+        import re
+
+        text = (ROOT / "config" / "agents.yaml").read_text(encoding="utf-8")
+        keys = re.findall(r"^  (\w+):", text, re.MULTILINE)
+        duplicates = [k for k, n in collections.Counter(keys).items() if n > 1]
+
+        assert not duplicates, f"duplicate keys in agents.yaml: {duplicates}"
+
+    def test_every_flag_names_a_real_agent(self):
+        agents = _agent_classes()
+        scalars = {"max_concurrent_tasks", "task_timeout_seconds"}
+        unknown = [
+            key
+            for key, value in _default_flags().items()
+            if isinstance(value, bool) and key not in agents and key not in scalars
+        ]
+
+        assert not unknown, f"agents.yaml enables agents that do not exist: {unknown}"
+
+
 class TestPersonasAreDocumented:
     @pytest.mark.parametrize("persona_id", sorted(PERSONAS))
     def test_each_persona_is_named(self, persona_id, requirements):

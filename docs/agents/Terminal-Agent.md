@@ -2,7 +2,8 @@
 
 Version: 1.0.0
 
-Status: Core System Agent
+Status: Core System Agent — registered but **disabled by default**, because it executes shell commands.
+Enable with `agents.terminal` in `config/agents.yaml`.
 
 Priority: High
 
