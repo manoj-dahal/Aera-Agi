@@ -395,8 +395,3 @@ Planned
 # Summary
 
 The Translation Agent is AERA's multilingual communication engine. It delivers accurate, context-aware translation and localization across text, voice, images, documents, and user interfaces while preserving meaning, terminology, and formatting. Through deep integration with the Memory Graph and collaboration with other AI agents, it enables seamless communication across languages and workflows.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

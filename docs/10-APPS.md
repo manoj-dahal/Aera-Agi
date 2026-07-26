@@ -341,8 +341,3 @@ Planned additions
 # Summary
 
 The Apps System transforms desktop software into AI-aware tools by connecting applications with AERA's AI Core, Memory Graph, and specialized agents. Through secure integration, background synchronization, and intelligent automation, users can work across multiple applications without losing context or interrupting their workflow.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

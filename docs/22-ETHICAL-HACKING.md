@@ -383,8 +383,3 @@ Planned improvements
 # Summary
 
 The Ethical Hacking module equips AERA with AI-assisted defensive cybersecurity capabilities for authorized environments. By combining vulnerability analysis, secure coding reviews, dependency auditing, configuration assessment, automation, and Memory Graph integration, it helps developers and security professionals identify, prioritize, and remediate security issues while supporting responsible and authorized security practices.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

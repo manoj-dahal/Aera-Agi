@@ -565,8 +565,3 @@ Planned
 # Summary
 
 The Docker infrastructure provides a modular, secure, and scalable deployment platform for AERA. By separating each subsystem into dedicated containers—including the frontend, backend, AI Router, Memory Graph, agents, voice services, automation, database, and monitoring—it enables reliable deployment, efficient resource management, simplified maintenance, and future horizontal scaling.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

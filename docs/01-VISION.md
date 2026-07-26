@@ -265,8 +265,3 @@ AERA succeeds when users can:
 # Conclusion
 
 AERA aims to redefine human-computer interaction by combining memory, intelligence, automation, and natural communication into a unified AI Operating System that grows alongside its users.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

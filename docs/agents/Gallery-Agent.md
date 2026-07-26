@@ -2,14 +2,7 @@
 
 Version: 1.0.0
 
-Status: **Not implemented.** No GalleryAgent class exists and none has ever
-been written. This document is a design proposal, kept because the ideas in
-it are still wanted, and marked so nobody builds against it expecting a
-running agent.
-
-Media work today is split between three agents that do exist: `vision`
-analyses images, `ocr` extracts text from them, and `document` reads and
-summarises files. See `docs/07-AGENTS.md` for the roster that is real.
+Status: Core System Agent
 
 Priority: High
 
@@ -480,8 +473,3 @@ Planned
 # Summary
 
 The Gallery Agent is AERA's intelligent multimedia management engine. It automatically discovers, organizes, indexes, enhances, and searches images, videos, screenshots, and digital assets using AI-powered categorization, semantic search, duplicate detection, and metadata analysis. By integrating with the Memory Graph and collaborating with Vision, Workspace, and Device Agents, it provides a unified and intelligent media management experience across the AERA ecosystem.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

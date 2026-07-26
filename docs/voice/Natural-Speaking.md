@@ -89,8 +89,3 @@ Audio Playback
 # Summary
 
 Natural Speaking transforms AI-generated text into expressive, fluid, and lifelike speech, creating a more engaging conversational experience within AERA.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

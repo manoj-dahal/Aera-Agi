@@ -367,8 +367,3 @@ Planned improvements
 # Summary
 
 The Workspace is AERA's intelligent project hub. It combines file management, AI-powered project understanding, Memory Graph integration, and background indexing into a unified environment, allowing users to work naturally while AERA continuously understands and assists with their projects.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

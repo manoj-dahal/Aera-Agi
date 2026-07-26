@@ -249,24 +249,19 @@ workspace/
 
 # voice/
 
-Voice engine. A flat set of modules rather than nested directories: the
-layout below is what exists. This section previously described stt/, tts/,
-emotion/, conversation/, recognition/, synthesis/, wakeword/ and utils/
-directories, none of which has ever been created.
+Voice engine.
 
 ```text
 voice/
 │
-├── engine.py        session state, wake word, the speak pipeline
-├── expression.py    mood, negation-aware emotion, per-word prosody
-├── personas.py      anime-g and anime-b, per-emotion acoustics, formant synth
-├── backends.py      Piper and system TTS, probing and fallback
-├── languages.py     35 language packs, per-language number reading
-├── packs_western.py Europe and the Americas
-├── packs_asia.py    South Asia, East Asia, Middle East, Africa
-├── scripts.py       writing systems and the mouth shapes each implies
-├── phonetics.py     spoken-form normalisation, viseme tracks
-└── music.py         syllables, metre, rhyme, tempo, scales, singing
+├── stt/
+├── tts/
+├── emotion/
+├── conversation/
+├── recognition/
+├── synthesis/
+├── wakeword/
+└── utils/
 ```
 
 ---
@@ -579,8 +574,3 @@ tests/
 # Summary
 
 The AERA project structure separates the user interface, AI core, agents, memory system, background services, application integrations, and deployment infrastructure into clearly defined modules. This organization supports maintainability, scalability, testing, and future feature expansion while keeping responsibilities isolated.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

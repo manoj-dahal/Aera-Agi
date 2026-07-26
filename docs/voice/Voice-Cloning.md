@@ -69,8 +69,3 @@ Speech Generation
 # Summary
 
 Voice Cloning enables personalized AI voices while prioritizing privacy and security.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

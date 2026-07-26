@@ -343,8 +343,3 @@ Planned improvements
 # Summary
 
 The Phone module extends AERA beyond the desktop by securely connecting supported mobile devices. It provides notification management, file transfer, device status, and AI-assisted workflows while respecting platform limitations, user permissions, and privacy preferences.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

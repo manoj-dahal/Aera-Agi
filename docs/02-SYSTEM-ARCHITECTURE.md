@@ -539,8 +539,3 @@ scripts/
 # Summary
 
 The AERA architecture separates user interface, AI reasoning, memory, agents, applications, and background services into independent layers connected through a centralized AI Core. This modular approach enables scalability, maintainability, and future expansion while keeping the user experience simple and responsive.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

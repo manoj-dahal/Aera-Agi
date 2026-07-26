@@ -572,8 +572,3 @@ Planned
 # Summary
 
 The Automation Agent is AERA's workflow orchestration engine. It monitors events, schedules tasks, coordinates AI agents, automates applications and system operations, and executes intelligent workflows while maintaining security, reliability, and user control. By combining event-driven automation with AI-powered decision making, it enables AERA to automate complex processes across local devices, cloud services, and development environments.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -577,8 +577,3 @@ Planned
 # Summary
 
 The Notification Agent is AERA's intelligent communication hub. It delivers context-aware alerts, reminders, AI responses, security warnings, and workflow updates through desktop, mobile, voice, and holographic interfaces. By understanding user context, priorities, and activity, it ensures important information is delivered at the right time, through the right channel, with minimal interruption while keeping users informed and in control.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

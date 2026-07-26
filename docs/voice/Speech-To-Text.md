@@ -164,8 +164,3 @@ AI Processing
 # Summary
 
 Speech-to-Text provides fast and accurate voice recognition for the entire AERA platform.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

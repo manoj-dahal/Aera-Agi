@@ -541,8 +541,3 @@ Planned improvements
 # Summary
 
 The Background Services framework is the foundation of AERA. It coordinates every subsystem—including AI models, Memory Graph, agents, voice, hologram, workspace, security, automation, networking, and performance—through an event-driven architecture. By intelligently scheduling, monitoring, and recovering services, AERA remains responsive, efficient, and reliable while keeping resource usage low.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)

@@ -486,8 +486,3 @@ Planned
 # Summary
 
 The Update Agent is AERA's intelligent maintenance and lifecycle management engine. It securely manages updates for the operating system, AI models, applications, plugins, containers, dependencies, and development tools while ensuring compatibility, minimizing downtime, and providing safe rollback capabilities. Through collaboration with the Security, Performance, and Automation Agents, it keeps the entire AERA ecosystem current, stable, and reliable.
-
----
-
-**MADE By Manoj Dahal** · Copyright © 2026 Manoj Dahal. All rights reserved.
-Contact: [info@manoj-dahal.com.np](mailto:info@manoj-dahal.com.np)
