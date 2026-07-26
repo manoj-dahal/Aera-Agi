@@ -132,17 +132,6 @@ class NullTTS(TTSBackend):
 # --------------------------------------------------------------------------- #
 # emotion analysis
 # --------------------------------------------------------------------------- #
-_EMOTION_HINTS: list[tuple[Emotion, tuple[str, ...]]] = [
-    (Emotion.EXCITED, (r"\b(amazing|awesome|fantastic|incredible|brilliant)\b", r"!{2,}")),
-    (Emotion.HAPPY, (r"\b(great|good news|glad|happy|nice work|well done|success)\b", r":\)")),
-    (Emotion.CONCERNED, (r"\b(warning|careful|risk|danger|caution|deprecated|breaking)\b",)),
-    (Emotion.SAD, (r"\b(sorry|unfortunately|failed|regret|unable)\b",)),
-    (Emotion.SERIOUS, (r"\b(critical|security|vulnerability|urgent|error|fatal)\b",)),
-    (Emotion.CURIOUS, (r"\?\s*$", r"\b(interesting|wonder|curious)\b")),
-    (Emotion.CONFIDENT, (r"\b(certainly|definitely|absolutely|confirmed|done)\b",)),
-]
-
-
 def detect_emotion(text: str) -> tuple[Emotion, float]:
     """Classify the emotion of an utterance.
 
@@ -157,30 +146,32 @@ def detect_emotion(text: str) -> tuple[Emotion, float]:
     return reading.emotion, reading.confidence
 
 
-_VISEME_MAP = {
-    **dict.fromkeys("aeiou", "open"),
-    **dict.fromkeys("bmp", "closed"),
-    **dict.fromkeys("fv", "teeth"),
-    **dict.fromkeys("lnt d", "tongue"),
-    **dict.fromkeys("swz", "narrow"),
-}
-
-
 def generate_visemes(text: str, duration_ms: float, *, fps: int = 24) -> list[dict[str, Any]]:
-    """Approximate lip-sync keyframes for the hologram avatar."""
-    letters = [c for c in text.lower() if c.isalpha()]
-    if not letters or duration_ms <= 0:
+    """Approximate lip-sync keyframes, spread evenly over the utterance.
+
+    Used by the TTS backends, which know how long the audio is but not where
+    the word boundaries fell. ``VoiceEngine.speak`` replaces the result with
+    a track built from real prosody timing; this is what a caller driving a
+    backend directly gets.
+
+    Shapes come from ``scripts.shapes_for``, so every writing system is
+    covered. This used to map Latin letters with its own table and returned a
+    flat run of "neutral" for Devanagari, Cyrillic, Arabic, Kana, Hangul, Han
+    and Thai -- the same defect that was fixed in ``word_to_visemes``, still
+    live here because there were two viseme readers and only one was updated.
+    """
+    from .scripts import shapes_for
+
+    shapes = shapes_for(text)
+    if not shapes or duration_ms <= 0:
         return []
-    frames = max(1, int(duration_ms / 1000 * fps))
-    step = max(1, len(letters) // frames)
+
+    # One keyframe per shape, thinned to what the frame rate can display.
+    budget = max(1, int(duration_ms / 1000 * fps))
+    step = max(1, len(shapes) // budget)
     out: list[dict[str, Any]] = []
-    for i in range(0, len(letters), step):
-        out.append(
-            {
-                "t": round(i / len(letters) * duration_ms, 1),
-                "shape": _VISEME_MAP.get(letters[i], "neutral"),
-            }
-        )
+    for i in range(0, len(shapes), step):
+        out.append({"t": round(i / len(shapes) * duration_ms, 1), "shape": shapes[i]})
     return out[:600]
 
 

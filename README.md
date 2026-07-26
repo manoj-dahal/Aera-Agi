@@ -280,7 +280,7 @@ cd interface && npm install && npm run build
 
 ## API
 
-125 REST operations plus a WebSocket gateway. Every response uses a consistent
+128 REST operations plus a WebSocket gateway. Every response uses a consistent
 envelope.
 
 ```http
@@ -292,6 +292,8 @@ POST /api/v1/agents/task          dispatch to a specific agent
 POST /api/v1/workspace/open       open and index a project
 POST /api/v1/automation/run       execute a workflow
 POST /api/v1/voice/speak          TTS with emotion + viseme timing
+POST /api/v1/voice/sing           lyrics -> note plan (pitch, beat, bar)
+POST /api/v1/voice/music/analyse  metre, rhyme, structure, syllables
 GET  /api/v1/system/status        full system snapshot
 WS   /ws                          token streaming and live events
 ```
@@ -401,6 +403,7 @@ pytest tests/test_memory.py -v       # one module
 | `test_media_agents.py` | 30 | document parsing, capability gating, SSRF guard |
 | `test_languages.py` | 252 | 35 language packs, per-language numbers, cue sweep |
 | `test_scripts.py` | 187 | visemes across 9 writing systems, script detection |
+| `test_music.py` | 124 | syllables, metre, rhyme, tempo, scales, note plans |
 | `test_phonetics.py` | 47 | spoken-form normalisation, grapheme visemes |
 | `test_expression.py` | 49 | mood decay, negation scope, prosody, SSML |
 | `test_voice_personas.py` | 56 | anime-g / anime-b acoustics, per-emotion timbre |
@@ -422,7 +425,7 @@ aera/
 ├── agents/       base framework, registry, 15 specialists
 ├── workspace/    project scanner and indexer
 ├── automation/   workflow engine
-├── voice/        STT/TTS pipeline, emotion, 35 language packs, visemes
+├── voice/        STT/TTS pipeline, emotion, 35 language packs, visemes, singing
 ├── hologram/     avatar state machine
 ├── security/     vault, permissions, audit
 ├── api/          FastAPI app, routers, middleware
@@ -458,7 +461,7 @@ Built and tested against the specification in `docs/`:
 | Memory graph, hybrid recall, consolidation | ✅ complete |
 | Agent framework + 15 specialists | ✅ complete |
 | Model router, 7 providers, failover | ✅ complete |
-| REST API (125 operations) + WebSocket | ✅ complete |
+| REST API (128 operations) + WebSocket | ✅ complete |
 | Workspace indexer, symbol extraction | ✅ complete |
 | Automation engine, triggers, workflows | ✅ complete |
 | Security: vault, permissions, audit | ✅ complete |
@@ -490,6 +493,16 @@ grouping across the subcontinent. Twelve packs deliberately keep numerals
 instead of guessing: Japanese and Korean readings depend on the counter that
 follows, and ten Indic packs have irregular 21-99 forms not carried here.
 `GET /api/v1/voice/languages` reports which case each language is in.
+
+**Singing** is a separate layer, because sung pitch is quantised to a scale
+where spoken pitch glides, sung timing is fixed by the bar where spoken timing
+follows stress, and the unit is the syllable rather than the word. `sing()`
+returns a note plan — which syllable, at what pitch, in which bar, for how
+long — derived from the words themselves: syllable count, stress placement,
+phrase endings. Syllable counting works in every script the language packs
+cover, so lyrics are not English-only. Emotion picks the key, tempo and time
+signature. It is a note plan, not audio; rendering it still needs a real voice
+model, and the endpoint says so rather than returning silence.
 
 Lip-sync covers nine writing systems with real articulation — Latin, Cyrillic,
 Greek, Arabic, Hebrew, the Indic abugidas, Thai, Kana and Hangul. Han gets

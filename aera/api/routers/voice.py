@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from dataclasses import replace
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from ..deps import get_hologram, get_kernel_dep, get_voice
-from ..schemas import AvatarEmotionRequest, AvatarGestureRequest, ListenRequest, SpeakRequest, ok
+from ..schemas import (
+    AvatarEmotionRequest,
+    AvatarGestureRequest,
+    ListenRequest,
+    SingRequest,
+    SpeakRequest,
+    ok,
+)
 
 voice_router = APIRouter(prefix="/voice", tags=["voice"])
 avatar_router = APIRouter(prefix="/avatar", tags=["hologram"])
@@ -316,4 +325,98 @@ async def set_language(code: str, voice=Depends(get_voice)):
         f"Language set to {pack.label}"
         if supported
         else f"No pack for '{code}'; falling back to English cues",
+    )
+
+
+@voice_router.get("/music")
+async def music_reference():
+    """The scales, tempo marks and time signatures the singer knows.
+
+    Exposed so a caller can populate a picker without hardcoding a list that
+    then drifts from what the engine actually accepts.
+    """
+    from ...voice.music import MUSIC_FOR_EMOTION, SCALES, TEMPO_MARKS
+
+    return ok(
+        {
+            "scales": {name: list(steps) for name, steps in SCALES.items()},
+            "tempo_marks": TEMPO_MARKS,
+            "time_signatures": ["4/4", "3/4", "2/2", "6/8"],
+            "emotion_settings": {
+                emotion.value: setting.to_dict()
+                for emotion, setting in MUSIC_FOR_EMOTION.items()
+            },
+        }
+    )
+
+
+@voice_router.post("/music/analyse")
+async def analyse_lyrics(payload: SingRequest):
+    """Read a lyric: structure, metre, rhyme, syllables and musical setting.
+
+    No audio and no melody -- this is the "what is this song" call.
+    """
+    from ...voice.music import analyse_song
+
+    return ok(analyse_song(payload.lyrics, language=payload.language))
+
+
+@voice_router.post("/sing")
+async def sing_lyrics(payload: SingRequest, voice=Depends(get_voice)):
+    """Set lyrics to a melody: one note per syllable, placed on the beat.
+
+    Returns a note plan, not audio. The melody is derived from the words --
+    syllable count, stress, phrase ends -- rather than composed, and the
+    accompanying analysis says what was inferred so a caller can judge it.
+    """
+    from ...voice.engine import Emotion
+    from ...voice.music import Tempo, analyse_song, setting_for, sing
+
+    emotion = Emotion(payload.emotion) if payload.emotion else None
+    if emotion is None:
+        emotion = voice.expression.analyse(payload.lyrics, language=payload.language).emotion
+
+    setting = setting_for(emotion)
+    if payload.bpm is not None:
+        setting = replace(setting, tempo=Tempo(payload.bpm))
+    if payload.scale is not None:
+        from ...voice.music import SCALES
+
+        if payload.scale not in SCALES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"unknown scale '{payload.scale}'; known: {sorted(SCALES)}",
+            )
+        setting = replace(setting, scale=payload.scale)
+
+    try:
+        phrases = sing(
+            payload.lyrics,
+            emotion=emotion,
+            tonic=payload.tonic,
+            setting=setting,
+            language=payload.language,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    total = sum(p.duration_ms + p.breath_after_ms for p in phrases)
+    return ok(
+        {
+            "phrases": [p.to_dict() for p in phrases],
+            "notes": sum(len(p.notes) for p in phrases),
+            "duration_ms": round(total, 1),
+            "emotion": emotion.value,
+            "setting": setting.to_dict(),
+            "tonic": payload.tonic,
+            "analysis": analyse_song(payload.lyrics, language=payload.language),
+            # The same limit as elsewhere in the voice stack, stated where a
+            # caller will read it rather than buried in a module docstring.
+            "audio": None,
+            "note": (
+                "A note plan, not audio. Rendering needs a real voice model; "
+                "the bundled synthesiser is a formant vocoder."
+            ),
+        },
+        f"{sum(len(p.notes) for p in phrases)} notes over {len(phrases)} phrases",
     )

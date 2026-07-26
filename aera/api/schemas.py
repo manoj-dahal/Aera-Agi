@@ -128,6 +128,21 @@ class SpeakRequest(BaseModel):
     speed: float | None = Field(default=None, ge=0.25, le=3.0)
 
 
+class SingRequest(BaseModel):
+    """Lyrics to set to a melody."""
+
+    lyrics: str = Field(min_length=1, max_length=20_000)
+    #: Overrides the emotion read from the lyrics themselves.
+    emotion: str | None = None
+    #: The key, as a note name ("C4", "F#3") or a MIDI number.
+    tonic: str = Field(default="C4")
+    #: Overrides the scale implied by the emotion.
+    scale: str | None = None
+    #: Beats per minute. Outside 20-300 nothing is singable.
+    bpm: float | None = Field(default=None, ge=20.0, le=300.0)
+    language: str = "en"
+
+
 class ListenRequest(BaseModel):
     text: str = Field(default="", description="Pre-transcribed text for headless STT")
     language: str | None = None
