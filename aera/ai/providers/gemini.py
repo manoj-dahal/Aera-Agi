@@ -10,11 +10,20 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
 from ...core.errors import ProviderError, ProviderUnavailableError
-from ..base import AIProvider, CompletionRequest, CompletionResponse, ModelInfo, Role, Usage
+from ..base import (
+    AIProvider,
+    CompletionRequest,
+    CompletionResponse,
+    Message,
+    ModelInfo,
+    Role,
+    Usage,
+)
 
 
 class GeminiProvider(AIProvider):
@@ -38,13 +47,25 @@ class GeminiProvider(AIProvider):
             self._client = httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout)
         return self._client
 
+    @staticmethod
+    def _parts(message: Message) -> list[dict[str, Any]]:
+        """Gemini parts. The key is ``mime_type``, not ``media_type``."""
+        parts: list[dict[str, Any]] = []
+        if message.content or not message.images:
+            parts.append({"text": message.content})
+        parts.extend(
+            {"inline_data": {"mime_type": image.media_type, "data": image.data}}
+            for image in message.images
+        )
+        return parts
+
     def _payload(self, request: CompletionRequest) -> dict:
         """Gemini uses ``contents`` with ``user``/``model`` roles + systemInstruction."""
         system = "\n\n".join(m.content for m in request.messages if m.role == Role.SYSTEM)
         contents = [
             {
                 "role": "model" if m.role == Role.ASSISTANT else "user",
-                "parts": [{"text": m.content}],
+                "parts": self._parts(m),
             }
             for m in request.messages
             if m.role in (Role.USER, Role.ASSISTANT)

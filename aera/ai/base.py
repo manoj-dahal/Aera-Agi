@@ -23,13 +23,59 @@ class Role(str, Enum):
     TOOL = "tool"
 
 
+class ImageContent(BaseModel):
+    """An image attached to a message.
+
+    Held provider-neutral -- base64 plus a media type -- because the three
+    wire formats disagree about everything else. OpenAI wants a data URL
+    under ``image_url``, Anthropic wants ``source.data`` with the media type
+    beside it, and Gemini wants ``inline_data.data`` with the key spelled
+    ``mime_type``. Storing any one of those shapes here would make the other
+    two a translation of a translation.
+    """
+
+    data: str
+    media_type: str = "image/jpeg"
+    #: Kept for token estimation and for reporting what was actually sent.
+    width: int = 0
+    height: int = 0
+
+    @property
+    def data_url(self) -> str:
+        return f"data:{self.media_type};base64,{self.data}"
+
+
 class Message(BaseModel):
     role: Role = Role.USER
     content: str
     name: str | None = None
+    #: Images travel with the message that refers to them.
+    images: list[ImageContent] = Field(default_factory=list)
 
-    def to_wire(self) -> dict[str, str]:
-        data = {"role": self.role.value, "content": self.content}
+    @property
+    def has_images(self) -> bool:
+        return bool(self.images)
+
+    def to_wire(self) -> dict[str, Any]:
+        """OpenAI-shaped, which most providers copy.
+
+        A message without images keeps the plain string form: the content
+        list is only valid on endpoints that accept multimodal input, and
+        sending it unconditionally breaks older deployments that accept a
+        string and nothing else.
+        """
+        data: dict[str, Any] = {"role": self.role.value}
+        if self.images:
+            parts: list[dict[str, Any]] = []
+            if self.content:
+                parts.append({"type": "text", "text": self.content})
+            parts.extend(
+                {"type": "image_url", "image_url": {"url": image.data_url}}
+                for image in self.images
+            )
+            data["content"] = parts
+        else:
+            data["content"] = self.content
         if self.name:
             data["name"] = self.name
         return data

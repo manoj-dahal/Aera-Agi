@@ -10,11 +10,20 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
 from ...core.errors import ProviderError, ProviderUnavailableError
-from ..base import AIProvider, CompletionRequest, CompletionResponse, ModelInfo, Role, Usage
+from ..base import (
+    AIProvider,
+    CompletionRequest,
+    CompletionResponse,
+    Message,
+    ModelInfo,
+    Role,
+    Usage,
+)
 
 _KNOWN_MODELS = [
     ("claude-sonnet-4-5", 200000),
@@ -51,11 +60,42 @@ class AnthropicProvider(AIProvider):
             )
         return self._client
 
+    @staticmethod
+    def _content(message: Message) -> Any:
+        """Claude's content blocks.
+
+        Anthropic nests the payload under ``source`` and names the key
+        ``media_type``; OpenAI wants a data URL and Gemini spells the same
+        field ``mime_type``. A plain string is kept when there is no image,
+        because that is still valid and avoids changing every existing call.
+        """
+        if not message.images:
+            return message.content
+
+        blocks: list[dict[str, Any]] = []
+        if message.content:
+            blocks.append({"type": "text", "text": message.content})
+        blocks.extend(
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": image.media_type,
+                    "data": image.data,
+                },
+            }
+            for image in message.images
+        )
+        return blocks
+
     def _payload(self, request: CompletionRequest, *, stream: bool) -> dict:
         """Claude takes ``system`` out-of-band and only user/assistant turns inline."""
         system = "\n\n".join(m.content for m in request.messages if m.role == Role.SYSTEM)
         turns = [
-            {"role": "assistant" if m.role == Role.ASSISTANT else "user", "content": m.content}
+            {
+                "role": "assistant" if m.role == Role.ASSISTANT else "user",
+                "content": self._content(m),
+            }
             for m in request.messages
             if m.role in (Role.USER, Role.ASSISTANT)
         ]

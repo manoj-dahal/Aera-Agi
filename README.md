@@ -10,7 +10,7 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-1965%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-2025%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -288,7 +288,7 @@ cd interface && npm install && npm run build
 
 ## API
 
-128 REST operations plus a WebSocket gateway. Every response uses a consistent
+132 REST operations plus a WebSocket gateway. Every response uses a consistent
 envelope.
 
 ```http
@@ -393,7 +393,7 @@ values only.
 ## Testing
 
 ```bash
-./scripts/test.sh                    # 1,965 Python tests, then ruff
+./scripts/test.sh                    # 2,025 Python tests, then ruff
 cd interface && npm test             # 25 TypeScript tests
 pytest tests/test_memory.py -v       # one module
 ```
@@ -412,6 +412,7 @@ pytest tests/test_memory.py -v       # one module
 | `test_languages.py` | 252 | 35 language packs, per-language numbers, cue sweep |
 | `test_scripts.py` | 187 | visemes across 9 writing systems, script detection |
 | `test_music.py` | 124 | syllables, metre, rhyme, tempo, scales, note plans |
+| `test_vision.py` | 59 | local analysis, classification, multimodal wire formats |
 | `test_documentation.py` | 180 | every documented count and the agent roster asserted against the code |
 | `test_phonetics.py` | 47 | spoken-form normalisation, grapheme visemes |
 | `test_expression.py` | 49 | mood decay, negation scope, prosody, SSML |
@@ -456,7 +457,7 @@ docs/             the original design specification (108 documents)
 scripts/          install, run, test, build, build-desktop, clean
 tools/brand/      regenerates the brand assets from code
 tools/meshgen/    placeholder hologram meshes
-tests/            1,965 Python tests
+tests/            2,025 Python tests
 ```
 
 ---
@@ -470,7 +471,7 @@ Built and tested against the specification in `docs/`:
 | Memory graph, hybrid recall, consolidation | ✅ complete |
 | Agent framework + 15 specialists | ✅ complete |
 | Model router, 7 providers, failover | ✅ complete |
-| REST API (128 operations) + WebSocket | ✅ complete |
+| REST API (132 operations) + WebSocket | ✅ complete |
 | Workspace indexer, symbol extraction | ✅ complete |
 | Automation engine, triggers, workflows | ✅ complete |
 | Security: vault, permissions, audit | ✅ complete |

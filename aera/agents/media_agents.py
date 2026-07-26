@@ -134,49 +134,145 @@ class DocumentAgent(Agent):
 class VisionAgent(Agent):
     """Image understanding.
 
-    Routes to a vision-capable provider when one is configured; otherwise
-    reports the gap instead of describing an image it cannot see.
+    Two layers. Local analysis reads the pixels and always works: size,
+    orientation, palette, brightness, sharpness, and whether the image looks
+    like a photograph or a screenshot. A vision-capable model, when one is
+    connected, is additionally asked what the image actually shows.
+
+    The distinction is kept visible in the output. Measurements are not
+    recognition, and presenting colour statistics as a description would read
+    like understanding while being nothing of the kind.
     """
 
     name = "vision"
-    description = "Analyses images and screenshots using a vision-capable model."
+    description = "Analyses images: local measurement always, model description when available."
     capabilities = (Capability.VISION,)
     priority = 6
     model_task = "vision"
 
     async def handle(self, task: Task) -> TaskResult:
-        path = task.context.get("path") or _first_path(task.input)
-        provider = await self._vision_provider()
+        from ..services import vision
 
-        if provider is None:
+        path = task.context.get("path") or _first_path(task.input) or _image_word(task.input)
+        if not path:
             return TaskResult(
-                task_id=task.id,
-                agent=self.name,
-                success=False,
+                task_id=task.id, agent=self.name, success=False,
+                error="no image given",
                 output=(
-                    "No vision-capable model is connected. Configure a provider that "
-                    "supports images (OpenAI, Gemini or a local multimodal model) in "
-                    "config/models.yaml, and I will analyse the image."
+                    "Give me an image path and I will analyse it. Supported: "
+                    + ", ".join(sorted(vision.SUPPORTED_FORMATS))
                 ),
-                error="no vision-capable provider",
-                data={"path": path, "vision_available": False},
             )
 
-        # A provider is available; describe what is being asked of it. Actually
-        # transmitting image bytes needs the multimodal request shape, which the
-        # router does not model yet.
+        try:
+            analysis = vision.analyse(path)
+        except Exception as exc:  # noqa: BLE001 - surfaced to the caller
+            return TaskResult(
+                task_id=task.id, agent=self.name, success=False,
+                error=str(exc),
+                output=f"I could not read that image: {exc}",
+                data={"path": str(path)},
+            )
+
+        described = await self._describe(task, path, analysis)
+        data: dict[str, Any] = {"analysis": analysis.to_dict(), "path": str(path)}
+
+        if described is None:
+            # No model. The measurements are real and are returned as such,
+            # with the boundary stated rather than implied.
+            provider = await self._vision_provider()
+            reason = (
+                f"A vision model ({provider}) is connected but did not answer."
+                if provider
+                else "No vision-capable model is connected, so nothing has "
+                "identified the contents. Configure OpenAI, Gemini, Anthropic "
+                "or a local multimodal model to get a description."
+            )
+            return TaskResult(
+                task_id=task.id, agent=self.name, success=True,
+                output=f"{analysis.describe()}\n\n{reason}",
+                data={**data, "described_by_model": False, "provider": provider},
+            )
+
+        text, provider, payload = described
         return TaskResult(
-            task_id=task.id,
-            agent=self.name,
-            success=False,
-            output=(
-                f"A vision-capable provider ({provider}) is connected, but AERA's model "
-                "router does not yet send image payloads. Text-only requests work today; "
-                "multimodal transport is the remaining piece."
-            ),
-            error="multimodal transport not implemented",
-            data={"path": path, "provider": provider, "vision_available": True},
+            task_id=task.id, agent=self.name, success=True,
+            output=text,
+            data={
+                **data,
+                "described_by_model": True,
+                "provider": provider,
+                "image_sent": payload.to_dict(),
+                "estimated_tokens": vision.estimate_tokens(payload),
+            },
         )
+
+    async def _describe(
+        self, task: Task, path: str, analysis: Any
+    ) -> tuple[str, str, Any] | None:
+        """Ask a vision model what the image shows. None when unavailable."""
+        from ..ai.base import ImageContent, Message, Role
+        from ..services import vision
+
+        provider = await self._vision_provider()
+        if provider is None:
+            return None
+
+        try:
+            payload = vision.prepare(path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("could not encode %s for the model: %s", path, exc)
+            return None
+
+        question = task.input.strip() or "Describe this image."
+        message = Message(
+            role=Role.USER,
+            content=question,
+            images=[
+                ImageContent(
+                    data=payload.data,
+                    media_type=payload.media_type,
+                    width=payload.width,
+                    height=payload.height,
+                )
+            ],
+        )
+
+        # Go to the vision provider directly rather than through the
+        # preference chain. The chain orders providers by routing mode, not
+        # by capability, so under local_first a text-only local model wins
+        # and answers from the *filename* -- confidently, having never seen
+        # the image. Failing over to a model that cannot see would be worse
+        # than not answering, so there is deliberately no fallback here.
+        from ..ai.base import CompletionRequest
+
+        candidate = self.ctx.router.providers.get(provider)
+        if candidate is None:
+            return None
+        model = await self._vision_model(provider)
+
+        try:
+            response = await candidate.complete(
+                CompletionRequest(messages=[message], model=model)
+            )
+        except Exception as exc:  # noqa: BLE001 - a provider failure is not a crash
+            logger.warning("vision provider %s failed: %s", provider, exc)
+            return None
+
+        if not (response.content or "").strip():
+            return None
+        return response.content.strip(), provider, payload
+
+    async def _vision_model(self, provider: str) -> str | None:
+        """The id of a vision-capable model on that provider."""
+        candidate = self.ctx.router.providers.get(provider)
+        if candidate is None:
+            return None
+        try:
+            models = await candidate.list_models()
+        except Exception:  # noqa: BLE001
+            return None
+        return next((m.id for m in models if m.supports_vision), None)
 
     async def _vision_provider(self) -> str | None:
         for name, provider in self.ctx.router.providers.items():
@@ -699,6 +795,23 @@ _HOST_RE = re.compile(r"\b((?:[a-z0-9-]+\.)+[a-z]{2,}|\d{1,3}(?:\.\d{1,3}){3})\b
 def _first_path(text: str) -> str | None:
     match = _PATH_RE.search(text or "")
     return match.group(1).strip() if match else None
+
+
+def _image_word(text: str) -> str | None:
+    """A bare relative filename ending in an image extension.
+
+    ``_PATH_RE`` deliberately requires a leading ``/``, ``./`` or ``~`` so it
+    does not treat every dotted word as a path, and several agents rely on
+    that. Vision is the one place a relative name is natural to type --
+    "describe assets/brand/banner.png" -- so the narrower case is handled
+    here rather than by loosening the shared pattern.
+    """
+    from ..services.vision import SUPPORTED_FORMATS
+
+    for token in re.findall(r"[\w./\\-]+", text or ""):
+        if Path(token).suffix.lower() in SUPPORTED_FORMATS:
+            return token
+    return None
 
 
 def _first_url(text: str) -> str | None:

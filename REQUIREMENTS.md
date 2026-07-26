@@ -104,7 +104,9 @@ cd interface && npm install && npm run build
 | Ethical-hacking agent, defensive scope only | ✅ | Refuses unauthorised targets |
 | Every agent documented | ✅ | `docs/07-AGENTS.md` roster is generated from the classes and asserted |
 | Gallery agent | ⬜ | Never written. The design note is marked so, and media work is split between `vision`, `ocr` and `document` |
-| Vision understanding | 🟡 | Registered and enabled; reports the missing model rather than describing an image it cannot see |
+| Vision — local analysis | ✅ | Offline: dimensions, palette, brightness, contrast, sharpness, photograph vs screenshot. Needs no model |
+| Vision — model description | 🟡 | Multimodal transport works for OpenAI, Anthropic and Gemini. Needs a vision-capable provider configured; without one the measurements are returned and the gap is stated |
+| Vision — object recognition offline | ⬜ | Measurement is not recognition. Local analysis never names what is depicted, and says so in its payload |
 
 The three that ship off do so because each can act outside the process:
 
@@ -115,6 +117,19 @@ The three that ship off do so because each can act outside the process:
 | `audio` | Needs a speech-to-text engine that is not bundled | `agents.audio` |
 
 ### 4.3 Voice — see §5 and §6 for detail
+
+### 4.3a Vision
+
+| Requirement | Status | Note |
+|---|---|---|
+| Read an image offline | ✅ | `POST /api/v1/vision/analyse` |
+| Classify photograph vs screenshot vs graphic | ✅ | Flatness plus saturation and edge energy |
+| Report image quality problems | ✅ | Blur, under/over-exposure, flat contrast, too small |
+| Send an image to a vision model | ✅ | OpenAI data URL, Anthropic `source.media_type`, Gemini `inline_data.mime_type` |
+| Estimate what an image costs to send | ✅ | `POST /api/v1/vision/estimate` |
+| Name objects without a model | ⬜ | Not possible from pixels alone; never claimed |
+
+### 4.3b Voice
 
 | Requirement | Status | Note |
 |---|---|---|
@@ -137,7 +152,7 @@ The three that ship off do so because each can act outside the process:
 
 | Requirement | Value |
 |---|---|
-| REST operations | **128** |
+| REST operations | **132** |
 | Voice endpoints | **18** |
 | Transport | HTTP plus a WebSocket gateway |
 | Response envelope | Consistent `{success, data, message}` |
@@ -243,7 +258,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **1,965 passing, 2 skipped** |
+| Python tests pass | all | **2,025 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |
@@ -267,7 +282,7 @@ plausible-looking fake.
 | **Whisper STT** | Not yet adapted | `NullSTT` accepts pre-transcribed text so the pipeline is testable end to end |
 | **Sung audio** | Needs a real voice model | `POST /voice/sing` returns a note plan and a note saying it is not audio |
 | **Phone pairing** | No Device Agent | The phone page reports it |
-| **Vision / multimodal transport** | Not implemented | Media agents parse documents; image understanding is refused |
+| ~~Vision / multimodal transport~~ | **Now implemented.** Local analysis runs offline; images are delivered to OpenAI, Anthropic and Gemini in each one's wire format | — |
 | **Desktop binaries** | Two independent blockers: this sandbox has no `libpython3.11.so.1.0`, so PyInstaller will not start; and pushing to `.github/workflows/` is rejected without the `workflows` permission, so the build has never run | The workflow is written and its Windows path is asserted by `tests/test_documentation.py::TestDesktopBuildWorkflow`. Move `ci/github-actions-desktop.yml` to `.github/workflows/` to enable it. **No Windows binary exists and none has been launched** |
 | **Visual UI verification** | Chromium and Playwright CDNs are blocked | jsdom renders the component tree, not pixels. No screenshot has been taken |
 

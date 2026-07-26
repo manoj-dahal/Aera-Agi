@@ -75,11 +75,29 @@ class TestDocumentAgent:
 class TestCapabilityGating:
     """Agents without a backend must fail honestly."""
 
-    async def test_vision_reports_missing_provider(self, agent_context):
+    async def test_vision_reports_a_missing_file(self, agent_context):
+        """Vision no longer refuses outright when no model is connected: it
+        measures the image locally and says nothing identified the contents.
+        So a nonexistent path now fails on the file, which is the honest
+        reason, rather than on the absent provider."""
         result = await run(VisionAgent, agent_context, "describe /tmp/shot.png")
+
         assert result.success is False
-        assert result.data["vision_available"] is False
-        assert "vision" in result.output.lower()
+        assert "could not read" in result.output
+
+    async def test_vision_analyses_locally_without_a_model(self, agent_context, tmp_path):
+        """The capability that replaced the refusal. See tests/test_vision.py
+        for the full behaviour."""
+        from PIL import Image
+
+        image = tmp_path / "x.png"
+        Image.new("RGB", (320, 240), (12, 90, 200)).save(image)
+
+        result = await run(VisionAgent, agent_context, f"describe {image}")
+
+        assert result.success is True
+        assert result.data["analysis"]["width"] == 320
+        assert result.data["described_by_model"] is False
 
     async def test_ocr_reports_missing_engine(self, agent_context):
         result = await run(OCRAgent, agent_context, "extract text from /tmp/scan.png")
