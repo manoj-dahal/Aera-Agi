@@ -11,6 +11,7 @@ audio — play them directly.
 | `boy-serious.mp3` | serious | Lowest contour, deliberate pacing |
 | `boy-curious.mp3` | curious | Rising terminal pitch on the question |
 | `boy-flat.mp3` | *(off)* | Expression disabled — no contour, no mood |
+| `normalised-after.mp3` | — | Spoken form: "87%" → "eighty seven percent" |
 
 ## What the analyser does with these
 
@@ -34,6 +35,24 @@ curl -X POST 'localhost:8080/api/v1/voice/analyse?text=Warning:%20it%20is%20not%
 ```
 
 `/voice/analyse` never moves the standing mood, so auditioning a line is safe.
+
+## Spoken-form normalisation
+
+A TTS engine reads exactly what it is given, so symbols have to be expanded
+first. `normalise_for_speech` runs before synthesis:
+
+| Written | Spoken |
+|---|---|
+| `87%` | eighty seven percent |
+| `$1,200` | one thousand two hundred dollars |
+| `3:30pm` | three thirty P M |
+| `https://example.com/docs` | the site example dot com |
+| `Dr. Smith` | doctor Smith |
+| `v2.1.0` | two point one point zero |
+| `SQL`, `API` | sequel, A P I |
+
+`Dr.` mattered for a second reason: its trailing dot looked like a full stop
+and drew a 380 ms sentence pause into the middle of a name.
 
 ## Mood
 

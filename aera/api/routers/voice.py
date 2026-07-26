@@ -237,14 +237,20 @@ async def analyse_expression(text: str, voice=Depends(get_voice)):
     if isinstance(backend, PersonaTTS):
         pitch = backend.persona.pitch_for(reading.emotion)
 
-    words = prosody_for(text, emotion=reading.emotion, intensity=reading.intensity)
+    # Show the form the engine will actually speak, not the raw input, so
+    # the preview matches what /voice/speak produces.
+    from ...voice.phonetics import normalise_for_speech
+
+    spoken = normalise_for_speech(text) or text
+    words = prosody_for(spoken, emotion=reading.emotion, intensity=reading.intensity)
     return ok(
         {
             "text": text,
+            "spoken": spoken,
             **reading.to_dict(),
             "pitch_hz": round(pitch, 1) if pitch else None,
             "words": [w.to_dict() for w in words],
             "total_ms": round(sum(w.duration_ms + w.pause_after_ms for w in words), 1),
-            "ssml": to_ssml(text, reading, persona_pitch_hz=pitch),
+            "ssml": to_ssml(spoken, reading, persona_pitch_hz=pitch),
         }
     )

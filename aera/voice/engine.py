@@ -9,6 +9,7 @@ headless server.
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -183,6 +184,29 @@ def generate_visemes(text: str, duration_ms: float, *, fps: int = 24) -> list[di
     return out[:600]
 
 
+def _within_one_edit(target: str, candidate: str) -> bool:
+    """True when one insertion, deletion or substitution bridges the two."""
+    if abs(len(target) - len(candidate)) > 1:
+        return False
+    if target == candidate:
+        return True
+
+    longer, shorter = (target, candidate) if len(target) >= len(candidate) else (candidate, target)
+    i = j = 0
+    edited = False
+    while i < len(longer) and j < len(shorter):
+        if longer[i] != shorter[j]:
+            if edited:
+                return False
+            edited = True
+            if len(longer) == len(shorter):
+                j += 1  # substitution
+        else:
+            j += 1
+        i += 1
+    return True
+
+
 # --------------------------------------------------------------------------- #
 # engine
 # --------------------------------------------------------------------------- #
@@ -227,8 +251,25 @@ class VoiceEngine:
         self.session_id = None
 
     def detect_wake_word(self, text: str) -> bool:
+        """Whether the wake word was spoken.
+
+        Matches whole words, so "area code" no longer triggers on "aera", and
+        tolerates one edit so a mishearing like "ara" or "aira" still wakes
+        it -- speech recognition rarely returns the exact spelling.
+        """
         word = (self.config.wake_word or "").strip().lower()
-        return bool(word) and word in (text or "").lower()
+        if not word:
+            return False
+
+        spoken = re.findall(r"[\w']+", (text or "").lower())
+        if word in spoken:
+            return True
+
+        # One substitution, insertion or deletion. Only for words long enough
+        # that a single edit does not collide with something unrelated.
+        if len(word) < 4:
+            return False
+        return any(_within_one_edit(word, token) for token in spoken)
 
     # -- pipeline --------------------------------------------------------- #
     async def listen(self, audio: bytes, *, language: str | None = None) -> Transcript:
@@ -253,6 +294,12 @@ class VoiceEngine:
             raise ValueError("nothing to speak")
 
         from .expression import prosody_for
+        from .phonetics import normalise_for_speech
+
+        # What the engine should actually say: "87%" -> "eighty seven percent".
+        # Emotion is read from the original, since normalisation only expands
+        # symbols and would not change the sentiment.
+        spoken = normalise_for_speech(text) or text
 
         if emotion is None and self.config.emotion:
             reading = self.expression.analyse(text)
@@ -266,7 +313,7 @@ class VoiceEngine:
         self.state = VoiceState.SPEAKING
         result = await self.tts.synthesize(
             SpeechRequest(
-                text=text,
+                text=spoken,
                 emotion=emotion_value,
                 speed=speed or self.config.speech_speed,
                 pitch=self.config.pitch,
@@ -276,8 +323,17 @@ class VoiceEngine:
         )
         # Word-level timing, pitch and emphasis: what makes the delivery read
         # as composed rather than recited.
-        words = prosody_for(text, emotion=emotion_value, intensity=intensity)
+        words = prosody_for(spoken, emotion=emotion_value, intensity=intensity)
         result.prosody = [w.to_dict() for w in words]
+
+        # Rebuild the mouth track from that timing. The backend's own visemes
+        # spread evenly over the utterance and kept the mouth moving through
+        # pauses; these follow the words and close in the gaps.
+        from .phonetics import visemes_for_words
+
+        aligned = visemes_for_words(result.prosody)
+        if aligned:
+            result.visemes = aligned
         result.intensity = round(intensity, 3)
         result.mood = self.expression.mood.to_dict()
 
