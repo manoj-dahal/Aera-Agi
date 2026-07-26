@@ -175,3 +175,76 @@ async def preview_persona(
             "note": FORMANT_NOTE,
         }
     )
+
+
+# --------------------------------------------------------------------------- #
+# expression: mood and prosody
+# --------------------------------------------------------------------------- #
+@voice_router.get("/mood")
+async def get_mood(voice=Depends(get_voice)):
+    """The current emotional baseline.
+
+    Mood persists between utterances and decays toward neutral, so a run of
+    failures leaves AERA subdued for a while rather than resetting instantly.
+    """
+    return ok(
+        {
+            **voice.expression.mood.to_dict(),
+            "enabled": voice.config.emotion,
+        }
+    )
+
+
+@voice_router.post("/mood/reset")
+async def reset_mood(voice=Depends(get_voice)):
+    """Clear the baseline back to neutral."""
+    voice.expression.mood.reset()
+    return ok(voice.expression.mood.to_dict(), "Mood reset to neutral")
+
+
+@voice_router.post("/mood/enabled")
+async def set_mood_enabled(enabled: bool, voice=Depends(get_voice)):
+    """Turn expression off entirely.
+
+    With this off AERA speaks flatly: no emotion detection, no mood, no
+    contour. Some users want an assistant that does not perform.
+    """
+    voice.config.emotion = enabled
+    if not enabled:
+        voice.expression.mood.reset()
+    return ok(
+        {"enabled": enabled, **voice.expression.mood.to_dict()},
+        "Expression enabled" if enabled else "Expression off - flat delivery",
+    )
+
+
+@voice_router.post("/analyse")
+async def analyse_expression(text: str, voice=Depends(get_voice)):
+    """Explain how a line would be delivered, without speaking it.
+
+    Returns the detected emotion with the cues that produced it, plus the
+    per-word prosody and the SSML a real engine would receive.
+    """
+    # A dry run must not move the standing mood.
+    from ...voice.expression import ExpressionAnalyser, Mood, prosody_for, to_ssml
+    from ...voice.personas import PersonaTTS
+
+    scratch = ExpressionAnalyser(Mood(valence=voice.expression.mood.decayed()))
+    reading = scratch.analyse(text)
+
+    backend = getattr(voice, "tts", None)
+    pitch = None
+    if isinstance(backend, PersonaTTS):
+        pitch = backend.persona.pitch_for(reading.emotion)
+
+    words = prosody_for(text, emotion=reading.emotion, intensity=reading.intensity)
+    return ok(
+        {
+            "text": text,
+            **reading.to_dict(),
+            "pitch_hz": round(pitch, 1) if pitch else None,
+            "words": [w.to_dict() for w in words],
+            "total_ms": round(sum(w.duration_ms + w.pause_after_ms for w in words), 1),
+            "ssml": to_ssml(text, reading, persona_pitch_hz=pitch),
+        }
+    )

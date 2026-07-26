@@ -9,7 +9,6 @@ headless server.
 
 from __future__ import annotations
 
-import re
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -67,6 +66,12 @@ class SpeechResult(BaseModel):
     emotion: Emotion
     duration_ms: float
     visemes: list[dict[str, Any]] = Field(default_factory=list)
+    #: Per-word timing, pitch and emphasis.
+    prosody: list[dict[str, Any]] = Field(default_factory=list)
+    #: 0..1 performance strength, after intensifiers and standing mood.
+    intensity: float = 0.5
+    #: The speaker's emotional baseline when this was said.
+    mood: dict[str, Any] = Field(default_factory=dict)
     audio_path: str | None = None
     engine: str = "builtin"
 
@@ -138,18 +143,17 @@ _EMOTION_HINTS: list[tuple[Emotion, tuple[str, ...]]] = [
 
 
 def detect_emotion(text: str) -> tuple[Emotion, float]:
-    """Rule-based emotion classification for expressive TTS + avatar sync."""
-    lowered = (text or "").lower()
-    if not lowered.strip():
-        return Emotion.NEUTRAL, 0.0
-    best: tuple[Emotion, int] | None = None
-    for emotion, patterns in _EMOTION_HINTS:
-        hits = sum(1 for p in patterns if re.search(p, lowered))
-        if hits and (best is None or hits > best[1]):
-            best = (emotion, hits)
-    if best is None:
-        return Emotion.NEUTRAL, 0.5
-    return best[0], min(1.0, 0.5 + 0.2 * best[1])
+    """Classify the emotion of an utterance.
+
+    Delegates to ExpressionAnalyser, which understands negation, intensifiers
+    and hedging -- the flat keyword match this replaced read "not great at
+    all" as HAPPY. The stateless wrapper is kept because callers only want a
+    label and a confidence; use the analyser directly for mood and prosody.
+    """
+    from .expression import ExpressionAnalyser
+
+    reading = ExpressionAnalyser().analyse(text)
+    return reading.emotion, reading.confidence
 
 
 _VISEME_MAP = {
@@ -198,6 +202,11 @@ class VoiceEngine:
         self.stt = stt or NullSTT()
         self.tts = tts or NullTTS()
         self.state = VoiceState.IDLE
+        # One analyser per engine, so its mood persists across turns rather
+        # than resetting on every utterance.
+        from .expression import ExpressionAnalyser
+
+        self.expression = ExpressionAnalyser()
         self.session_id: str | None = None
         self.history: list[dict[str, Any]] = []
 
@@ -243,11 +252,16 @@ class VoiceEngine:
         if not text.strip():
             raise ValueError("nothing to speak")
 
+        from .expression import prosody_for
+
         if emotion is None and self.config.emotion:
-            emotion_value, confidence = detect_emotion(text)
+            reading = self.expression.analyse(text)
+            emotion_value, confidence = reading.emotion, reading.confidence
+            intensity = reading.intensity
         else:
             emotion_value = Emotion(emotion) if emotion else Emotion.NEUTRAL
             confidence = 1.0
+            intensity = 0.6
 
         self.state = VoiceState.SPEAKING
         result = await self.tts.synthesize(
@@ -260,6 +274,13 @@ class VoiceEngine:
                 language=self.config.language,
             )
         )
+        # Word-level timing, pitch and emphasis: what makes the delivery read
+        # as composed rather than recited.
+        words = prosody_for(text, emotion=emotion_value, intensity=intensity)
+        result.prosody = [w.to_dict() for w in words]
+        result.intensity = round(intensity, 3)
+        result.mood = self.expression.mood.to_dict()
+
         self.history.append({"role": "assistant", "text": text, "at": time.time()})
         self.state = VoiceState.IDLE
 
@@ -279,8 +300,11 @@ class VoiceEngine:
                     Topics.AVATAR_EMOTION,
                     {
                         "emotion": emotion_value.value,
-                        "intensity": round(confidence, 2),
+                        "intensity": round(intensity, 2),
+                        "confidence": round(confidence, 2),
+                        "mood": self.expression.mood.to_dict(),
                         "visemes": result.visemes[:120],
+                        "prosody": result.prosody[:120],
                         "duration_ms": result.duration_ms,
                     },
                     source="voice",
@@ -298,5 +322,6 @@ class VoiceEngine:
             "hologram_sync": self.config.hologram_sync,
             "stt_backend": self.stt.name,
             "tts_backend": self.tts.name,
+            "mood": self.expression.mood.to_dict(),
             "turns": len(self.history),
         }
