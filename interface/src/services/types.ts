@@ -422,3 +422,80 @@ export interface ChatMessage {
   error?: boolean;
   timestamp: number;
 }
+
+// --------------------------------------------------------------------------- //
+// docker
+// --------------------------------------------------------------------------- //
+export interface DockerStatus {
+  available: boolean;
+  socket: string | null;
+  /** Why Docker cannot be used, phrased for the user. Null when it can. */
+  reason: string | null;
+  control_enabled: boolean;
+  api_version: string;
+}
+
+export interface DockerPort {
+  private: number | null;
+  public: number | null;
+  type: string | null;
+}
+
+export interface DockerContainer {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+  created: number;
+  ports: DockerPort[];
+}
+
+export interface DockerImage {
+  id: string;
+  tags: string[];
+  size: number | null;
+  created: number | null;
+}
+
+export interface DockerVolume {
+  name: string;
+  driver: string;
+  mountpoint: string;
+  created: string | null;
+}
+
+export interface DockerNetwork {
+  id: string;
+  name: string;
+  driver: string;
+  scope: string;
+}
+
+export interface DockerInfo {
+  version: {
+    version: string | null;
+    api_version: string | null;
+    os: string | null;
+    arch: string | null;
+    kernel: string | null;
+  };
+  info: {
+    name: string | null;
+    containers: number | null;
+    containers_running: number | null;
+    containers_stopped: number | null;
+    images: number | null;
+    server_version: string | null;
+    driver: string | null;
+    memory_total: number | null;
+    cpus: number | null;
+  };
+}
+
+export interface DockerStats {
+  cpu_percent: number | null;
+  memory_usage: number | null;
+  memory_limit: number | null;
+  memory_percent: number | null;
+}

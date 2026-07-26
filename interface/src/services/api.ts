@@ -11,6 +11,13 @@ import type {
   AvatarModelInfo,
   AuditEntry,
   AvatarState,
+  DockerContainer,
+  DockerImage,
+  DockerInfo,
+  DockerNetwork,
+  DockerStats,
+  DockerStatus,
+  DockerVolume,
   FileContent,
   FileMatch,
   GraphPayload,
@@ -460,9 +467,58 @@ export const system = {
   quit: () => nativeCall('quit'),
 };
 
+/**
+ * Docker Engine (docs/27-DOCKER.md).
+ *
+ * `status` never fails when the daemon is absent -- it reports why -- so the
+ * page can decide what to render before issuing any other call.
+ */
+export const docker = {
+  status: () => httpRequest<DockerStatus>('/docker/status'),
+  info: () => httpRequest<DockerInfo>('/docker/info'),
+  containers: (all = true) =>
+    httpRequest<{ containers: DockerContainer[]; count: number }>(
+      `/docker/containers?all=${all}`,
+    ),
+  images: () => httpRequest<{ images: DockerImage[]; count: number }>('/docker/images'),
+  volumes: () => httpRequest<{ volumes: DockerVolume[]; count: number }>('/docker/volumes'),
+  networks: () => httpRequest<{ networks: DockerNetwork[]; count: number }>('/docker/networks'),
+  logs: (container: string, tail = 200) =>
+    httpRequest<{ container: string; logs: string }>(
+      `/docker/containers/${encodeURIComponent(container)}/logs?tail=${tail}`,
+    ),
+  stats: (container: string) =>
+    httpRequest<{ container: string; stats: DockerStats }>(
+      `/docker/containers/${encodeURIComponent(container)}/stats`,
+    ),
+
+  // State changes return 403 unless security.allow_docker_control is enabled.
+  start: (container: string) =>
+    httpRequest<{ container: string; action: string }>(
+      `/docker/containers/${encodeURIComponent(container)}/start`,
+      { method: 'POST' },
+    ),
+  stop: (container: string) =>
+    httpRequest<{ container: string; action: string }>(
+      `/docker/containers/${encodeURIComponent(container)}/stop`,
+      { method: 'POST' },
+    ),
+  restart: (container: string) =>
+    httpRequest<{ container: string; action: string }>(
+      `/docker/containers/${encodeURIComponent(container)}/restart`,
+      { method: 'POST' },
+    ),
+  remove: (container: string, force = false) =>
+    httpRequest<{ container: string; action: string }>(
+      `/docker/containers/${encodeURIComponent(container)}?force=${force}`,
+      { method: 'DELETE' },
+    ),
+};
+
 export const api = {
   avatars,
   chat,
+  docker,
   skills,
   agents,
   memory,

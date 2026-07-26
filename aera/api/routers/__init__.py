@@ -5,6 +5,7 @@ from . import (
     automation,
     avatars,
     chat,
+    docker,
     memory,
     skills,
     system,
@@ -14,6 +15,7 @@ from . import (
 )
 
 __all__ = [
-    "agents", "automation", "avatars", "chat", "memory", "skills", "system", "voice",
+    "agents", "automation", "avatars", "chat", "docker", "memory", "skills", "system",
+    "voice",
     "websocket", "workspace",
 ]

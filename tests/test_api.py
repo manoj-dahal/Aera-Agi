@@ -389,3 +389,71 @@ class TestAuthAndRateLimit:
             codes = [c.get("/api/v1/system/status").status_code for _ in range(5)]
             assert 429 in codes
             assert codes.count(200) == 3
+
+
+class TestDockerApi:
+    """Docker is absent in CI, which is the case that matters most here:
+    the connector must say so rather than pretend the host has no containers.
+    """
+
+    def test_status_succeeds_without_a_daemon(self, client):
+        # The page calls this first to decide what to render, so an absent
+        # daemon has to be a 200 with a reason, not an error.
+        data = client.get("/api/v1/docker/status").json()["data"]
+        assert data["available"] is False
+        assert data["reason"], "an unavailable daemon must explain why"
+
+    def test_status_reports_the_control_gate(self, client):
+        data = client.get("/api/v1/docker/status").json()["data"]
+        assert data["control_enabled"] is False, "control must default to off"
+
+    @pytest.mark.parametrize(
+        "path",
+        ["/api/v1/docker/containers", "/api/v1/docker/images", "/api/v1/docker/info"],
+    )
+    def test_reads_fail_cleanly_without_a_daemon(self, client, path):
+        response = client.get(path)
+        assert response.status_code == 503
+        body = response.json()
+        assert body["success"] is False
+        assert body["type"] == "docker_unavailable"
+
+    def test_control_is_refused_before_the_daemon_is_even_reached(self, client):
+        """Permission is checked first, so the answer is 403 rather than 503."""
+        response = client.post("/api/v1/docker/containers/anything/stop")
+        assert response.status_code == 403
+        assert response.json()["type"] == "docker_control_denied"
+
+    def test_the_kernel_exposes_a_docker_client(self, client):
+        from aera.services.docker import DockerClient
+
+        kernel = client.app.state.kernel
+        assert isinstance(kernel.docker, DockerClient)
+        assert kernel.docker.allow_control is False
+
+
+class TestDocumentedSurface:
+    """The README quotes an operation count; it had already drifted once."""
+
+    def test_readme_operation_count_is_accurate(self):
+        import re
+        from pathlib import Path
+
+        from aera.api.app import create_app
+
+        schema = create_app().openapi()
+        actual = sum(
+            1
+            for item in schema["paths"].values()
+            for method in item
+            if method in ("get", "post", "put", "patch", "delete")
+        )
+
+        readme = (Path(__file__).resolve().parent.parent / "README.md").read_text()
+        claimed = {int(n) for n in re.findall(r"(\d+) REST operations", readme)}
+        claimed |= {int(n) for n in re.findall(r"REST API \((\d+) operations\)", readme)}
+
+        assert claimed, "the README no longer states an operation count"
+        assert claimed == {actual}, (
+            f"README claims {sorted(claimed)} REST operations but the app exposes {actual}"
+        )

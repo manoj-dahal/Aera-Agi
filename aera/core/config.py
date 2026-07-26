@@ -190,6 +190,9 @@ class SecuritySection(BaseModel):
     sandbox_plugins: bool = True
     allow_terminal: bool = False
     allow_network: bool = False
+    #: Reading container state is always allowed; starting, stopping and
+    #: removing them is not, matching the terminal's default-deny posture.
+    allow_docker_control: bool = False
     terminal_allowlist: list[str] = Field(
         default_factory=lambda: ["ls", "cat", "pwd", "echo", "git", "python3", "node"]
     )

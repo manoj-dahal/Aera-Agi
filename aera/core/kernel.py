@@ -30,6 +30,7 @@ from ..hologram.avatar import HologramController
 from ..hologram.loader import AvatarLibrary
 from ..memory.engine import MemoryEngine
 from ..security.vault import AuditLog, PermissionManager, SecretVault
+from ..services.docker import DockerClient
 from ..services.telemetry import TelemetryService
 from ..skills.engines import ContextEngine, LearningEngine, PlanningEngine, ReasoningEngine
 from ..skills.manager import SkillManager
@@ -62,6 +63,9 @@ class Kernel:
         self.vault: SecretVault | None = None
         self.tap_memory: TapMemoryWorkflow | None = None
         self.telemetry = TelemetryService()
+        self.docker = DockerClient(
+            allow_control=self.config.security.allow_docker_control
+        )
         # Background engines (docs: Agent Manager, Skill Manager, Reasoning,
         # Planning, Learning and Context Engines).
         self.skills: SkillManager | None = None

@@ -141,3 +141,40 @@ describe('Macros: "keep only one graph memory and show types in one side panel"'
     expect(macros).toContain('MEMORY_SYSTEMS');
   });
 });
+
+describe('Docker: a real Engine connector, not a status panel', () => {
+  const page = src('pages/docker/DockerHome.tsx');
+  const api = src('services/api.ts');
+
+  it('no longer advertises itself as unimplemented', () => {
+    // The page used to render "not implemented" and four "planned" cards.
+    expect(page).not.toContain('not implemented');
+    expect(page).not.toContain('planned');
+  });
+
+  it('calls the Docker API rather than shelling out to the terminal agent', () => {
+    expect(page).toContain("from '@services/api'");
+    expect(page).not.toContain("input: 'docker ps'");
+  });
+
+  it('exposes every Engine resource the page renders', () => {
+    for (const method of ['containers', 'images', 'volumes', 'networks', 'logs']) {
+      expect(api).toContain(`${method}:`);
+    }
+  });
+
+  it('checks availability before issuing any other call', () => {
+    // status() is the only call that succeeds without a daemon.
+    expect(page.indexOf('dockerApi.status()')).toBeLessThan(page.indexOf('dockerApi.info()'));
+  });
+
+  it('explains why Docker is unavailable instead of showing empty tables', () => {
+    expect(page).toContain('status.reason');
+  });
+
+  it('disables rather than hides the controls when they are read-only', () => {
+    // Hiding them would leave no clue the capability exists.
+    expect(page).toContain('disabled={!status?.control_enabled}');
+    expect(page).toContain('allow_docker_control');
+  });
+});

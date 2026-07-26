@@ -10,6 +10,10 @@ security:
   # Outbound web access for the Web Agent. Private, loopback and link-local
   # addresses are refused even when this is enabled.
   allow_network: false
+  # Reading container, image, volume and network state is always permitted.
+  # Starting, stopping, restarting and removing containers is not, until
+  # this is turned on.
+  allow_docker_control: false
   terminal_allowlist:
     - ls
     - cat

@@ -263,8 +263,8 @@ centre, and a HUD transcript panel on the right that accepts drag & drop.
 Every page is now built against live backend data. Settings holds exactly three
 sections — AI, Voice, System — with advanced pages nested inside them, and
 plugin management lives in Apps. Where a capability genuinely does not exist
-(Docker's API client, media download, device pairing) the page says so at the
-point of use rather than offering a control that fails silently.
+(media download, device pairing) the page says so at the point of use rather
+than offering a control that fails silently.
 
 React is the only UI. There was once a dependency-free HTML/CSS/JS fallback
 in `aera/desktop/ui/` and a second hand-written dashboard in `aera/web/`, but
@@ -280,7 +280,7 @@ cd interface && npm install && npm run build
 
 ## API
 
-63 REST operations plus a WebSocket gateway. Every response uses a consistent
+96 REST operations plus a WebSocket gateway. Every response uses a consistent
 envelope.
 
 ```http
@@ -452,7 +452,7 @@ Built and tested against the specification in `docs/`:
 | Memory graph, hybrid recall, consolidation | ✅ complete |
 | Agent framework + 15 specialists | ✅ complete |
 | Model router, 7 providers, failover | ✅ complete |
-| REST API (63 operations) + WebSocket | ✅ complete |
+| REST API (96 operations) + WebSocket | ✅ complete |
 | Workspace indexer, symbol extraction | ✅ complete |
 | Automation engine, triggers, workflows | ✅ complete |
 | Security: vault, permissions, audit | ✅ complete |
@@ -463,7 +463,8 @@ Built and tested against the specification in `docs/`:
 | Standalone executable packaging | ✅ spec complete — binaries build in CI |
 | Browser dashboard for headless mode | ✅ complete |
 | PostgreSQL / pgvector backend | ⬜ planned — SQLite + in-process graph today |
-| Terminal UI, Docker management, plugin marketplace | ⬜ planned — status shown in-app |
+| Docker: containers, images, volumes, networks, logs, stats | ✅ complete — Engine API over the Unix socket |
+| Terminal UI, plugin marketplace | ⬜ planned — status shown in-app |
 | Phone sync, desktop app integrations | ⬜ planned |
 
 The voice engine implements the full pipeline (VAD → STT → intent → memory →
