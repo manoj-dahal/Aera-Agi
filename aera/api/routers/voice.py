@@ -156,6 +156,8 @@ async def preview_persona(
             f"unknown persona '{persona_id}'", details={"available": sorted(PERSONAS)}
         )
 
+    from ...voice.personas import acoustics_for
+
     persona = get_persona(persona_id)
     mood = Emotion(emotion) if emotion else Emotion.NEUTRAL
     directory = kernel.config.storage_dir / "speech"
@@ -169,6 +171,9 @@ async def preview_persona(
             "emotion": mood.value,
             "pitch_hz": round(persona.pitch_for(mood), 1),
             "speed": round(persona.speed_for(mood), 3),
+            # Steadiness, breath and timbre: what separates one feeling from
+            # the same voice merely transposed.
+            "acoustics": acoustics_for(mood).to_dict(),
             "duration_ms": duration_ms,
             "visemes": len(visemes),
             "audio_path": str(path) if path else None,
@@ -218,6 +223,8 @@ async def analyse_expression(text: str, voice=Depends(get_voice)):
     scratch = ExpressionAnalyser(Mood(valence=voice.expression.mood.decayed()))
     reading = scratch.analyse(text)
 
+    from ...voice.personas import acoustics_for
+
     backend = getattr(voice, "tts", None)
     pitch = None
     if isinstance(backend, PersonaTTS):
@@ -235,6 +242,7 @@ async def analyse_expression(text: str, voice=Depends(get_voice)):
             "spoken": spoken,
             **reading.to_dict(),
             "pitch_hz": round(pitch, 1) if pitch else None,
+            "acoustics": acoustics_for(reading.emotion).to_dict(),
             "words": [w.to_dict() for w in words],
             "total_ms": round(sum(w.duration_ms + w.pause_after_ms for w in words), 1),
             "ssml": to_ssml(spoken, reading, persona_pitch_hz=pitch),

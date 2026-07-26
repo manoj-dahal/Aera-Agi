@@ -308,3 +308,178 @@ class TestVoiceApi:
 
         assert response.json()["data"]["voice"]["id"] == "anime-g"
         assert client.get("/api/v1/voice/personas").json()["data"]["active"] == "anime-g"
+
+
+class TestEmotionAcoustics:
+    """Emotion changes more than pitch and pace.
+
+    Before this, every feeling was the same voice faster or slower, higher or
+    lower. Sadness and confidence differ in steadiness, breath and timbre --
+    those are the cues that make an emotion recognisable rather than merely
+    transposed.
+    """
+
+    def test_every_emotion_has_a_profile(self):
+        from aera.voice.personas import EMOTION_ACOUSTICS
+
+        for emotion in Emotion:
+            assert emotion in EMOTION_ACOUSTICS
+
+    def test_unknown_input_falls_back_to_neutral(self):
+        from aera.voice.personas import EMOTION_ACOUSTICS, acoustics_for
+
+        assert acoustics_for("nonsense") == EMOTION_ACOUSTICS[Emotion.NEUTRAL]
+
+    def test_distress_is_less_steady_than_composure(self):
+        from aera.voice.personas import acoustics_for
+
+        # Jitter is the cycle-to-cycle instability of an upset voice.
+        assert acoustics_for(Emotion.SAD).jitter > acoustics_for(Emotion.CONFIDENT).jitter
+
+    def test_sadness_is_the_breathiest(self):
+        from aera.voice.personas import EMOTION_ACOUSTICS
+
+        breath = {e: a.breathiness for e, a in EMOTION_ACOUSTICS.items()}
+        assert max(breath, key=breath.get) is Emotion.SAD
+
+    def test_confidence_and_seriousness_do_not_shake(self):
+        from aera.voice.personas import acoustics_for
+
+        # Gravity is controlled; a wavering voice would undercut it.
+        assert acoustics_for(Emotion.CONFIDENT).tremor == 0.0
+        assert acoustics_for(Emotion.SERIOUS).tremor == 0.0
+
+    def test_arousal_raises_the_vibrato_rate(self):
+        from aera.voice.personas import acoustics_for
+
+        assert (
+            acoustics_for(Emotion.EXCITED).vibrato_rate
+            > acoustics_for(Emotion.NEUTRAL).vibrato_rate
+            > acoustics_for(Emotion.SAD).vibrato_rate
+        )
+
+    def test_low_mood_darkens_the_timbre(self):
+        from aera.voice.personas import acoustics_for
+
+        assert acoustics_for(Emotion.SAD).brightness_scale < 1.0
+        assert acoustics_for(Emotion.EXCITED).brightness_scale > 1.0
+
+    def test_urgency_sharpens_the_onset(self):
+        from aera.voice.personas import acoustics_for
+
+        assert acoustics_for(Emotion.EXCITED).attack > acoustics_for(Emotion.CALM).attack
+
+    def test_the_profiles_are_genuinely_distinct(self):
+        """Nine labels sharing one profile would be nine names for silence."""
+        from aera.voice.personas import EMOTION_ACOUSTICS
+
+        signatures = {tuple(a.to_dict().values()) for a in EMOTION_ACOUSTICS.values()}
+        assert len(signatures) == len(EMOTION_ACOUSTICS)
+
+
+class TestAcousticsInTheAudio:
+    """The profiles must reach the waveform, not just the dataclass."""
+
+    @staticmethod
+    def _samples(path):
+        import array
+        import wave
+
+        with wave.open(str(path)) as handle:
+            rate = handle.getframerate()
+            data = array.array("h")
+            data.frombytes(handle.readframes(handle.getnframes()))
+        return rate, [v / 32768 for v in data[rate // 2 : rate // 2 + 8192]]
+
+    def _noise_ratio(self, path):
+        """Residual after smoothing, relative to signal level.
+
+        A raw sample-difference metric conflates breath noise with formant
+        brightness, and sadness lowers both -- it measured *smoother* than
+        confidence despite carrying three times the breath.
+        """
+        _, seg = self._samples(path)
+        smoothed = [(seg[i - 1] + seg[i] + seg[i + 1]) / 3 for i in range(1, len(seg) - 1)]
+        residual = sum(abs(seg[i + 1] - smoothed[i]) for i in range(len(smoothed))) / len(smoothed)
+        level = sum(abs(v) for v in seg) / len(seg)
+        return residual / max(1e-9, level)
+
+    def _envelope_swing(self, path):
+        rate, seg = self._samples(path)
+        window = rate // 20
+        peaks = [max(abs(v) for v in seg[i : i + window]) for i in range(0, len(seg) - window, window)]
+        if not peaks:
+            return 0.0
+        return (max(peaks) - min(peaks)) / max(1e-9, sum(peaks) / len(peaks))
+
+    def test_breathiness_is_audible(self, tmp_path):
+        sad, _, _ = synthesize_wav("aaa " * 30, ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "s.wav")
+        firm, _, _ = synthesize_wav(
+            "aaa " * 30, ANIME_GIRL, emotion=Emotion.CONFIDENT, path=tmp_path / "c.wav"
+        )
+
+        assert self._noise_ratio(sad) > self._noise_ratio(firm)
+
+    def test_tremor_is_audible(self, tmp_path):
+        sad, _, _ = synthesize_wav("aaa " * 30, ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "s.wav")
+        firm, _, _ = synthesize_wav(
+            "aaa " * 30, ANIME_GIRL, emotion=Emotion.CONFIDENT, path=tmp_path / "c.wav"
+        )
+
+        assert self._envelope_swing(sad) > self._envelope_swing(firm)
+
+    def test_two_emotions_render_differently(self, tmp_path):
+        sad, _, _ = synthesize_wav("Hello there", ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "s.wav")
+        happy, _, _ = synthesize_wav(
+            "Hello there", ANIME_GIRL, emotion=Emotion.HAPPY, path=tmp_path / "h.wav"
+        )
+
+        assert sad.read_bytes() != happy.read_bytes()
+
+    def test_rendering_is_deterministic_across_processes(self, tmp_path):
+        """The seed must not depend on hash(), which Python randomises.
+
+        Seeding from hash() gave renders that were stable within a run but
+        differed between runs, and the jitter moved the measured pitch enough
+        to fail the pitch test intermittently.
+        """
+        import subprocess
+        import sys
+
+        script = (
+            "import hashlib,sys;"
+            "from pathlib import Path;"
+            "from aera.voice.personas import ANIME_GIRL, synthesize_wav;"
+            "from aera.voice.engine import Emotion;"
+            f"p,_,_=synthesize_wav('aaa '*20, ANIME_GIRL, emotion=Emotion.SAD, path=Path(r'{tmp_path}')/'x.wav');"
+            "sys.stdout.write(hashlib.sha256(p.read_bytes()).hexdigest())"
+        )
+        digests = {
+            subprocess.run(
+                [sys.executable, "-c", script], capture_output=True, text=True, check=True
+            ).stdout
+            for _ in range(2)
+        }
+
+        assert len(digests) == 1
+
+    def test_rendering_is_deterministic(self, tmp_path):
+        """Noise must be seeded, or the same line differs on every render."""
+        first, _, _ = synthesize_wav("Hello", ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "a.wav")
+        second, _, _ = synthesize_wav("Hello", ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "b.wav")
+
+        assert first.read_bytes() == second.read_bytes()
+
+    def test_added_noise_does_not_clip(self, tmp_path):
+        """Breath is summed on top of the tone; the total must stay in range."""
+        import array
+        import wave
+
+        path, _, _ = synthesize_wav(
+            "Testing levels", ANIME_GIRL, emotion=Emotion.SAD, path=tmp_path / "o.wav"
+        )
+        with wave.open(str(path)) as handle:
+            data = array.array("h")
+            data.frombytes(handle.readframes(handle.getnframes()))
+
+        assert max(abs(v) for v in data) < 32_000

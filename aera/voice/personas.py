@@ -20,7 +20,9 @@ real engine and register it, and the same personas drive it.
 from __future__ import annotations
 
 import array
+import hashlib
 import math
+import random
 import wave
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -104,6 +106,97 @@ _EMOTION_PITCH: dict[Emotion, float] = {
     Emotion.SERIOUS: -0.35,
     Emotion.SAD: -0.5,
 }
+
+@dataclass(frozen=True)
+class EmotionAcoustics:
+    """How one emotion reshapes the voice, beyond pitch and pace.
+
+    Pitch and speed alone give a chipmunk-and-slug range: the same voice fast
+    and high, or slow and low. Real affect also changes how *steady* the voice
+    is, how much breath is in it, and how bright the timbre sits. These are
+    the dimensions phonetics research consistently ties to perceived emotion.
+    """
+
+    #: Cycle-to-cycle pitch instability, as a fraction of f0. Distress raises
+    #: it; a composed voice is near-periodic.
+    jitter: float = 0.004
+    #: Aperiodic noise mixed in. Sadness and fear are breathy; anger is not.
+    breathiness: float = 0.06
+    #: Slow amplitude wobble, the audible shake in an upset voice.
+    tremor: float = 0.0
+    #: Vibrato speed in hertz. Excitement is fast, sadness slow and heavy.
+    vibrato_rate: float = 5.2
+    #: Multiplier on the persona's vibrato depth.
+    vibrato_scale: float = 1.0
+    #: Upper-formant gain. Bright reads alert, dark reads withdrawn.
+    brightness_scale: float = 1.0
+    #: Strength of the second harmonic: more gives a tenser, edgier tone.
+    harmonic_tilt: float = 1.0
+    #: Onset sharpness. A clipped attack sounds urgent, a soft one gentle.
+    attack: float = 1.0
+
+    def to_dict(self) -> dict[str, float]:
+        return {
+            "jitter": self.jitter,
+            "breathiness": self.breathiness,
+            "tremor": self.tremor,
+            "vibrato_rate_hz": self.vibrato_rate,
+            "vibrato_scale": self.vibrato_scale,
+            "brightness_scale": self.brightness_scale,
+            "harmonic_tilt": self.harmonic_tilt,
+            "attack": self.attack,
+        }
+
+
+#: One acoustic profile per emotion. Values follow the direction reported in
+#: the affective-speech literature: aroused states are brighter, faster and
+#: tenser; low-mood states are breathier, darker and less steady.
+EMOTION_ACOUSTICS: dict[Emotion, EmotionAcoustics] = {
+    Emotion.EXCITED: EmotionAcoustics(
+        jitter=0.009, breathiness=0.04, tremor=0.03, vibrato_rate=7.0,
+        vibrato_scale=1.5, brightness_scale=1.22, harmonic_tilt=1.35, attack=1.5,
+    ),
+    Emotion.HAPPY: EmotionAcoustics(
+        jitter=0.006, breathiness=0.05, tremor=0.015, vibrato_rate=6.2,
+        vibrato_scale=1.25, brightness_scale=1.12, harmonic_tilt=1.15, attack=1.2,
+    ),
+    Emotion.CONFIDENT: EmotionAcoustics(
+        # Deliberately the steadiest profile: certainty sounds periodic.
+        jitter=0.002, breathiness=0.03, tremor=0.0, vibrato_rate=5.0,
+        vibrato_scale=0.7, brightness_scale=1.05, harmonic_tilt=1.2, attack=1.35,
+    ),
+    Emotion.CURIOUS: EmotionAcoustics(
+        jitter=0.005, breathiness=0.07, tremor=0.01, vibrato_rate=6.0,
+        vibrato_scale=1.15, brightness_scale=1.1, harmonic_tilt=1.0, attack=1.1,
+    ),
+    Emotion.NEUTRAL: EmotionAcoustics(),
+    Emotion.CALM: EmotionAcoustics(
+        jitter=0.003, breathiness=0.10, tremor=0.0, vibrato_rate=4.4,
+        vibrato_scale=0.8, brightness_scale=0.94, harmonic_tilt=0.85, attack=0.75,
+    ),
+    Emotion.CONCERNED: EmotionAcoustics(
+        jitter=0.010, breathiness=0.09, tremor=0.035, vibrato_rate=5.6,
+        vibrato_scale=1.1, brightness_scale=0.96, harmonic_tilt=1.1, attack=1.1,
+    ),
+    Emotion.SERIOUS: EmotionAcoustics(
+        # Low breath and low tremor: gravity is controlled, not shaky.
+        jitter=0.003, breathiness=0.02, tremor=0.0, vibrato_rate=4.2,
+        vibrato_scale=0.55, brightness_scale=0.88, harmonic_tilt=1.3, attack=1.4,
+    ),
+    Emotion.SAD: EmotionAcoustics(
+        jitter=0.012, breathiness=0.20, tremor=0.05, vibrato_rate=3.6,
+        vibrato_scale=1.3, brightness_scale=0.80, harmonic_tilt=0.7, attack=0.55,
+    ),
+}
+
+
+def acoustics_for(emotion: Emotion | str) -> EmotionAcoustics:
+    """The acoustic profile for an emotion, defaulting to neutral."""
+    try:
+        return EMOTION_ACOUSTICS.get(Emotion(emotion), EMOTION_ACOUSTICS[Emotion.NEUTRAL])
+    except ValueError:
+        return EMOTION_ACOUSTICS[Emotion.NEUTRAL]
+
 
 #: Relative speed change per emotion.
 _EMOTION_SPEED: dict[Emotion, float] = {
@@ -210,13 +303,19 @@ _VISEME_FORMANTS: dict[str, tuple[float, float]] = {
 SAMPLE_RATE = 22_050
 
 
-def _envelope(position: float, total: float) -> float:
-    """Amplitude ramp, so segments do not click at their boundaries."""
+def _envelope(position: float, total: float, *, attack: float = 1.0) -> float:
+    """Amplitude ramp, so segments do not click at their boundaries.
+
+    ``attack`` sharpens or softens the onset: above 1.0 the sound arrives
+    abruptly, which reads as urgency; below 1.0 it fades in, which reads as
+    hesitance.
+    """
     edge = min(0.15, total * 0.25)
     if edge <= 0:
         return 1.0
-    if position < edge:
-        return position / edge
+    rise = edge / max(0.2, attack)
+    if position < rise:
+        return position / rise
     if position > total - edge:
         return max(0.0, (total - position) / edge)
     return 1.0
@@ -245,6 +344,15 @@ def synthesize_wav(
         return None, round(duration_ms, 2), visemes
 
     pitch = persona.pitch_for(emotion)
+    voice = acoustics_for(emotion)
+    # Deterministic noise: the same line must render identically every time.
+    # blake2b rather than hash(), which Python randomises per process -- that
+    # made renders stable within a run but different between runs, and the
+    # jitter moved the measured pitch enough to fail a test intermittently.
+    seed = hashlib.blake2b(
+        f"{persona.id}|{emotion.value}|{text}".encode(), digest_size=8
+    ).digest()
+    rng = random.Random(int.from_bytes(seed, "big"))
     total_samples = int(SAMPLE_RATE * duration_ms / 1000.0)
     samples = array.array("h", bytes(2 * total_samples))
 
@@ -257,25 +365,41 @@ def synthesize_wav(
             continue
 
         f1, f2 = _VISEME_FORMANTS.get(str(frame.get("shape", "neutral")), _VISEME_FORMANTS["neutral"])
-        f1 *= persona.brightness
-        f2 *= persona.brightness
+        # Emotion shifts the formants as well as the persona: a withdrawn
+        # voice is darker, an alert one brighter.
+        f1 *= persona.brightness * voice.brightness_scale
+        f2 *= persona.brightness * voice.brightness_scale
 
         begin = int(SAMPLE_RATE * start_ms / 1000.0)
         finish = min(total_samples, int(SAMPLE_RATE * end_ms / 1000.0))
         span = (finish - begin) / SAMPLE_RATE
 
+        depth = persona.vibrato * voice.vibrato_scale
         for i in range(begin, finish):
             t = i / SAMPLE_RATE
             local = (i - begin) / SAMPLE_RATE
-            # Vibrato keeps a sustained tone from sounding synthetic.
-            f0 = pitch * (1.0 + persona.vibrato * math.sin(2 * math.pi * 5.2 * t))
+
+            # Vibrato keeps a sustained tone from sounding synthetic; jitter
+            # is the cycle-to-cycle wobble that distress adds on top.
+            wobble = math.sin(2 * math.pi * voice.vibrato_rate * t)
+            unsteady = rng.uniform(-voice.jitter, voice.jitter)
+            f0 = pitch * (1.0 + depth * wobble + unsteady)
+
             value = (
                 0.45 * math.sin(2 * math.pi * f0 * t)
-                + 0.22 * math.sin(2 * math.pi * f0 * 2 * t)
+                + 0.22 * voice.harmonic_tilt * math.sin(2 * math.pi * f0 * 2 * t)
                 + 0.28 * math.sin(2 * math.pi * f1 * t)
                 + 0.16 * math.sin(2 * math.pi * f2 * t)
             )
-            value *= _envelope(local, span)
+            # Breath: aperiodic noise, which is what makes a voice sound
+            # tired or fragile rather than merely lower.
+            if voice.breathiness:
+                value += voice.breathiness * rng.uniform(-1.0, 1.0)
+            # Tremor: the slow amplitude shake of an upset voice.
+            if voice.tremor:
+                value *= 1.0 + voice.tremor * math.sin(2 * math.pi * 4.0 * t)
+
+            value *= _envelope(local, span, attack=voice.attack)
             samples[i] = int(max(-1.0, min(1.0, value)) * 11_000)
 
     path = Path(path)
