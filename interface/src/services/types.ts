@@ -85,7 +85,8 @@ export type MemoryTypeValue =
 export interface MemoryNode {
   id: string;
   title: string;
-  content: string;
+  /** Optional: a node may be a bare title. */
+  content?: string;
   description: string;
   type: string;
   memory_type: MemoryTypeValue;

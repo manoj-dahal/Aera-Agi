@@ -86,3 +86,22 @@ describe('cn', () => {
     expect(cn('a', undefined, null, 'd')).toBe('a d');
   });
 });
+
+describe('truncate tolerates missing text', () => {
+  /**
+   * Regression: MemoryHome renders `truncate(node.content || node.description)`
+   * and the backend models both as optional, so a memory saved as a bare
+   * title crashed the whole page with "Cannot read properties of undefined".
+   */
+  it('returns an empty string for undefined', () => {
+    expect(truncate(undefined)).toBe('');
+  });
+
+  it('returns an empty string for null', () => {
+    expect(truncate(null)).toBe('');
+  });
+
+  it('still truncates real text', () => {
+    expect(truncate('a'.repeat(200), 10)).toHaveLength(10);
+  });
+});

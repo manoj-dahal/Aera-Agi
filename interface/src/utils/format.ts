@@ -49,8 +49,10 @@ export function formatTime(unixSeconds: number): string {
   });
 }
 
-export function truncate(text: string, max = 120): string {
-  const flat = text.replace(/\s+/g, ' ').trim();
+export function truncate(text: string | null | undefined, max = 120): string {
+  // Memory nodes may carry a title with no body, and the backend models
+  // content as optional, so this is reached with undefined in normal use.
+  const flat = (text ?? '').replace(/\s+/g, ' ').trim();
   return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`;
 }
 
