@@ -280,7 +280,7 @@ cd interface && npm install && npm run build
 
 ## API
 
-96 REST operations plus a WebSocket gateway. Every response uses a consistent
+103 REST operations plus a WebSocket gateway. Every response uses a consistent
 envelope.
 
 ```http
@@ -452,7 +452,7 @@ Built and tested against the specification in `docs/`:
 | Memory graph, hybrid recall, consolidation | ✅ complete |
 | Agent framework + 15 specialists | ✅ complete |
 | Model router, 7 providers, failover | ✅ complete |
-| REST API (96 operations) + WebSocket | ✅ complete |
+| REST API (103 operations) + WebSocket | ✅ complete |
 | Workspace indexer, symbol extraction | ✅ complete |
 | Automation engine, triggers, workflows | ✅ complete |
 | Security: vault, permissions, audit | ✅ complete |

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Paperclip } from 'lucide-react';
 import { AmbientPanel } from '@components/widgets/AmbientPanel';
 import { HologramBadge } from '@components/hologram/HologramBadge';
 import { LazyAvatarViewer } from '@components/hologram/LazyAvatarViewer';
@@ -9,7 +10,12 @@ import { TranscriptPanel } from '@components/voice/TranscriptPanel';
 import { WorkspacePanel } from '@components/widgets/WorkspacePanel';
 import { useToast } from '@components/notifications/Toast';
 import { useAvatarStore, useChatStore, useSystemStore, useWorkspaceStore } from '@store/index';
-import { system, voice as voiceApi, workspace as workspaceApi } from '@services/api';
+import {
+  system,
+  uploads as uploadsApi,
+  voice as voiceApi,
+  workspace as workspaceApi,
+} from '@services/api';
 import { detectHost } from '@services/transport';
 
 /**
@@ -21,7 +27,7 @@ import { detectHost } from '@services/transport';
  * Right: transcript panel with drag & drop.
  */
 export function Dashboard() {
-  const { messages, streaming, send } = useChatStore();
+  const { messages, streaming, send, append } = useChatStore();
   const { status, telemetry, events } = useSystemStore();
   const workspaceStore = useWorkspaceStore();
   const { active: avatarModel, load: loadAvatars } = useAvatarStore();
@@ -35,6 +41,7 @@ export function Dashboard() {
   const [level, setLevel] = useState(0);
   const [dropAgent, setDropAgent] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | undefined>(undefined);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void workspaceStore.refresh();
@@ -120,31 +127,55 @@ export function Dashboard() {
     document.getElementById('aera-input')?.focus();
   };
 
-  /** Dropped files: show which agent takes it, then hand off. */
-  const handleDrop = async (paths: string[]) => {
-    const first = paths[0];
-    if (!first) return;
-    const name = first.split(/[\\/]/).pop() ?? first;
-    const agent = agentForFile(name);
+  /** Receipt for a stored file, so the transcript shows what was attached. */
+  const addFileMessage = (stored: { name: string; size_mb: number; kind: string }) =>
+    append({
+      role: 'user',
+      content: `Attached ${stored.name} (${stored.kind}, ${stored.size_mb} MB)`,
+    });
 
+  const addAssistantMessage = (content: string, agent?: string) =>
+    append({ role: 'assistant', content, agent });
+
+  /**
+   * Dropped files are uploaded, then analysed.
+   *
+   * This used to send the filename as chat text and animate a progress bar on
+   * a timer -- the model was asked about a path it could not open, and the bar
+   * was decorative. The bytes now go to the backend and the bar tracks the
+   * real transfer.
+   */
+  const handleDrop = async (dropped: File[]) => {
+    const file = dropped[0];
+    if (!file) return;
+
+    const agent = agentForFile(file.name);
     setDropAgent(agent);
     setProgress(0);
-    const timer = setInterval(
-      () => setProgress((p) => (p == null ? 0.1 : Math.min(0.95, p + 0.12))),
-      120,
-    );
 
     try {
-      await send(`Analyse this dropped file: ${first}`);
+      const stored = await uploadsApi.send(file, setProgress);
+      // The backend picks the agent from the stored file, which is the same
+      // routing table this indicator reads.
+      setDropAgent(stored.suggested_agent);
+      addFileMessage(stored);
+
+      const result = await uploadsApi.analyse(stored.id, draft.trim() || undefined);
+      const output = String(result.output ?? result.error ?? 'no output');
+      addAssistantMessage(output, String(result.agent ?? stored.suggested_agent));
+    } catch (error) {
+      addAssistantMessage(
+        error instanceof Error ? error.message : 'could not process that file',
+        agent,
+      );
     } finally {
-      clearInterval(timer);
-      setProgress(1);
-      setTimeout(() => {
-        setProgress(undefined);
-        setDropAgent(null);
-      }, 600);
+      setProgress(undefined);
+      setDropAgent(null);
     }
   };
+
+  /** Open the file picker; drag & drop alone is not discoverable. */
+  const browseFiles = () => fileInput.current?.click();
 
   const copy = async (text: string) => {
     if (detectHost() === 'desktop') {
@@ -231,6 +262,28 @@ export function Dashboard() {
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           className="selectable w-full max-w-[520px] rounded-full border border-[var(--aera-line-strong)] bg-[var(--aera-bg-surface)] px-5 py-2.5 text-center text-[13px] transition-colors placeholder:text-[var(--aera-text-disabled)] focus:border-[var(--aera-accent-primary)] disabled:opacity-50"
         />
+
+        {/* Drag & drop is not discoverable on its own, and a touch screen has
+            no drag. Same handler either way. */}
+        <input
+          ref={fileInput}
+          type="file"
+          multiple
+          hidden
+          onChange={(event) => {
+            void handleDrop(Array.from(event.target.files ?? []));
+            event.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={browseFiles}
+          disabled={streaming || !status?.ready}
+          className="flex items-center gap-1.5 text-[11.5px] text-[var(--aera-text-muted)] transition-colors hover:text-[var(--aera-accent-primary)] disabled:opacity-40"
+        >
+          <Paperclip size={12} />
+          Attach a file
+        </button>
 
         {/* Ambient status fills the centre only while nothing is being said. */}
         {messages.length === 0 && (

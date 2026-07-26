@@ -215,3 +215,40 @@ describe('Avatar upload: getting a model in from the user side', () => {
     expect(page).toContain('unpacked automatically');
   });
 });
+
+describe('Dashboard drop: files are uploaded, not just named', () => {
+  const dashboard = src('pages/dashboard/Dashboard.tsx');
+  const panel = src('components/voice/TranscriptPanel.tsx');
+  const api = src('services/api.ts');
+
+  it('hands over File objects, not filenames', () => {
+    // A browser cannot expose a usable path, so names were unopenable.
+    expect(panel).toContain('onDropFiles?: (files: File[]) => void');
+    expect(panel).not.toContain('.path ?? file.name');
+  });
+
+  it('uploads the bytes before asking an agent', () => {
+    expect(dashboard).toContain('uploadsApi.send');
+    expect(dashboard).toContain('uploadsApi.analyse');
+  });
+
+  it('no longer sends the filename as chat text', () => {
+    expect(dashboard).not.toContain('Analyse this dropped file');
+  });
+
+  it('shows real transfer progress, not a timer', () => {
+    // The bar used to be driven by setInterval regardless of the transfer.
+    expect(dashboard).toContain('uploadsApi.send(file, setProgress)');
+    expect(dashboard).not.toContain('Math.min(0.95, p + 0.12)');
+  });
+
+  it('offers a file picker as well as drag and drop', () => {
+    // Drag & drop is undiscoverable, and a touch screen cannot drag at all.
+    expect(dashboard).toContain('Attach a file');
+    expect(dashboard).toContain("type=\"file\"");
+  });
+
+  it('exposes the routing table the drop indicator claims to use', () => {
+    expect(api).toContain('/uploads/routing');
+  });
+});

@@ -32,6 +32,7 @@ from .routers import (
     memory,
     skills,
     system,
+    uploads,
     voice,
     websocket,
     workspace,
@@ -140,6 +141,7 @@ def create_app(config: AeraConfig | None = None, *, kernel: Kernel | None = None
     app.include_router(automation.router, prefix=prefix)
     app.include_router(skills.router, prefix=prefix)
     app.include_router(docker.router, prefix=prefix)
+    app.include_router(uploads.router, prefix=prefix)
     app.include_router(system.router, prefix=prefix)
     app.include_router(websocket.router)
 

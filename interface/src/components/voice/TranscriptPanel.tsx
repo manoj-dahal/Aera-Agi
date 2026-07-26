@@ -8,7 +8,12 @@ export interface TranscriptPanelProps {
   messages: ChatMessage[];
   /** Agent currently processing a dropped file, shown on the indicator. */
   activeAgent?: string | null;
-  onDropFiles?: (paths: string[]) => void;
+  /**
+   * Files released on the panel. Receives the File objects themselves, not
+   * names: the browser cannot expose a usable path, so the bytes have to be
+   * uploaded for an agent to read them.
+   */
+  onDropFiles?: (files: File[]) => void;
   onCopy?: (text: string) => void;
 }
 
@@ -50,10 +55,8 @@ export function TranscriptPanel({
     event.preventDefault();
     depth.current = 0;
     setDragging(false);
-    const paths = Array.from(event.dataTransfer.files)
-      .map((file) => (file as File & { path?: string }).path ?? file.name)
-      .filter(Boolean);
-    if (paths.length > 0) onDropFiles?.(paths);
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length > 0) onDropFiles?.(files);
   };
 
   return (

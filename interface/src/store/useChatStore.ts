@@ -12,6 +12,8 @@ interface ChatState {
   error: string | null;
 
   send: (text: string) => Promise<void>;
+  /** Post a message the model did not generate, e.g. an upload receipt. */
+  append: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => void;
   clear: () => void;
   newConversation: () => void;
   transcript: () => string;
@@ -109,6 +111,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }
     }
   },
+
+  append: (message) =>
+    set((s) => ({
+      messages: [...s.messages, { ...message, id: newId(), timestamp: Date.now() }],
+    })),
 
   clear: () => set({ messages: [], error: null }),
 

@@ -10,6 +10,8 @@ import type {
   AgentsPayload,
   AvatarModelInfo,
   AvatarUploadResult,
+  UploadInfo,
+  UploadStats,
   AuditEntry,
   AvatarState,
   DockerContainer,
@@ -472,6 +474,75 @@ export const avatars = {
     ),
 };
 
+/**
+ * User file uploads.
+ *
+ * Dropping a file on the dashboard used to send only its *name* to the model,
+ * which cannot open it. Files are stored here first so an agent gets a real
+ * path.
+ */
+export const uploads = {
+  list: (kind?: string) =>
+    httpRequest<{ uploads: UploadInfo[]; count: number; stats: UploadStats }>(
+      `/uploads${kind ? `?kind=${encodeURIComponent(kind)}` : ''}`,
+    ),
+
+  /** Store a file, reporting real transfer progress. */
+  send: (file: File, onProgress?: (fraction: number) => void) =>
+    new Promise<UploadInfo>((resolve, reject) => {
+      const body = new FormData();
+      body.append('file', file);
+
+      const request = new XMLHttpRequest();
+      request.open('POST', '/api/v1/uploads');
+      request.upload.onprogress = (event) => {
+        if (event.lengthComputable) onProgress?.(event.loaded / event.total);
+      };
+      request.onload = () => {
+        let envelope: { success?: boolean; error?: string; data?: UploadInfo };
+        try {
+          envelope = JSON.parse(request.responseText);
+        } catch {
+          reject(new Error(`upload failed (HTTP ${request.status})`));
+          return;
+        }
+        if (request.status >= 400 || envelope.success === false) {
+          reject(new Error(envelope.error ?? `upload failed (HTTP ${request.status})`));
+          return;
+        }
+        onProgress?.(1);
+        resolve(envelope.data as UploadInfo);
+      };
+      request.onerror = () => reject(new Error('upload failed: the connection dropped'));
+      request.onabort = () => reject(new Error('upload cancelled'));
+      request.send(body);
+    }),
+
+  /** Hand a stored file to an agent. */
+  analyse: (uploadId: string, prompt?: string, agent?: string) => {
+    const query = new URLSearchParams();
+    if (prompt) query.set('prompt', prompt);
+    if (agent) query.set('agent', agent);
+    return httpRequest<Record<string, unknown>>(
+      `/uploads/${encodeURIComponent(uploadId)}/analyse${query.toString() ? `?${query}` : ''}`,
+      { method: 'POST' },
+    );
+  },
+
+  /** Which agent handles which extension, straight from the backend. */
+  routing: () =>
+    httpRequest<{
+      by_extension: Record<string, string>;
+      by_kind: Record<string, string>;
+      max_upload_mb: number;
+    }>('/uploads/routing'),
+
+  remove: (uploadId: string) =>
+    httpRequest<{ id: string }>(`/uploads/${encodeURIComponent(uploadId)}`, {
+      method: 'DELETE',
+    }),
+};
+
 export const system = {
   status: () =>
     call<SystemStatus>({
@@ -566,6 +637,7 @@ export const docker = {
 
 export const api = {
   avatars,
+  uploads,
   chat,
   docker,
   skills,

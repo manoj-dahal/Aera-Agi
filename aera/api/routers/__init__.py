@@ -9,6 +9,7 @@ from . import (
     memory,
     skills,
     system,
+    uploads,
     voice,
     websocket,
     workspace,
@@ -16,6 +17,6 @@ from . import (
 
 __all__ = [
     "agents", "automation", "avatars", "chat", "docker", "memory", "skills", "system",
-    "voice",
+    "uploads", "voice",
     "websocket", "workspace",
 ]

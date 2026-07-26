@@ -517,3 +517,28 @@ export interface DockerStats {
   memory_limit: number | null;
   memory_percent: number | null;
 }
+
+// --------------------------------------------------------------------------- //
+// uploads
+// --------------------------------------------------------------------------- //
+/** A file the user handed to AERA. */
+export interface UploadInfo {
+  id: string;
+  name: string;
+  path: string;
+  size_bytes: number;
+  size_mb: number;
+  /** image | video | audio | document | text | code | archive | model | unknown */
+  kind: string;
+  sha256: string;
+  uploaded_at: number;
+  /** Which agent the backend will route this to by default. */
+  suggested_agent: string;
+}
+
+export interface UploadStats {
+  count: number;
+  total_bytes: number;
+  by_kind: Record<string, number>;
+  max_upload_mb: number;
+}

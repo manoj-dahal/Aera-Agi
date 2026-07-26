@@ -32,6 +32,7 @@ from ..memory.engine import MemoryEngine
 from ..security.vault import AuditLog, PermissionManager, SecretVault
 from ..services.docker import DockerClient
 from ..services.telemetry import TelemetryService
+from ..services.uploads import UploadStore
 from ..skills.engines import ContextEngine, LearningEngine, PlanningEngine, ReasoningEngine
 from ..skills.manager import SkillManager
 from ..voice.engine import VoiceEngine
@@ -66,6 +67,7 @@ class Kernel:
         self.docker = DockerClient(
             allow_control=self.config.security.allow_docker_control
         )
+        self.uploads = UploadStore(self.config.storage_dir / "uploads")
         # Background engines (docs: Agent Manager, Skill Manager, Reasoning,
         # Planning, Learning and Context Engines).
         self.skills: SkillManager | None = None
@@ -164,6 +166,12 @@ class Kernel:
         discovered = self.avatars.scan()
         if discovered:
             logger.info("avatar models available: %d", len(discovered))
+
+        # Files the user handed over previously; the index lives in memory, so
+        # it has to be rebuilt from disk on every start.
+        restored = self.uploads.scan()
+        if restored:
+            logger.info("uploaded files available: %d", len(restored))
         self.hologram = HologramController(bus=self.bus, enabled=cfg.settings.hologram)
         await self.bus.subscribe(
             Topics.AVATAR_EMOTION,
