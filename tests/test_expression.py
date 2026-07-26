@@ -369,3 +369,51 @@ class TestExpressionApi:
         client.post("/api/v1/voice/analyse", params={"text": "Everything failed badly."})
 
         assert client.get("/api/v1/voice/mood").json()["data"]["valence"] == before
+
+
+class TestPunctuationAndEmoji:
+    """Signals that are punctuation, not vocabulary.
+
+    They live outside the language packs because they apply in every
+    language, and they were lost entirely when the cue tables moved into the
+    packs.
+    """
+
+    @pytest.mark.parametrize(
+        ("text", "emotion"),
+        [
+            ("Deployment finished 😀", Emotion.HAPPY),
+            ("Nice work 🥰", Emotion.HAPPY),
+            ("It broke 😢", Emotion.SAD),
+            ("Everything is gone 😭", Emotion.SAD),
+        ],
+    )
+    def test_emoji_are_detected(self, text, emotion):
+        """The pattern read "\\U0001F600-\\U0001F60F" inside an alternation
+        rather than inside a character class, which is a literal
+        three-character sequence: it matched the string "😀-😏" and no actual
+        emoji, ever."""
+        assert ExpressionAnalyser().analyse(text).emotion is emotion
+
+    @pytest.mark.parametrize(
+        ("text", "emotion"),
+        [("All done :)", Emotion.HAPPY), ("It broke :(", Emotion.SAD)],
+    )
+    def test_ascii_emoticons_still_work(self, text, emotion):
+        assert ExpressionAnalyser().analyse(text).emotion is emotion
+
+    def test_a_semicolon_is_not_a_question_in_english(self):
+        """";" was treated as a question mark in every language, so
+        "Step one; step two;" read as curious."""
+        reading = ExpressionAnalyser(language="en").analyse("Step one; step two;")
+
+        assert reading.emotion is not Emotion.CURIOUS
+
+    def test_a_semicolon_is_a_question_mark_in_greek(self):
+        """Greek genuinely writes its question mark as a semicolon."""
+        reading = ExpressionAnalyser(language="el").analyse("Τι κάνεις;")
+
+        assert reading.emotion is Emotion.CURIOUS
+
+    def test_a_real_question_mark_still_reads_as_curious(self):
+        assert ExpressionAnalyser().analyse("what now?").emotion is Emotion.CURIOUS

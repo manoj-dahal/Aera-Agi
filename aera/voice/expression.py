@@ -62,14 +62,36 @@ _MOOD_WEIGHT: dict[Emotion, float] = {
 #: the packs carry words only, and nothing replaced the "!!"  / "?" / ":)"
 #: patterns, so "It worked!!" and "All done :)" both went back to reading
 #: NEUTRAL in English.
-_PUNCTUATION_CUES: tuple[tuple[Emotion, re.Pattern[str], float], ...] = (
+#:
+#: The entry is (emotion, pattern, weight, greek_only). ";" is the Greek
+#: question mark and an ordinary semicolon everywhere else, so it is gated
+#: rather than applied globally -- untreated it made "Step one; step two;"
+#: read as a question in English.
+_PUNCTUATION_CUES: tuple[tuple[Emotion, re.Pattern[str], float, bool], ...] = (
     # Two or more exclamation marks read as excitement in any script.
-    (Emotion.EXCITED, re.compile(r"[!！]{2,}"), 0.9),
-    (Emotion.HAPPY, re.compile(r":\)|:-\)|:D|=\)|\U0001F600-\U0001F60F"), 0.7),
-    (Emotion.SAD, re.compile(r":\(|:-\(|=\("), 0.8),
-    # A question at the end of the utterance, in Latin, Arabic, Greek or
-    # full-width punctuation.
-    (Emotion.CURIOUS, re.compile(r"[?？؟;]\s*$"), 0.55),
+    (Emotion.EXCITED, re.compile(r"[!！]{2,}"), 0.9, False),
+    # Emoji are matched by codepoint class. This previously read
+    # "\U0001F600-\U0001F60F" inside an alternation rather than inside a
+    # character class, which is a literal three-character sequence: it
+    # matched the string "😀-😏" and no actual emoji ever.
+    (
+        Emotion.HAPPY,
+        re.compile(
+            r":\)|:-\)|:D|=\)|[\U0001F600-\U0001F60F\U0001F929\U0001F970\u263A]"
+        ),
+        0.7,
+        False,
+    ),
+    (
+        Emotion.SAD,
+        re.compile(r":\(|:-\(|=\(|[\U0001F622\U0001F62D\U0001F61E\U0001F614\u2639]"),
+        0.8,
+        False,
+    ),
+    # A question at the end, in Latin, Arabic or full-width punctuation.
+    (Emotion.CURIOUS, re.compile(r"[?？؟]\s*$"), 0.55, False),
+    # Greek writes its question mark as a semicolon.
+    (Emotion.CURIOUS, re.compile(r";\s*$"), 0.55, True),
 )
 
 #: How much each emotion's cues count. Distress outweighs delight, because a
@@ -236,7 +258,9 @@ class ExpressionAnalyser:
                 else []
             )
 
-            for emotion, pattern, weight_hint in _PUNCTUATION_CUES:
+            for emotion, pattern, weight_hint, greek_only in _PUNCTUATION_CUES:
+                if greek_only and pack.code != "el":
+                    continue
                 if not pattern.search(sentence):
                     continue
                 score = weight_hint * recency * boost * (0.6 if hedged else 1.0)

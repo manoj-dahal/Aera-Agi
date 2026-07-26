@@ -236,3 +236,66 @@ class TestEngineIntegration:
         assert result.visemes
         # A closing shape somewhere means the pause was honoured.
         assert any(entry["shape"] == "closed" for entry in result.visemes)
+
+
+class TestIdentifiersAreNotArithmetic:
+    """Digit strings that name something, rather than counting something.
+
+    The number rules ran over everything, so "555-1234" was read as
+    "five hundred and fifty five" then a hyphen then "one thousand two
+    hundred and thirty four" -- arithmetic where the only correct reading is
+    digit by digit.
+    """
+
+    def test_a_phone_number_is_read_digit_by_digit(self):
+        spoken = normalise_for_speech("Call 555-1234 now")
+
+        assert "five five five one two three four" in spoken
+        assert "hundred" not in spoken
+
+    def test_a_long_serial_is_read_digit_by_digit(self):
+        assert "thousand" not in normalise_for_speech("Order 4471-9930-2255")
+
+    def test_an_ordinary_number_is_still_a_quantity(self):
+        """The identifier rule must not swallow real numbers."""
+        assert "one thousand two hundred" in normalise_for_speech("I counted 1200 items")
+
+
+class TestDates:
+    def test_an_iso_date_is_spoken_as_a_date(self):
+        """It came out as "two thousand twenty four-one-fifteen": the hyphens
+        survived, the leading zero was lost, and nothing named the month."""
+        spoken = normalise_for_speech("2024-01-15 was the date")
+
+        assert "January" in spoken
+        assert "fifteenth" in spoken
+        assert "-" not in spoken
+
+    @pytest.mark.parametrize(
+        ("date", "month"),
+        [("2024-03-01", "March"), ("2020-12-25", "December"), ("1999-07-04", "July")],
+    )
+    def test_each_month_is_named(self, date, month):
+        assert month in normalise_for_speech(date)
+
+    def test_an_impossible_date_is_not_invented(self):
+        """Month 13 is not a date. Falling through to digits is honest;
+        naming a thirteenth month is not."""
+        spoken = normalise_for_speech("2024-13-45 is not a date")
+
+        assert "January" not in spoken
+        assert "December" not in spoken
+
+
+class TestVersionStrings:
+    def test_a_four_part_version_is_fully_spoken(self):
+        """The pattern captured exactly three components, so "1.2.3.4" was
+        read as "one point two point three" and then a literal ".4"."""
+        spoken = normalise_for_speech("Section 1.2.3.4 of the doc")
+
+        assert spoken.count("point") == 3
+        assert ".4" not in spoken
+
+    @pytest.mark.parametrize("version", ["1.2", "1.2.3", "1.2.3.4", "1.2.3.4.5"])
+    def test_any_length_works(self, version):
+        assert not any(ch.isdigit() for ch in normalise_for_speech(version))

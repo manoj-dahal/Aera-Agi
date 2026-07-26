@@ -78,6 +78,30 @@ _UNITS: dict[str, tuple[str, str]] = {
 
 _CURRENCY = {"$": "dollars", "£": "pounds", "€": "euros", "¥": "yen"}
 
+#: Month names, for reading ISO dates aloud.
+_MONTHS = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def _ordinal(day: int) -> str:
+    """"the fifteenth", the way a date is actually spoken."""
+    words = {
+        1: "first", 2: "second", 3: "third", 4: "fourth", 5: "fifth",
+        6: "sixth", 7: "seventh", 8: "eighth", 9: "ninth", 10: "tenth",
+        11: "eleventh", 12: "twelfth", 13: "thirteenth", 14: "fourteenth",
+        15: "fifteenth", 16: "sixteenth", 17: "seventeenth",
+        18: "eighteenth", 19: "nineteenth", 20: "twentieth",
+        30: "thirtieth",
+    }
+    if day in words:
+        return words[day]
+    tens, ones = divmod(day, 10)
+    if ones and tens in (2, 3):
+        return f"{('twenty', 'thirty')[tens - 2]} {words[ones]}"
+    return str(day)
+
 
 def normalise_for_speech(text: str, language: str = "en") -> str:
     """Rewrite text into the form it should be read aloud in.
@@ -150,10 +174,38 @@ def normalise_for_speech(text: str, language: str = "en") -> str:
     if pack.code == "en":
         out = re.sub(r"\b(\d{1,2}):(\d{2})\s?([ap]m)?\b", _time, out, flags=re.IGNORECASE)
 
-    # Version strings stay as digits but gain spoken dots.
+    # ISO dates, before the arithmetic rules get to them. "2024-01-15"
+    # otherwise came out as "two thousand twenty four-one-fifteen": the
+    # hyphens survived as literal characters, the leading zero was lost, and
+    # nothing named the month.
+    if pack.code == "en":
+        def _iso_date(match: re.Match[str]) -> str:
+            year, month, day = (int(g) for g in match.groups())
+            if not (1 <= month <= 12 and 1 <= day <= 31):
+                return match.group(0)
+            return f"{_MONTHS[month - 1]} {_ordinal(day)}, {_spell(year)}"
+
+        out = re.sub(r"\b(\d{4})-(\d{2})-(\d{2})\b", _iso_date, out)
+
+    # Digit strings that are identifiers, not quantities: phone numbers,
+    # order numbers, serials. "555-1234" was read as arithmetic --
+    # "five hundred and fifty five minus one thousand two hundred and
+    # thirty four" -- when the only correct reading is digit by digit.
+    def _digits(match: re.Match[str]) -> str:
+        spoken = [
+            " ".join(_spell(int(d)) for d in group)
+            for group in match.group(0).split("-")
+        ]
+        return " ".join(spoken)
+
+    out = re.sub(r"(?<![\w.])\d{3,}-[\d-]{3,}(?![\w.])", _digits, out)
+
+    # Version strings stay as digits but gain spoken dots. The pattern takes
+    # any number of components: it was fixed at three, so "1.2.3.4" was read
+    # as "one point two point three" followed by a literal ".4".
     out = re.sub(
-        r"\bv?(\d+)\.(\d+)(?:\.(\d+))?\b",
-        lambda m: f" {pack.point} ".join(_spell(int(g)) for g in m.groups() if g),
+        r"\bv?(\d+(?:\.\d+)+)\b",
+        lambda m: f" {pack.point} ".join(_spell(int(g)) for g in m.group(1).split(".")),
         out,
     )
 
