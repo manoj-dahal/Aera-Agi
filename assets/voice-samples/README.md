@@ -16,15 +16,15 @@ but never hear what it sounded like.
 | concerned | `anime-g-concerned.mp3` | `anime-b-concerned.mp3` | "Careful — that change looks risky. The database is unstable right now." |
 | sad | `anime-g-sad.mp3` | `anime-b-sad.mp3` | "I'm sorry. Unfortunately the deployment failed…" |
 | serious | `anime-g-serious.mp3` | `anime-b-serious.mp3` | "This is critical. A security vulnerability was found…" |
-| confident | `anime-g-confident.mp3` | *pending* | "Absolutely. I've verified it twice — this will work." |
-| curious | `anime-g-curious.mp3` | *pending* | "That's interesting. I wonder what happens if we try it the other way?" |
+| confident | `anime-g-confident.mp3` | `anime-b-confident.mp3` | "Absolutely. I've verified it twice — this will work." |
+| curious | `anime-g-curious.mp3` | `anime-b-curious.mp3` | "That's interesting. I wonder what happens if we try it the other way?" |
 
 Every pair speaks the **same line**, so the two characters compare directly:
 any difference you hear is the character, not the words.
 
-`anime-b-confident` and `anime-b-curious` are not yet rendered — the
-speech tool caps generation at ten clips per turn and they fell past it. They
-are the only two gaps and are named here rather than quietly omitted.
+Both characters are now complete at nine emotions each. `anime-b-confident`
+and `anime-b-curious` were blocked by the speech tool's ten-clip-per-turn cap
+when the rest were made, and were finished in the following turn.
 
 48 kHz MP3, roughly 1–3 seconds each. All verified distinct by SHA-256 and
 checked for a valid MP3 frame header, so none is a truncated or empty file.
@@ -119,7 +119,7 @@ curl localhost:8080/api/v1/voice/backends
 | `acoustics/` | 18 formant WAVs — both characters, all nine emotions |
 | `casting/` | 8 candidate voices, awaiting a choice |
 | `expression/` | Lines demonstrating negation, recovery and prosody |
-| `languages/` | The same greeting in six languages |
+| `languages/` | Fourteen languages, seven scripts |
 | `formant/` | Six earlier WAVs, kept for comparison |
 
 ---

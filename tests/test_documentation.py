@@ -859,11 +859,8 @@ class TestVoiceSamples:
             path.stem.replace(f"{character}-", "")
             for path in self.SAMPLES.glob(f"{character}-*.mp3")
         }
-        missing = set(emotions) - present
 
-        # anime-b-confident and anime-b-curious hit the per-turn generation
-        # cap. They are named in the README rather than quietly omitted.
-        assert missing <= {"confident", "curious"}, f"{character} is missing {missing}"
+        assert set(emotions) <= present, f"{character} is missing {set(emotions) - present}"
 
     @pytest.mark.parametrize("character", ["girl", "boy"])
     def test_the_formant_set_is_complete(self, character, emotions):
@@ -942,9 +939,75 @@ class TestVoiceSamples:
         for emotion in emotions:
             assert f"| {emotion} |" in readme, f"{emotion} is not documented"
 
-    def test_the_readme_admits_what_is_missing(self):
-        """The two clips the generation cap blocked are named, not omitted."""
+    def test_the_readme_names_every_file(self):
         readme = (self.SAMPLES / "README.md").read_text(encoding="utf-8")
 
-        assert "anime-b-confident" in readme
-        assert "pending" in readme
+        for path in sorted(self.SAMPLES.glob("anime-*.mp3")):
+            assert path.name in readme, f"{path.name} is not documented"
+
+
+class TestLanguageSamples:
+    """Recorded lines for the language packs.
+
+    The packs support 35 languages and the folder covered six, so the claim
+    "multilingual" rested almost entirely on code nobody could hear.
+    """
+
+    SAMPLES = ROOT / "assets" / "voice-samples" / "languages"
+
+    @pytest.fixture(scope="class")
+    def recorded(self) -> dict[str, str]:
+        return {
+            path.stem.split("-")[0]: path.stem.split("-")[1]
+            for path in self.SAMPLES.glob("*.mp3")
+        }
+
+    def test_every_recording_names_a_real_pack(self, recorded):
+        """A file for a language the engine does not support would be a
+        recording nothing can ever route to."""
+        from aera.voice.languages import PACKS
+
+        unknown = set(recorded) - set(PACKS)
+
+        assert not unknown, f"no language pack for: {sorted(unknown)}"
+
+    def test_the_set_is_broad(self, recorded):
+        assert len(recorded) >= 14
+
+    @pytest.mark.parametrize(
+        "script_group",
+        [
+            ["es", "fr", "de", "it", "pt"],   # Latin
+            ["ru"],                            # Cyrillic
+            ["ar"],                            # Arabic, right to left
+            ["hi", "ne"],                      # Devanagari
+            ["bn"],                            # Bengali
+            ["ta"],                            # Tamil
+            ["zh"],                            # Han
+            ["ja"],                            # Kana
+            ["ko"],                            # Hangul
+        ],
+    )
+    def test_each_script_family_is_represented(self, script_group, recorded):
+        """Nine writing systems, so the lip-sync readers are exercised by ear
+        and not only by unit test."""
+        assert any(code in recorded for code in script_group), (
+            f"no recording for any of {script_group}"
+        )
+
+    def test_every_recording_is_documented(self, recorded):
+        readme = (self.SAMPLES / "README.md").read_text(encoding="utf-8")
+
+        for code, character in recorded.items():
+            assert f"{code}-{character}.mp3" in readme, f"{code} is not in the table"
+
+    def test_the_readme_lists_what_is_still_missing(self):
+        """21 packs have no recording. Naming them is the difference between
+        an incomplete set and a set that looks complete."""
+        from aera.voice.languages import PACKS
+
+        readme = (self.SAMPLES / "README.md").read_text(encoding="utf-8")
+        recorded = {p.stem.split("-")[0] for p in self.SAMPLES.glob("*.mp3")}
+
+        for code in sorted(set(PACKS) - recorded):
+            assert f"`{code}`" in readme, f"{code} has no recording and is not listed"
