@@ -1,3 +1,8 @@
+# MADE By Manoj Dahal
+# Copyright (c) 2026 Manoj Dahal. All rights reserved.
+# Contact: info@manoj-dahal.com.np
+# AERA — Artificial Enhanced Reasoning Assistant
+
 """Stamp every source file with authorship and contact details.
 
 Run with ``python tools/attribution.py`` to apply, ``--check`` to verify.
@@ -63,6 +68,12 @@ EXCLUDED_FILES = {
     "interface/src/styles/globals.css",
     "interface/package-lock.json",
 }
+
+#: Files that carry the attribution in their own body, where a comment header
+#: would be redundant or wrong. LICENSE states the copyright holder and
+#: contact in the licence text itself; a "# MADE By" line above "MIT License"
+#: would be noise.
+SELF_ATTRIBUTING = {"LICENSE", "LICENSE.md", "LICENSE.txt", "NOTICE"}
 
 #: Binary and data formats where a comment would corrupt the file. JSON is
 #: here because the format has no comment syntax at all -- a "//" line makes
@@ -134,6 +145,9 @@ SLASH_SUFFIXES = {".ts", ".tsx", ".js", ".jsx", ".css", ".scss"}
 def is_excluded(path: Path) -> bool:
     relative = path.relative_to(ROOT).as_posix()
     if relative in EXCLUDED_FILES:
+        return True
+    if path.name in SELF_ATTRIBUTING:
+        # Still checked below for the author's name, just not comment-stamped.
         return True
     if path.suffix in SKIP_SUFFIXES:
         return True
@@ -305,6 +319,13 @@ def main() -> int:
             for p in candidates
             if MARKER not in p.read_bytes().decode("utf-8", "replace")
         ]
+        # The licence carries the attribution as prose rather than a header.
+        for name in sorted(SELF_ATTRIBUTING):
+            path = ROOT / name
+            if path.is_file():
+                body = path.read_text(encoding="utf-8")
+                if AUTHOR not in body or EMAIL not in body:
+                    missing.append(f"{name} (must name the author and contact)")
         if missing:
             print(f"{len(missing)} files are not attributed:")
             for name in missing[:20]:

@@ -702,3 +702,131 @@ class TestAttribution:
         )
 
         assert result.returncode == 0, result.stdout
+
+
+class TestShellScripts:
+    """The scripts the README tells a new user to run.
+
+    Every check here corresponds to something that was broken. The headline
+    one: ./scripts/build-desktop.sh could not work on a clean clone, because
+    installer/aera.spec refuses to package without the React interface and no
+    script anywhere ran npm. A reader following the README got the spec's
+    error telling them to go and do it by hand.
+    """
+
+    SCRIPTS = ROOT / "scripts"
+
+    @pytest.fixture(scope="class")
+    def build_desktop(self) -> str:
+        return (self.SCRIPTS / "build-desktop.sh").read_text(encoding="utf-8")
+
+    def test_every_script_is_syntactically_valid(self):
+        import subprocess
+
+        broken = []
+        for path in sorted(self.SCRIPTS.glob("*.sh")):
+            result = subprocess.run(
+                ["bash", "-n", str(path)], capture_output=True, text=True
+            )
+            if result.returncode != 0:
+                broken.append(f"{path.name}: {result.stderr.strip()}")
+
+        assert not broken, broken
+
+    def test_every_script_is_executable(self):
+        import stat
+
+        not_executable = [
+            path.name
+            for path in sorted(self.SCRIPTS.glob("*.sh"))
+            if not path.stat().st_mode & stat.S_IXUSR
+        ]
+
+        assert not not_executable, f"not executable: {not_executable}"
+
+    def test_every_script_fails_fast(self):
+        """Without `set -e` a failed step is skipped and the script still
+        reports success."""
+        missing = [
+            path.name
+            for path in sorted(self.SCRIPTS.glob("*.sh"))
+            if "set -euo pipefail" not in path.read_text(encoding="utf-8")
+        ]
+
+        assert not missing, f"no `set -euo pipefail` in: {missing}"
+
+    def test_the_desktop_build_builds_the_interface(self, build_desktop):
+        """The defect: aera.spec hard-fails without aera/desktop/ui-react,
+        and nothing in scripts/ ran npm."""
+        assert "npm" in build_desktop
+        assert "npm run build" in build_desktop
+
+    def test_the_interface_is_built_before_pyinstaller(self, build_desktop):
+        """Order matters: packaging first would fail every time."""
+        assert build_desktop.index("npm run build") < build_desktop.index("PyInstaller")
+
+    def test_it_checks_node_is_present_first(self, build_desktop):
+        """A missing Node should say so, not produce a stack trace."""
+        assert "command -v" in build_desktop
+        assert "nodejs.org" in build_desktop
+
+    def test_it_verifies_something_was_produced(self, build_desktop):
+        """PyInstaller can exit 0 having written nothing useful."""
+        assert "ARTIFACT" in build_desktop
+        assert "AERA.exe" in build_desktop
+
+    def test_install_provides_what_it_tells_you_to_run(self):
+        """install.sh installed [dev] only, then recommended `aera` -- which
+        launches the desktop app and imports pywebview. On a clean machine
+        that command failed with ModuleNotFoundError."""
+        import tomllib
+
+        text = (self.SCRIPTS / "install.sh").read_text(encoding="utf-8")
+        extras = tomllib.loads(
+            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )["project"]["optional-dependencies"]
+
+        assert "[dev,desktop]" in text
+        assert any("pywebview" in dep for dep in extras["desktop"])
+
+    def test_the_lint_step_can_actually_run(self):
+        """test.sh gated linting on `python -c 'import ruff'`. ruff is a
+        binary, not an importable module, so that always failed and the lint
+        step never ran once."""
+        text = (self.SCRIPTS / "test.sh").read_text(encoding="utf-8")
+        # Comments are stripped: the fixed script explains the old bug in
+        # prose, and matching raw text found that explanation rather than
+        # any code.
+        code = "\n".join(
+            line for line in text.splitlines() if not line.lstrip().startswith("#")
+        )
+
+        assert "import ruff" not in code, "the dead `python -c 'import ruff'` gate is back"
+        # ruff is invoked through a variable holding its resolved path, so
+        # match the arguments rather than a literal "ruff check".
+        assert "check aera/" in code
+
+    def test_the_lint_step_can_actually_fail(self):
+        """It ended in `|| true`, which discarded every finding."""
+        text = (self.SCRIPTS / "test.sh").read_text(encoding="utf-8")
+        lint = [
+            line
+            for line in text.splitlines()
+            if "check aera/" in line and not line.lstrip().startswith("#")
+        ]
+
+        assert lint
+        for line in lint:
+            assert "|| true" not in line, "the lint result is discarded"
+
+    def test_the_readme_test_count_is_not_stale(self):
+        """It claimed 331 for a long time."""
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+        assert "331 Python tests" not in readme
+
+    @pytest.mark.parametrize(
+        "script", ["install.sh", "run.sh", "test.sh", "build.sh", "build-desktop.sh", "clean.sh"]
+    )
+    def test_the_readme_only_advertises_scripts_that_exist(self, script):
+        assert (self.SCRIPTS / script).is_file()

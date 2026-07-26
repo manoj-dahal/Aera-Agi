@@ -243,7 +243,7 @@ which, and an import-time check asserts the claim matches the implementation.
 
 | Requirement | Target | Actual |
 |---|---|---|
-| Python tests pass | all | **1,948 passing, 2 skipped** |
+| Python tests pass | all | **1,965 passing, 2 skipped** |
 | Frontend tests pass | all | **294 passing** |
 | Lint clean | no findings | `ruff check` clean |
 | Type-check clean | no errors | `tsc --noEmit` clean |

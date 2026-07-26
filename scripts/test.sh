@@ -13,7 +13,14 @@ PY="$([ -x "$VENV/bin/python" ] && echo "$VENV/bin/python" || echo python3)"
 echo "==> Tests"
 "$PY" -m pytest "$@"
 
-if "$PY" -c 'import ruff' 2>/dev/null || [ -x "$VENV/bin/ruff" ]; then
+# ruff ships as a binary, not an importable module: the old check was
+# `python -c 'import ruff'`, which always fails, so linting never ran here.
+# And `|| true` discarded the result, so it could not have failed the script
+# even when it did run.
+RUFF="$([ -x "$VENV/bin/ruff" ] && echo "$VENV/bin/ruff" || command -v ruff || true)"
+if [ -n "$RUFF" ]; then
   echo "==> Lint"
-  "$VENV/bin/ruff" check aera/ tests/ || true
+  "$RUFF" check aera/ tests/ tools/ installer/
+else
+  echo "==> Lint skipped: ruff is not installed (pip install -e \".[dev]\")"
 fi

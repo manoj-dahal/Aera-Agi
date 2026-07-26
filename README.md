@@ -10,7 +10,7 @@
 with a persistent memory graph, multi-agent orchestration and local-first model
 routing.
 
-[![tests](https://img.shields.io/badge/tests-1948%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1965%20passing-brightgreen)]()
 [![python](https://img.shields.io/badge/python-3.11%2B-blue)]()
 [![desktop](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-7c5cff)]()
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)]()
@@ -51,8 +51,11 @@ want production-grade generation.
 Build a self-contained app that needs no Python on the target machine:
 
 ```bash
-./scripts/build-desktop.sh
+./scripts/build-desktop.sh          # builds the interface, then the executable
 ```
+
+Node 20 or newer is required: the script builds the React interface first,
+because the PyInstaller spec refuses to package without it.
 
 | Platform | Output | Webview runtime |
 |---|---|---|
@@ -390,7 +393,7 @@ values only.
 ## Testing
 
 ```bash
-./scripts/test.sh                    # 331 Python tests
+./scripts/test.sh                    # 1,965 Python tests, then ruff
 cd interface && npm test             # 25 TypeScript tests
 pytest tests/test_memory.py -v       # one module
 ```
@@ -409,7 +412,7 @@ pytest tests/test_memory.py -v       # one module
 | `test_languages.py` | 252 | 35 language packs, per-language numbers, cue sweep |
 | `test_scripts.py` | 187 | visemes across 9 writing systems, script detection |
 | `test_music.py` | 124 | syllables, metre, rhyme, tempo, scales, note plans |
-| `test_documentation.py` | 163 | every documented count and the agent roster asserted against the code |
+| `test_documentation.py` | 180 | every documented count and the agent roster asserted against the code |
 | `test_phonetics.py` | 47 | spoken-form normalisation, grapheme visemes |
 | `test_expression.py` | 49 | mood decay, negation scope, prosody, SSML |
 | `test_voice_personas.py` | 56 | anime-g / anime-b acoustics, per-emotion timbre |
@@ -453,7 +456,7 @@ docs/             the original design specification (108 documents)
 scripts/          install, run, test, build, build-desktop, clean
 tools/brand/      regenerates the brand assets from code
 tools/meshgen/    placeholder hologram meshes
-tests/            331 Python tests
+tests/            1,965 Python tests
 ```
 
 ---

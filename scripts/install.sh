@@ -19,7 +19,10 @@ echo "==> Creating virtualenv at $VENV"
 
 echo "==> Installing dependencies"
 "$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet -e ".[dev]"
+# [desktop] as well as [dev]: bare `aera` launches the desktop application,
+# which imports pywebview. Installing only [dev] left the command this script
+# recommends failing with ModuleNotFoundError on a clean machine.
+"$VENV/bin/pip" install --quiet -e ".[dev,desktop]"
 
 echo "==> Preparing runtime directories"
 mkdir -p storage/logs storage/cache storage/temp
@@ -31,9 +34,14 @@ cat <<MSG
   AERA installed.
 
     source $VENV/bin/activate
+    aera                  # desktop application
     aera serve            # dashboard at http://localhost:8080
     aera repl             # interactive terminal session
     pytest -q             # run the test suite
+
+  To build a standalone executable (needs Node 20+ for the interface):
+
+    ./scripts/build-desktop.sh
 
   No API keys are required: AERA runs offline on the built-in reasoner.
   For a full local LLM, install Ollama and run 'ollama serve'.
