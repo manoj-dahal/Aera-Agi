@@ -157,6 +157,13 @@ class VoiceSection(BaseModel):
     speech_speed: float = 1.0
     pitch: float = 1.0
     volume: int = 100
+    #: Voice persona: anime-g, anime-b or aera. Follows the active avatar
+    #: variant when persona_follows_avatar is on.
+    persona: str = "aera"
+    persona_follows_avatar: bool = True
+    #: Write WAV files for synthesised speech. Off by default: the bundled
+    #: synthesiser is a vocoder, not a speech engine.
+    write_audio: bool = False
 
 
 class WorkspaceSection(BaseModel):

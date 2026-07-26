@@ -206,12 +206,25 @@ async def set_active(
     """Choose which model the hologram renders."""
     library = _library(kernel)
     model = library.set_active(model_id)
+
+    # Selecting the anime-g model should also make it sound like anime-g.
+    voice = None
+    if getattr(kernel.config.voice, "persona_follows_avatar", False):
+        voice = kernel.use_avatar_voice(model.variant.value)
+
     await kernel.bus.publish(
         "avatar.model.changed",
-        {"id": model.id, "name": model.name, "kind": model.kind.value},
+        {
+            "id": model.id,
+            "name": model.name,
+            "kind": model.kind.value,
+            "voice": voice["id"] if voice else None,
+        },
         source="hologram",
     )
-    return ok(model.to_dict(), f"Active avatar: {model.name}")
+    payload = model.to_dict()
+    payload["voice"] = voice
+    return ok(payload, f"Active avatar: {model.name}")
 
 
 @router.get("/{model_id}")

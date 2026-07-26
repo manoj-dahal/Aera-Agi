@@ -160,7 +160,16 @@ class Kernel:
         )
 
         # -- voice + hologram ---------------------------------------------
-        self.voice = VoiceEngine(cfg.voice, bus=self.bus)
+        from ..voice.personas import PersonaTTS, get_persona
+
+        self.voice = VoiceEngine(
+            cfg.voice,
+            bus=self.bus,
+            tts=PersonaTTS(
+                get_persona(cfg.voice.persona),
+                output_dir=(cfg.storage_dir / "speech") if cfg.voice.write_audio else None,
+            ),
+        )
 
         # User-supplied avatar models. AERA ships none of its own; drop a GLB
         # or OBJ into this directory and it is discovered on scan.
@@ -168,6 +177,9 @@ class Kernel:
         discovered = self.avatars.scan()
         if discovered:
             logger.info("avatar models available: %d", len(discovered))
+        # An anime-g model should sound like anime-g without being told twice.
+        if cfg.voice.persona_follows_avatar and self.avatars.active is not None:
+            self.use_avatar_voice(self.avatars.active.variant.value)
 
         # Files the user handed over previously; the index lives in memory, so
         # it has to be rebuilt from disk on every start.
@@ -282,6 +294,25 @@ class Kernel:
         if agent:
             task.context["force_agent"] = agent
         return await self.registry.dispatch(task, agent_name="core")
+
+    def use_voice_persona(self, persona_id: str) -> dict[str, Any]:
+        """Switch the speaking voice.
+
+        Only affects backends that understand personas; a third-party TTS is
+        left alone rather than being handed settings it cannot use.
+        """
+        from ..voice.personas import PersonaTTS, get_persona
+
+        persona = get_persona(persona_id)
+        if isinstance(self.voice.tts, PersonaTTS):
+            self.voice.tts.use(persona)
+        return persona.to_dict()
+
+    def use_avatar_voice(self, variant: str | None) -> dict[str, Any]:
+        """Adopt the voice belonging to an avatar variant."""
+        from ..voice.personas import persona_for_variant
+
+        return self.use_voice_persona(persona_for_variant(variant).id)
 
     async def prime_context(self, *, conversation_id: str | None = None) -> dict[str, Any]:
         """Run the tap-to-memory workflow (see TapMemoryWorkflow)."""

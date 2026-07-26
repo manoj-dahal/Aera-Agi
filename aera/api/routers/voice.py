@@ -91,3 +91,87 @@ async def avatar_gesture(payload: AvatarGestureRequest, hologram=Depends(get_hol
 @avatar_router.post("/animation")
 async def avatar_animation(hologram=Depends(get_hologram)):
     return ok(hologram.idle_frame(), "Idle frame")
+
+
+# --------------------------------------------------------------------------- #
+# personas
+# --------------------------------------------------------------------------- #
+@voice_router.get("/personas")
+async def list_personas(kernel=Depends(get_kernel_dep)):
+    """Available voices, and which one is speaking.
+
+    Reports the bundled synthesiser's limitation alongside them, so a caller
+    knows what the audio will and will not contain.
+    """
+    from ...voice.personas import FORMANT_NOTE, PERSONAS, PersonaTTS
+
+    backend = getattr(kernel.voice, "tts", None)
+    active = backend.persona.id if isinstance(backend, PersonaTTS) else None
+
+    return ok(
+        {
+            "personas": [p.to_dict() for p in PERSONAS.values()],
+            "active": active,
+            "engine": getattr(backend, "name", "unknown"),
+            "synthesises_speech": False,
+            "note": FORMANT_NOTE,
+        }
+    )
+
+
+@voice_router.post("/personas/{persona_id}")
+async def set_persona(persona_id: str, kernel=Depends(get_kernel_dep)):
+    """Choose the speaking voice, e.g. anime-g or anime-b."""
+    from ...core.errors import ValidationError
+    from ...voice.personas import PERSONAS
+
+    key = persona_id.strip().lower()
+    if key not in PERSONAS:
+        raise ValidationError(
+            f"unknown persona '{persona_id}'",
+            details={"available": sorted(PERSONAS)},
+        )
+
+    persona = kernel.use_voice_persona(key)
+    return ok(persona, f"Voice set to {persona['label']}")
+
+
+@voice_router.post("/preview")
+async def preview_persona(
+    persona_id: str,
+    text: str = "Hello, I am AERA. How can I help you today?",
+    emotion: str | None = None,
+    kernel=Depends(get_kernel_dep),
+):
+    """Render a sample line in one persona without changing the active voice.
+
+    Lets the settings UI audition a voice before committing to it.
+    """
+    from ...core.errors import ValidationError
+    from ...voice.engine import Emotion
+    from ...voice.personas import FORMANT_NOTE, PERSONAS, get_persona, synthesize_wav
+
+    if persona_id.strip().lower() not in PERSONAS:
+        raise ValidationError(
+            f"unknown persona '{persona_id}'", details={"available": sorted(PERSONAS)}
+        )
+
+    persona = get_persona(persona_id)
+    mood = Emotion(emotion) if emotion else Emotion.NEUTRAL
+    directory = kernel.config.storage_dir / "speech"
+    path, duration_ms, visemes = synthesize_wav(
+        text, persona, emotion=mood, path=directory / f"preview-{persona.id}.wav"
+    )
+
+    return ok(
+        {
+            "persona": persona.to_dict(),
+            "emotion": mood.value,
+            "pitch_hz": round(persona.pitch_for(mood), 1),
+            "speed": round(persona.speed_for(mood), 3),
+            "duration_ms": duration_ms,
+            "visemes": len(visemes),
+            "audio_path": str(path) if path else None,
+            "note": FORMANT_NOTE,
+        }
+    )
